@@ -38,6 +38,8 @@ _commandMEMD:
 
 	; Check arg2
 	mov byte bl, [PARSER_ARG2_LENGTH]
+	cmp bl, 4
+	jg .err2
 	mov esi, PARSER_ARG2
 	call UTILITY_HEX_STRINGtoINT		; EAX = conversion.
 	jc .err2

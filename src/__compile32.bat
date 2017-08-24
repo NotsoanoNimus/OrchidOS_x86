@@ -9,9 +9,6 @@ CLS
 :: Compile OS source into raw binaries with NASM.
 echo ======================================
 echo Compiling Operating System binaries...
-del /f /q "..\bin\boot.bin"
-del /f /q "..\bin\boot2.bin"
-del /f /q "..\bin\kernel.bin"
 nasm "BOOT.asm" -f bin -o "..\bin\boot.bin"
 nasm "BOOT_ST2.asm" -f bin -o "..\bin\boot2.bin"
 nasm "KERNEL.asm" -f bin -o "..\bin\kernel.bin"

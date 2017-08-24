@@ -1,5 +1,5 @@
 ; COLOR.asm
-; -- Change the user's text input color.
+; -- Change the user's text input color. Is slightly problematic when interacting with screen wrapper functions.
 
 szCOLORSyntax       db "SYNTAX: Enter a two-digit, 8-bit hex# (ex: 4E). The digits cannot be the same.", 0
 szCOLORSyntax2      db " ---> The default color is 0F. See the orchid documentation for more info.", 0

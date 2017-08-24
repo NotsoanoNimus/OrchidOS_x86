@@ -1,6 +1,6 @@
 ; BOOT.asm
 ; -- For now, this project assumes that this boot-sector is placed in an MBR of a disk, not a VBR.
-; -- Gets sector/cluster information about the disk and fills
+; ---- TODO: Get sector/cluster information about the disk and fill in the BPB dynamically (need a disk driver to write it to the sector).
 [ORG 0x7C00]
 [BITS 16]
 
@@ -8,12 +8,11 @@ jmp short _globalBootStart		; "EB xx 90"
 nop
 
 ; BIOS Parameter Block.
-; --- Often useful because it lays out the boot media information.
 ; --- TODO: Initialize these values in the boot sector, use them later when a FS driver is implemented to back-format the media.
 bpbOEM			db "ORCHID  "		; must be exactly 8 chars (bytes).
 bpbBytesPerSect dw 0x0200			; block size = 512
 bpbSectPerClust db 0x20				; 32 sectors per cluster (16 KiB clusters are typical for a 1GB drive)
-bpbReservedSect dw KERNEL_SIZE_SECTORS+3		; For now, 67 sectors are used by the kernel, ST2, and BL. CHANGE LATER AS KERNEL GROWS.
+bpbReservedSect dw KERNEL_SIZE_SECTORS+3		; For now, 67 sectors are used by the kernel, ST2, and BL. CHANGES AS KERNEL GROWS.
 bpbFATs			db 0x02				; There will be two FATs.
 bpbRootDirs		dw 0x0200			; Total # of file name entries that can be stored in the root dir. 512 for now = a cluster.
 bpbTotalSectors dw 0x0000			; not using this one. The USB stick is >32MB long (bs=512b).
@@ -43,14 +42,14 @@ mov gs, ax
 cli
 mov ss, ax
 mov ax, 0x7C00
-mov sp, ax
+mov sp, ax		; Stack grows downward from 0x7C00.
 sti
 
 mov [bDrive], dl			; Capture the drive number.
 mov dword [BOOT_ERROR_FLAGS], 0x00000000	; Set bootloader error flags all off.
 
-call A20_setup
-call _bootLoadKernel		; load stage-two loader into memory and //fill BPBTableBase section//.
+call A20_setup				; fast-enable the A20. Not necessary for target systems, but kept JIC.
+call _bootLoadKernel		; load stage-two loader into memory and //(tentative) fill BPBTableBase section//.
 
 
 ;Call the stage 2 bootloader.
@@ -59,7 +58,7 @@ cli						; Keep interruptions away until IDT is loaded by the kernel soon.
 lgdt [gdt_descriptor]	; Load up the GDT!
 
 mov dl, [bDrive]
-jmp KERNEL_SEGMENT_OFFSET
+jmp STAGE_TWO_OFFSET
 
 
 
@@ -75,13 +74,13 @@ _bootLoadKernel:
 	mov dl, [bDrive]
 	mov si, DiskAddrPkt
 
-	int 0x13		; Read the disk into memory at phys addr 0x10000
+	int 0x13		; Read the disk into memory at phys addr 0x1000
 	jc .errorRead
 
 	pop si
 	ret
 
- .errorRead:		; try again with legacy int 13h.
+ .errorRead:		; Problem? Try again with legacy int 13h.
 	pop si
 	clc
     xor bx, bx      ; ES:BX = 0x0000:0x1000 = PA 0x1000
@@ -102,7 +101,7 @@ _bootLoadKernel:
 	jmp $
 
 
-; Print a string in Real Mode. Probably not needed anymore. Should keep for disk errors, though.
+; Print a string in Real Mode.
 _Bootloopstr:
 	lodsb
 	or al, al
@@ -125,21 +124,16 @@ A20_setup:
  .a20_activated:
 	ret
 
- .a20_failed:
- 	mov si, szA20Err
-	call _Bootloopstr
-	jmp $
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;; DATA ;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; GDT. This can be moved to ST2 if the MBR needs space.
 ALIGN 16
 GDT:
  .null_S:					;8-byte padding, NULL_DESCRIPTOR
 	dd 0x0
 	dd 0x0
-
  .data_S: equ $ - GDT		;8-byte entry, DATA_SELECTOR (flat)
 	dw 0xFFFF				;Limit 0-15
 	dw 0x0000				;Base 0-15
@@ -147,7 +141,6 @@ GDT:
 	db 10010010b			;ACCESS BYTE --> Pr, Ring 0, NoEx, Dir ^, isRW, notAc
 	db 11001111b			;FLAGS (7-4: 4KiB, 32-bit); LIMIT(16-19=0-3)
 	db 0x00					;Base 24-31
-
  .code_S: equ $ - GDT		;8-byte entry, CODE_SELECTOR (32-bit)
 	dw 0xFFFF				;Limit 0-15
 	dw 0x0000				;Base 0-15
@@ -155,7 +148,6 @@ GDT:
 	db 10011010b			;ACCESS BYTE --> Pr, Ring 0, isEx, Dir ^, isRW, notAc
 	db 11001111b 			;FLAGS(7-4: 4KiB, 32-bit); LIMIT(16-19=0-3)
 	db 0x00					;Base 24-31
-
  .userData_S: equ $ - GDT	;8-byte entry, USER_DATA_SELECTOR (32-bit)
 	dw 0xFFFF
 	dw 0x0000
@@ -163,15 +155,13 @@ GDT:
 	db 11110010b			;ACCESS BYTE --> Pr, Ring 3, NoEx, Dir ^, isRW, notAc
 	db 11001111b
 	db 0x00
-
  .userCode_S: equ $ - GDT	;8-byte entry, USER_CODE_SELECTOR (32-bit)
 	dw 0xFFFF
 	dw 0x0000
 	db 0x00
-	db 11111010b
+	db 11111010b			;ACCESS BYTE --> Pr, Ring 3, isEx, Dir ^, isRW, notAc
 	db 11001111b
 	db 0x00
-
  .RMData_S: equ $ - GDT	;8-byte entry, REAL_MODE_DATA_SELECTOR (16-bit)
  	dw 0xFFFF				;Limit 0-15
 	dw 0x0000				;Base 0-15
@@ -179,7 +169,6 @@ GDT:
 	db 10010010b			;ACCESS BYTE --> Pr, Ring 0, NoEx, Dir ^, isRW, notAc
 	db 00001111b			;FLAGS (7-4: 1B Gran, 16-bit); LIMIT(16-19=0-3)
 	db 0x00					;Base 24-31
-
  .RMCode_S: equ $ - GDT	;8-byte entry, REAL_MODE_CODE_SELECTOR (16-bit)
 	dw 0xFFFF				;Limit 0-15
    	dw 0x0000				;Base 0-15
@@ -187,7 +176,6 @@ GDT:
    	db 10011010b			;ACCESS BYTE --> Pr, Ring 0, isEx, Dir ^, isRW, notAc
    	db 00001111b			;FLAGS (7-4: 1B Gran, 16-bit); LIMIT(16-19=0-3)
    	db 0x00					;Base 24-31
-
 gdt_descriptor:				; DESCRIPTOR = WORD(size-1), followed by DWORD(offset -> address of table)
 	dw $ - GDT - 1			;16-bit size
 	dd GDT					;32-bit start address
@@ -202,23 +190,15 @@ DiskAddrPkt:
 	dd 0x00000001		; Sector 1 (right after MBR)
 	dd 0x00000000
 
-; This is the offset at which we will load the kernel into memory.
-;	See "_bootLoadKernel" function below.
-KERNEL_SEGMENT_OFFSET 	equ 0x1000
-KERNEL_OFFSET			equ 0x10000
-KERNEL_SIZE_SECTORS		equ 0x0040
-
+STAGE_TWO_OFFSET	 	equ 0x1000		; PA for ST2.
+KERNEL_SIZE_SECTORS		equ 0x0040		; Used in BPB.
 BOOT_ERROR_FLAGS		equ 0x0FFC		; Error flags for startup. DWORD of bit-flags. Right underneath the ST2L.
-
-; String data, will be deleted if space is needed.
-szA20Err 				db "A20 error", 0
 szDiskReadError 		db "Disk read error", 0
-;szMemErr				db "MemRead error", 0
 bDrive 					db 0
 
+; Reserve space for disk partition information.
 times 0x1B4-($-$$) db 0x90	;nop
-
-UID db "ORCHID 0.3"		; Unique ID for disk (unused).
+UID db "ORCHID 0.3"		; Unique ID for disk (unused mostly, just put it there).
 PT1 times 16 db 0		; Partition entry 1
 PT2 times 16 db 0		; ...
 PT3 times 16 db 0		; ...

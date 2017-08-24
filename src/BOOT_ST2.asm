@@ -1,5 +1,6 @@
 ; BOOT_ST2.asm
-; --- Second-stage loader.
+; --- Second-stage loader for the orchid kernel.
+; --- Performs real-mode operations that the MBR has no space for.
 [ORG 0x1000]
 [BITS 16]
 cli
@@ -106,13 +107,8 @@ BOOT_memInfo:
 	;add di, 24					; next place
 	mov WORD [es:di], bp		; Store the array size.
 	add di, 2
-	mov WORD [es:di], 0x1234	; 0x1234xxxx signature, showing the end of the memory table.
-	; xxxx = sizeof MEM_INFO. Found by checking the SECOND WORD of every table against 0x1234
-	jne .overTest
-	mov esi, szReadVESAFailure
-	call _realModePrint
-	jmp $
- .overTest:
+	mov WORD [es:di], 0x1234	; 0x1234xxxx signature, showing the end of the memory table. xxxx = sizeof MEM_INFO.
+
 	clc
 	popad
 	jmp near BOOT_videoInfo
@@ -138,7 +134,7 @@ BOOT_videoInfo:
 	int 0x10
 	cmp ax, 0x004F						; does it work?
 	jne .errorVESA
-	cmp dword [VGA_INFORMATION], "VESA"	; little-endian "VESA"
+	cmp dword [VGA_INFORMATION], "VESA"	; "VESA"
 	jne .errorVESA						; if neq "VESA", then VESA isn't supported. Console mode.
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -157,12 +153,15 @@ BOOT_videoInfo:
 	; * 256 bytes: OEM BIOSes store their strings here.
 
 	; Video Modes = an array of 16-bit WORDs that say which modes are supported. Terminated by 0xFFFF.
-	; PROCESS: (2 [was 1]) Get info about preferred video mode (stored near 0x800). (1 [was 2]) Check for support in VMA.
-	; -------- (3) Activate video mode. (4) GUI programs and graphics drivers are based on a SCALE, not depending on a certain resolution.
-	; !!! We are going to shoot for Mode 0x0118, since it is supported by most, if not all, computers this will be run on.
-	; TEMP-FIX: Fall-back to VESA will be starting in Shell mode, telling user that the video mode used by Orchid is not supported on current hardware.
+	; PROCESS: (1) Check for support in VMA.
+    ; -------- (2) Get info about preferred video mode (stored near 0x800).
+	; -------- (3) Activate video mode.
+    ; -------- (4) GUI programs and graphics drivers are based on a SCALE, not depending on a certain resolution.
+	; Try for Mode 0x0118, since it is supported by most, if not all, computers this will be run on.
+	; TEMP-FIX: Fall-back to VESA will be starting in Shell mode, telling user that the video mode
+    ; ... used by Orchid is not supported on current hardware.
 
-	; Search the VESA_MODES_ARRAY for our mode. CX = index into array.
+	; Search the VESA_MODES_ARRAY for the mode. CX = index into array.
 	push es
 	push dx
 	mov word es, [VGA_INFORMATION+0x10]		;SEGMENT
@@ -182,14 +181,12 @@ BOOT_videoInfo:
 	pop dx
 	pop es
 
-	; Found our mode! Let's get some info and load it up!
+	; Found mode! Let's get some info and load it up!
 	mov di, VESA_CURRENT_MODE_INFO		; 256-byte buffer.
 	push di
 	xor ax, ax
 	mov cx, 0x80						; 128 WORDs to clean
- .cleanBuffer2:
-	stosw
-	loop .cleanBuffer2
+    rep stosw
 
 	; Get info about VESA_DESIRED_MODE and put it at VESA_CURRENT_MODE_INFO
 	pop di
@@ -201,7 +198,7 @@ BOOT_videoInfo:
 	jne .errorVESA
 	; Guarantee Linear Framebuffer support.
 	mov word ax, [VESA_CURRENT_MODE_INFO]
-	and ax, 0x00F0	;0000 0000 1000 0000 --> testing bit 7 (LFB)
+	and ax, 0x0080	;0000 0000 1000 0000 --> testing bit 7 (LFB)
 	or ax, ax
 	jz .errorVESA
 
@@ -215,26 +212,22 @@ BOOT_videoInfo:
 	; SUCCESS!!!!! Flag our kernel, tell it we're in GUI mode.
 	mov DWORD [BOOT_ERROR_FLAGS], 0x00000001
 
-	; Comment out to access SHELL_MODE
+	; Comment out to access SHELL_MODE directly.
 	; |
 	; |
 	; V
 	;jmp BOOT_protectedMode
 
  .errorVESA:
-	; Something went wrong initiating our GUI. Go to shell mode.
+	; Something went wrong initiating the GUI video mode. Go to shell mode.
 	mov DWORD [BOOT_ERROR_FLAGS], 0x00000000
 	xor ax, ax				; al = 00h & ah = 00h
-	mov al, 03h				; testing diff video modes, 03h has been best
+	mov al, 03h				; Mode 03h, 80*25
 	int 0x10				; set mode
 	jmp BOOT_protectedMode
 
 
 BOOT_protectedMode:
-;mov eax, cr0			; Edit bit 0 in the CR0 register
-;or eax, 0x1				; to put us into
-;mov cr0, eax			; protected mode
-
 smsw ax
 or ax, 0x1
 lmsw ax
@@ -254,7 +247,7 @@ _bootInitializeSegments:
 	mov esp, ebp
 	; Jump out of stage-2 loader.
 	jmp KERNEL_OFFSET
-	jmp $
+	hlt    ; should never reach here.
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -333,9 +326,10 @@ SYSTEM_BSOD_enterRealMode:
 	lidt [REALMODE_IVT]       ; Reload the original BIOS IVT.
 	sti                       ; Enable its interrupts.
 
+    ; Set video mode 03h.
 	xor ah, ah
  	mov al, 0x03
-	int 0x10		          ; Set video mode to mode 03h.
+	int 0x10
 
     ; clear the screen.
     mov ah, 0x1F
@@ -361,12 +355,10 @@ SYSTEM_BSOD_enterRealMode:
     mov si, szBSODCrash3
     mov di, 0x0A2E
     call SYSTEM_BSOD_screenOut
-
 	cli
     hlt
 
-
-SYSTEM_BSOD_screenOut:
+SYSTEM_BSOD_screenOut:  ; just a basic real-mode string-printing function.
     mov ah, 0x1F
  .contPrint:
     lodsb
@@ -377,16 +369,13 @@ SYSTEM_BSOD_screenOut:
  .leaveCall:
     ret
 
-
 szBSODCrash1        db "Oh no!", 0
 szBSODCrash2        db "Orchid has encountered a fatal error: 0x"
 szBSODCode          db "00000000", 0
 szBSODCrash3        db "--- Please restart your system ---", 0
-
 REALMODE_IVT:
 	dw 0x03FF		;256 entries @ 4b each = 1KiB
 	dd 0x00000000	; RealMode IVT is at 0x0000
-
 SYSTEM_BSOD_ERROR:  ; Pointer is referenced in Kernel as SYSTEM_BSOD_ERROR_CODE. This holds an ASCII rep of the err code.
     dd 0x00000000
     dd 0x00000000

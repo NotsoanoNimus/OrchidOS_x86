@@ -6,6 +6,7 @@ See the /docs/ folder for more specific information about each command, the pars
 
 ## TO-DO
 - <strike>Optimize old commands by centralizing some utility functions.</strike>
+- Finish exception-handling and basic IDT hooks.
 - Add USB driver to read mass-storage devices.
 - File system based on FAT16, or some customized variant of it.
 - ELF binary support.

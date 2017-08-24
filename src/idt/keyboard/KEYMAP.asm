@@ -22,21 +22,6 @@
 _keyboardMapping:	; start with actual key chars first, special chars last
 	push ebx
 
-	cmp al, 0xF0	;LSHIFT released
-	jne _keyboardMapping.not0xF0
-	in al, KEYBOARD_DATA	; read key from buffer
-	cmp al, 0x2A
-	jne .not0xF0
-	and byte [bKEYBOARDSTATUS], 11111101b	;clear bit 1
-	jmp _keyboardMapping.returnShift
- .not0xF0:
-; 	cmp al, 0xB6
-;	jne _keyboardMapping.not0xB6
-;	mov al, 0x15	; Same code as RSHIFT press, but this will toggle the bShiftOn off
-;	and byte [bKEYBOARDSTATUS], 11111101b		;clear bit 2
-;	jmp _keyboardMapping.return
-; .not0xB6:
-
 	; LEFT SHIFT
 	cmp al, 0x2A
 	jne _keyboardMapping.not0x2A

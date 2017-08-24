@@ -1,3 +1,6 @@
+; CLS.asm
+; -- Clear the screen.
+
 
 _commandCLS:
 	pushad
@@ -6,4 +9,3 @@ _commandCLS:
 	call _screenUpdateCursor
 	popad
 	ret
-	

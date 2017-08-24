@@ -7,6 +7,7 @@
 ; 	EAX = DWORD number to convert.
 ; NO OUTPUTS.
 ; -- Outputs an ASCII representation of a hex value into the buffer specified.
+; ---- This function will be consolidated eventually, in the same manner as UTILITY_HEX_STRINGtoINT.
 UTILITY_DWORD_HEXtoASCII:
 	cmp byte [currentMode], SHELL_MODE
 	jne .leaveCall
@@ -261,7 +262,7 @@ UTILITY_HEX_STRINGtoINT:
 ;	ARG1: AX = error code. (LOW WORD OF DWORD FROM STACK)
 ; NO OUTPUTS.
 ; -- System Blue-Screen-Of-Death. Bad crash. :(  Goes back to Real Mode to display crash message.
-; ---- This will be JMPed to (NOT CALLED) on irrecoverable IDT software IRQs.
+; ---- This will be JMPed to (NOT CALLED) on irrecoverable IDT software IRQs & crashes.
 iBSODErrASCII	dd 0x00000000
 				dd 0x00000000
 SYSTEM_BSOD:
@@ -271,14 +272,9 @@ SYSTEM_BSOD:
 	mov al, 0xFF
 	out PIC2_DATA, al
 
-	mov dword eax, [esp]
-	;and eax, 0x0000FFFF		; Force low WORD.
-	mov esi, iBSODErrASCII+8
+	mov dword eax, [esp]		; Get the pushed error code.
+	mov esi, SYSTEM_BSOD_ERROR_CODE+8	; Map it to the memory at the end of ST2.
 	call UTILITY_DWORD_HEXtoASCII
-	mov edi, SYSTEM_BSOD_ERROR_CODE
-	mov esi, iBSODErrASCII
-	movsd		; Put ASCII representation into memory at SYSTEM_BSOD_ERROR_CODE.
-	movsd
 
 	;Regress to Real Mode. No need to save CR0 since the computer has crashed.
 	cli

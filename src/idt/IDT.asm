@@ -322,6 +322,7 @@ PIC_remap:		; bh = offsetMaster, bl = offsetSlave
 	ret
 
 
+; This was originally ripped from someone else's idea. It has since been deprecated and now just stands as a Placeholder.
 isr_common:
 	;mov ax, ds				; ax = current data segment selector
 	;push eax				; saved onto the stack (4 bytes)
@@ -347,6 +348,8 @@ isr_common:
 	ret
 
 
+; Deprecated as well, no longer using this but it will still show
+; ... on debug/Divby0 errors until they get their own dedicated ISR hooks.
 isr_handler:
 	pushad
 	push edx

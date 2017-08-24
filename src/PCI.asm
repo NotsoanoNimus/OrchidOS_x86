@@ -61,6 +61,7 @@ PCI_getDevicesInfo:
 	pop edi
 	ret
 
+; This function may remain unused, since the checkBus function has become so efficient.
 PCI_INTERNAL_destroyDuplicates:
 	pushad
 
@@ -109,7 +110,6 @@ PCI_INTERNAL_destroyDuplicates:
 ; OUTPUTS:
 ;	AX = WORD read from CONFIG_DATA
 ; -- Reads from the configuration port on the PCI bus. A return WORD of FFFFh means the device does not exist.
-;szTellPCIOutput db "0x00000000", 0
 PCI_configReadWord:
 	push ebx
 	push ecx

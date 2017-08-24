@@ -6,9 +6,8 @@
 _screenCLS:
 	pushad
 	mov edi, 0xB80A0
-	;mov ecx, 0x03E8
 	mov ecx, 0x0F00
-	mov eax, 0x0F200F20
+	mov eax, 0x0F200F20		;black bg, white fg -- spaces.
 	rep stosd
 	popad
 	ret
@@ -18,12 +17,9 @@ _screenScroll:
 	pushad
 
 	xor eax, eax
-	;mov esi, 0xB80A0; Start collecting data at row 2
-	;mov edi, 0xB8000; Place that data to the previous row
 	mov esi, 0xB8140; Start collecting data at row #2 (technically 3)
 	mov edi, 0xB80A0; Place that data to the previous row
 	mov ecx, 0x1040	; 160 chars per row, 26 rows (grabbing any overflows)
-	;mov ecx, 0x0DC0		; 160 chars per row, 22 rows
  .repeatScroll:
 	lodsb			; load BYTE from ESI
 	stosb			; store it into EDI
@@ -34,9 +30,6 @@ _screenScroll:
 	mov ah, [DEFAULT_COLOR]
 	mov al, 0x20
 	rep stosw
-	;mov ecx, 0x28	;40 DWORDs (160)
-	;mov eax, 0x0F200F20
-	;rep stosd
 
 	; Put cursor at pos 0,24
 	mov bx, 0x0018	;column 0, row 24
@@ -99,7 +92,7 @@ _screenUpdateCursor:;BL = row, BH = column
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-_screenWrite:	; (ARG1)ESI = string index, EDX = [screenOffset], (ARG2)BL = color attrib
+_screenWrite:	; (ARG1)ESI = string index, (ARG2)BL = color attrib
 	pushad
 	xor edx, edx
 	mov edi, 0x0B8000
@@ -142,7 +135,6 @@ _screenWrite:	; (ARG1)ESI = string index, EDX = [screenOffset], (ARG2)BL = color
  .return:
 	mov bx, dx
 	call _screenUpdateCursor
-	;mov word [cursorOffset], dx
 	popad
 	ret
 
@@ -208,7 +200,6 @@ _screenPrintChar:	; ah = color attrib, al = char
 
 	inc cx	; add to inputIndex
 	inc bh	; add to cursor xpos
-	;add edx, 2
 
 	cmp bh, 80
 	jl _screenPrintChar.return
@@ -223,7 +214,6 @@ _screenPrintChar:	; ah = color attrib, al = char
  .escapeHit:
 	; delete user input based on length of inputIndex
 	push ecx
-	;push edi
 	push eax
 
 	shl ecx, 1	;ecx x2 --> set each char offset = attrib+char setting
@@ -235,7 +225,6 @@ _screenPrintChar:	; ah = color attrib, al = char
 	pop edi
 
 	pop eax
-	;pop edi
 	pop ecx
 
 	; take cursor backwards.
@@ -290,9 +279,7 @@ _screenPrintChar:	; ah = color attrib, al = char
 	mov bl, 24
 	call _screenScroll
  .noScroll:
-	;mov word [videoMemIndex], 0x0000	; clear the buffer
 	mov byte [COMMAND_QUEUE], 00000001b		; tell the parser there's a command waiting.
-	;call _screenClearInputBuffer
 	jmp _screenPrintChar.return
 
  .downArrow:
@@ -318,10 +305,8 @@ _screenPrintChar:	; ah = color attrib, al = char
 	jmp _screenPrintChar.return
 
  .return:
-	;mov word [videoMemIndex], dx
 	mov word [inputIndex], cx
 	call _screenUpdateCursor
-	;mov word [cursorOffset], bx
 	popad
 	ret
 

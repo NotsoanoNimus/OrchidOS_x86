@@ -7,7 +7,7 @@ _initPICandIDT:
 	mov bl, 0x28	; Slave vector offset
 	call PIC_remap
 
-	; Unmask only the keyboard and timer for now (bits !NOT! flagged are enabled IRQs)
+	; Unmask only the keyboard, cascade, and timer for now (bits !NOT! flagged are enabled IRQs)
 	mov al, 0xF8		; mask = 1111 1000 // PIC1 IRQ #1 (0 being the clock), keyboard enabled. Clock enabled. CASCADE Enabled.
 	out PIC1_DATA, al
 	mov al, 0xFF
@@ -19,7 +19,7 @@ _initPICandIDT:
 	ret
 
 
-szShellIntro			db "Welcome! Enter 'usr' for user mode. Type 'help' for shell commands.", 0
+szShellIntro			db "Welcome! Type 'help' for a list of orchid shell commands.", 0
 szVESAFailureMsg		db "Due to an incompatibility with VGA hardware, orchid has started in shell mode.", 0
 _kernelWelcomeDisplay:
 	pushad
@@ -33,24 +33,20 @@ _kernelWelcomeDisplay:
 	mov esi, szVESAFailureMsg
 	mov bl, 0x0C
 	call _screenWrite
+
+	mov word [SHELL_SHIFT_INDICATOR], 0x301F	; Default shift indicator. MOVE THIS OUT OF MAIN FUNC LATER.
+	mov word [SHELL_CAPS_INDICATOR], 0x3019		; Default caps indicator. See above.
 	popad
 	ret
 
 
-;iMemoryFreeHighD	dd 0 no need to use right now, this is not x64, system will only support up to 4GB of RAM.
 iMemoryFree			dd 0
-;iMemoryReservedH 	dd 0
 iMemoryReserved		dd 0
-;iMemoryTotalH		dd 0
 iMemoryTotal		dd 0
 SYSTEM_getMEMInfo:
-
 	mov edi, MEM_INFO
 	xor ecx, ecx
 	xor ebx, ebx
-
-	;mov esi,
-
 	; Read over the MEM_INFO area and get the count of tables.
  .getArraySize:
 	mov ebx, [edi]	; Check the DWORD at the base of each 24-byte entry for the signature starting with 0x1234.
@@ -103,10 +99,7 @@ SYSTEM_getMEMInfo:
 
  .noMemInfoFound:
 	; unable to locate memory information. Do something here.
-	mov edi, 0xb80a0
-	mov dword [edi], 0x4e4d4e45
-	mov dword [edi+4], 0x4e4d4e52
-	jmp $
+	or dword [BOOT_ERROR_FLAGS], 0x00000002		;Set Bit1
 	jmp .leaveCall
 
  .mappingFinished:
@@ -164,7 +157,6 @@ SYSTEM_getCPUInfo:
 
 
 ; GET CPU INFO, TIME/DATE, AND MEMORY INFO HERE...
-;szGettingSysInfo 	db "Getting system information..."
 _initGetSystemInfo:
 	pushad
 
@@ -189,14 +181,11 @@ _initGetSystemInfo:
 	xor eax, eax
 	mov byte al, [SCREEN_BPP]
 	shr al, 3		;divide by 2^3 (8)
-	;mov bl, 0x08
-	;div bl
 	mov byte [BYTES_PER_PIXEL], al
 	pop ebx
 	pop eax
 
 	; Clear space for the graphics off-screen buffer, based on screen size (BBSize = BytesPP * PixelCt).
-
 
 	call SYSTEM_getTimeAndDate	; TIMER.asm - CMOS section.
 	call SYSTEM_getCPUInfo		; do CPUID and get info.

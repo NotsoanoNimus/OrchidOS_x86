@@ -3,7 +3,7 @@
 ; Parses input buffer. Is called from the keyboard IR
 %include "shell/CMDDIR.asm"
 
-; Arg1 = Command name in CAPS. Arg2 = DWORD of cmp operation.
+; Arg1 = Command name in CAPS. Arg2 = DWORD of cmp operation (or direct string if >3 chars).
 %macro CheckCMD 2
 	cmp edx, %2
 	jne _parseCommand.Not%1
@@ -214,7 +214,6 @@ PARSER_parseArguments:
  .testFourthArg:	; a quick test to ensure the user didn't append crap to the end of the third arg.
  	lodsb
 	or al, al
-	;call _commandDUMP
 	jnz .error4th		; these need special labels, since EDI has already been popped...
 	jmp .cleanExit4th
  .cleanExit:

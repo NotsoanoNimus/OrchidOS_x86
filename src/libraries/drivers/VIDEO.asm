@@ -1,5 +1,7 @@
 ; VIDEO.asm
 ; --- Very basic graphics driver for VBE/VESA modes.
+; TODO: Implement layered buffering support for DWM hooks later on.
+
 
 ; NO INPUTS.
 ; NO OUTPUTS. CF on error.
@@ -7,12 +9,12 @@
 VIDEO_pushBuffer:
 	pushad
 	clc
-	
+
 	; Clear
 	;xor eax, eax
 	;mov edi, [DOUBLE_LFB_BUFFER]
-	
-	
+
+
 	popad
 	ret
 
@@ -27,7 +29,7 @@ VIDEO_clearDesktop:
 	mov ebp, esp
 	mov dword edi, [ebp + 40]		;arg1: LFB double buffer addy
 	mov dword eax, [ebp + 44]		;arg2: color
-	
+
 	mov ecx, [SCREEN_PIXEL_COUNT]
 	xor edx, edx
 	mov byte dl, [BYTES_PER_PIXEL]
@@ -39,13 +41,13 @@ VIDEO_clearDesktop:
 	or ecx, ecx
 	jz .leaveCall
 	jmp .putPixel
-	
- .leaveCall:	
+
+ .leaveCall:
 	pop ebp
 	popad
 	ret
-	
-	
+
+
 ; INPUTS:
 ;	1: EBX = (x | y<<16) location
 ;	2: LFB address !OFFSET!.
@@ -56,12 +58,12 @@ VIDEO_putPixel_noCalc:
 	pushad
 	push ebp
 	mov ebp, esp
-	
+
 	pop ebp
 	popad
 	ret
-	
-	
+
+
 ; INPUTS:
 ;	1: EBX, 0-15 = xpos // 16-31 = ypos
 ;	2: EAX = color.
@@ -71,9 +73,9 @@ VIDEO_putPixel:
 	pushad			; 32
 	push ebp		; 4 (+4 EIP)
 	mov ebp, esp
-	
+
 	mov dword ebx, [ebp + 40]	; arg1 (Y,X)
-	
+
 	push word bx	; XPOS
 	shr ebx, 16
 	push word bx	; YPOS
@@ -82,15 +84,15 @@ VIDEO_putPixel:
 
 	mov dword edi, [SCREEN_FRAMEBUFFER_ADDR]		; Should change to buffer 2? Probably not for the simple put operation.
 	add edi, eax
-	
+
 	mov dword eax, [ebp + 44]	; arg2 (Color)
 	mov dword [edi], eax
-	
+
 	pop ebp
 	popad
 	ret
-	
-	
+
+
 ; INPUTS:
 ;	1: YPOS word
 ;	2: XPOS word
@@ -104,39 +106,37 @@ VIDEO_selectPixel:
 	push edx		;4
 	push ebp		;4 +4EIP
 	mov ebp, esp
-	
+
 	;mov dword ebx, [ebp + 20]
 	xor edx, edx 	; clear EDX for 32-bit MUL instructions.
 	xor ebx, ebx
 	xor eax, eax
 	xor ecx, ecx
-	
+
 	mov word ax, [ebp + 20]		; EAX = xpos
 	mov word bx, [ebp + 22]		; EBX = ypos
-	
+
 	mov word cx, [SCREEN_PITCH]
 	mul ecx			; EAX = (Y * PITCH)
 	push eax		; save
-	
+
 	xor ecx, ecx
 	xor eax, eax
 	mov byte cl, [BYTES_PER_PIXEL]
 	mov ax, bx		; EAX = X
 	mul ecx			;  * (BPP/8)
-	
+
 	mov ebx, eax	; EBX = [X*(BPP/8)]
 	pop eax			; restore EAX (Y*PITCH)
 	add eax, ebx	; add them. EAX = (Y*PITCH) + [X*(BPP/8)].
-	
-	;inc eax
-	
+
 	pop ebp
 	pop edx
 	pop ecx
 	pop ebx
 	ret
-	
-	
+
+
 ; INPUTS:
 ;	1: EBX = starting pixel.
 ;	2: ECX = final pixel.
@@ -146,10 +146,10 @@ VIDEO_drawRectangle:
 	pushad
 	push ebp
 	mov ebp, esp
-	
+
 	mov dword ebx, [ebp + 40]	; arg1: start pixel
 	mov dword ecx, [ebp + 44]	; arg2: end pixel
-	
+
 	push ebx
 	push word bx
 	shr ebx, 16
@@ -157,13 +157,13 @@ VIDEO_drawRectangle:
 	call VIDEO_selectPixel
 	add esp, 4
 	pop ebx
-	
+
 	mov dword edi, [SCREEN_FRAMEBUFFER_ADDR]
 	add edi, eax			; edi is ready to paint.
-	
+
 	call VIDEO_checkCoordinates
 	jc .errorCoords
-	
+
 	push ebx
 	push ecx
 	and ebx, 0xFFFF0000
@@ -177,7 +177,7 @@ VIDEO_drawRectangle:
 	jle .errorArgs
 	pop ecx
 	pop ebx
-	
+
 	; Get delta-X in ECX.
 	and ecx, 0x0000FFFF
 	and ebx, 0x0000FFFF
@@ -193,7 +193,7 @@ VIDEO_drawRectangle:
 	mov dword [edi], eax
 	add edi, [BYTES_PER_PIXEL]
 	loop .horizTop
-	
+
 	; chop off the extra added BPP
 	sub edi, [BYTES_PER_PIXEL]
 	;push edx 	;save dY
@@ -202,7 +202,7 @@ VIDEO_drawRectangle:
 	mov dword [edi], eax
 	add edi, ebx
 	loop .vertRight
-	
+
 	; chop off extra pitch addition...
 	sub edi, ebx
 	pop edi		;restore edi to base
@@ -211,7 +211,7 @@ VIDEO_drawRectangle:
 	mov dword [edi], eax
 	add edi, ebx
 	loop .vertLeft
-	
+
 	; chopping
 	sub edi, ebx
 	pop ecx 	;restore original dX
@@ -219,24 +219,24 @@ VIDEO_drawRectangle:
 	mov dword [edi], eax
 	add edi, [BYTES_PER_PIXEL]
 	loop .horizBot
-	
-	
+
+
 	jmp .leaveCall
-	
+
  .errorArgs:
 	stc
 	pop ecx
 	pop ebx
  .errorCoords:
 	stc
- .leaveCall:	
+ .leaveCall:
 	pop ebp
 	popad
 	ret
-	
-	
+
+
 ; INPUTS:
-;	1: EBX = starting pixel. 
+;	1: EBX = starting pixel.
 ;	2: ECX = final pixel.    (x | [y<<16])
 ;	3: EAX = color. (after selectPixel)
 ; NO OUTPUTS. Carry set if error.
@@ -244,11 +244,11 @@ VIDEO_fillRectangle:
 	pushad
 	push ebp
 	mov ebp, esp
-	
+
 	xor edx, edx				; EDX = delta-Y
 	mov dword ebx, [ebp + 40]	;arg1 (start)
 	mov dword ecx, [ebp + 44]	;arg2 (end)
-	
+
 	push ebx
 	push word bx	;XPOS
 	shr ebx, 16
@@ -256,13 +256,13 @@ VIDEO_fillRectangle:
 	call VIDEO_selectPixel		; only calculate the offset once. (Thanks, Omar!)
 	add esp, 4
 	pop ebx
-	
+
 	mov dword edi, [SCREEN_FRAMEBUFFER_ADDR]
 	add edi, eax		; edi pointing to the start space, let's go!
-	
+
 	call VIDEO_checkCoordinates
 	jc .errorCoords
-	
+
 	push ebx
 	push ecx
 	and ebx, 0xFFFF0000
@@ -276,7 +276,7 @@ VIDEO_fillRectangle:
 	jle .errorArgs
 	pop ecx
 	pop ebx
-	
+
 	; Get delta-X in ECX.
 	and ecx, 0x0000FFFF
 	and ebx, 0x0000FFFF
@@ -295,32 +295,32 @@ VIDEO_fillRectangle:
 	add edi, ecx
 	; Get dX back.
 	pop ecx
-	
+
 	; Basically CR/LF the drawing.
 	push eax
 	push ebx
 	push edx		; have to save edx due to mul
 	xor eax, eax
 	xor ebx, ebx
-	
+
 	mov eax, ecx
 	mov byte bl, [BYTES_PER_PIXEL]
 	mul ebx
 	sub edi, eax	; step backward by dX*BBP (go to beginning of new line)
-	
+
 	pop edx
 	pop ebx
 	pop eax
-	
+
 	dec edx
 	or edx, edx
 	jz .doneDraw
 	jmp .drawRect
-	
+
  .doneDraw:
 	clc
 	jmp .leaveCall
-	
+
  .errorArgs:
 	stc
 	pop ecx
@@ -343,22 +343,22 @@ VIDEO_drawLine:
 	; FINISH LATER
 	; FINISH LATER
 	; FINISH LATER
-	
+
 	pushad			;32
 	push ebp		;4 (+4EIP)
 	mov ebp, esp
-	
+
 	mov dword ebx, [ebp + 40]	;arg1: starting (y,x)
 	mov dword ecx, [ebp + 44]	;arg2: final (y,x)
-	
+
 	mov dword eax, [ebp + 48]	;arg3: color
 	mov byte dl, [ebp + 52]		;arg4: vertical (BOOL)
-	
+
 	pop ebp
 	popad
 	ret
-	
-	
+
+
 ; INPUTS:
 ;	EBX = start pixel
 ;	ECX = end pixel
@@ -380,7 +380,7 @@ VIDEO_checkCoordinates:
 	jg .errorArgs
 	pop ecx
 	pop ebx
-	
+
 	; testing Y values.
 	push ebx
 	push ecx
@@ -402,14 +402,10 @@ VIDEO_checkCoordinates:
 	pop ecx
 	pop ebx
 	jmp .leaveCall
-	
+
  .errorArgs:
 	pop ecx
 	pop ebx
 	stc
- .leaveCall:	
+ .leaveCall:
 	ret
-	
-	
-	
-	

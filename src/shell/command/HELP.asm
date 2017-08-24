@@ -1,15 +1,8 @@
 ; HELP.asm
+; -- Print out a list of orchid commands.
 
 _commandHELP:
-	; Print out the list of commands.
 	pushad
-
-	; ASCII interp test
-	;mov esi, PARSER_ARG1
-	;mov bl, 08h
-	;call UTILITY_HEX_STRINGtoINT
-	;call _commandDUMP
-	;call _screenPause
 
 	mov bl, 0x03
 	mov esi, szHelp1
@@ -37,12 +30,12 @@ _commandHELP:
 	mov esi, szHelp9
 	call _screenWrite
 
-	;call _screenPause		; works to pause screen scrolls.
+	;call _screenPause		; keep for screen pauses once the help list exceed a certain length.
 
 	popad
 	ret
 
-szHelp1			db "List of console commands:", 0
+szHelp1			db "List of orchid console commands:", 0
 szHelp2			db "   CLS - Clear the console screen.", 0
 szHelpAddin2	db " COLOR - Change the color of the user input text.", 0
 szHelpAddin3	db "         (%1 = 8-bit hexadecimal color code)", 0
