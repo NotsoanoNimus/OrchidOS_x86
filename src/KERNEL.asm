@@ -1,0 +1,292 @@
+;SECTION .text
+[ORG 0x10000]
+[BITS 32]
+GLOBAL kernel_main
+
+jmp kernel_main
+nop
+
+; Misc information.
+KERNEL_OFFSET			equ 0x10000
+KERNEL_SIZE_SECTORS		equ 0x0040			; Change this in every other file based on the growth of the kernel.
+COMMAND_QUEUE			equ KERNEL_OFFSET+commandInQueue	; FOR EXTERNAL USE ONLY!
+INPUT_BUFFER			equ KERNEL_OFFSET+inputBuffer		; !!! ^^
+SYSTIME_IRQ_ADJ			equ KERNEL_OFFSET+szShellTime+1		; !!! ^^
+CMOSDATE_SHELL_ADJ		equ KERNEL_OFFSET+szShellDate
+;CURRENT_MODE_STATE		equ KERNEL_OFFSET+currentMode		; !!! ^^
+DEFAULT_COLOR			equ 0x0F		; Default color to use for all graphical/screen ops
+SYSTIME_VIDEO_LOCATION	equ 0x000B808C
+SYSDATE_VIDEO_LOCATION	equ 0x000B8060
+SHELL_SHIFT_INDICATOR	equ 0x000B8058
+SHELL_CAPS_INDICATOR	equ 0x000B8056
+SHELL_MODE_TEXT_COLOR	 db 0x0F		; Default 0x0F attrib. Used by keyboard input. Changed by COLOR command.
+SYSTEM_TIME_UPDATE		 db 0			; used by the shell's main loop to update the time.
+SYSTEM_BSOD_FUNCTION	equ 0x11DB		; PA to jmp to when computer crashes.
+SYSTEM_BSOD_ERROR_CODE	equ 0x11F8		; DWORD ASCII rep at PA 0x11F8 (end of ST2 loader) for displaying BSOD death code.
+
+; Internal system state information.
+BOOT_ERROR_FLAGS		equ 0x0FFC		; Error flags for startup. DWORD of bit-flags. Right underneath the ST2L.
+; Bit 1: GUI Mode (1), SHELL Mode (0)
+
+; More internal system state info.
+BOOT_MODE				equ 00000000b
+SHELL_MODE				equ 00000001b
+GUI_MODE				equ 00000010b
+USER_MODE				equ 00000100b
+currentMode				db BOOT_MODE	;flags for OS' current mode (set to BOOT MODE - 00b by default)
+KEYBOARD_DISABLE_OUTPUT db 0x00
+
+; File system information.
+RESERVED_SECTORS		equ 35			; 35 for now, CHANGE AS KERNEL GROWS.
+SECTORS_PER_FAT			equ 1024
+NUMBER_OF_FATS			equ 2
+ROOT_DIR_START_SECTOR	equ (RESERVED_SECTORS+(SECTORS_PER_FAT*NUMBER_OF_FATS))
+
+; GDT selector values.
+NULL_SELECTOR 			equ 0
+DATA_SELECTOR			equ 8			; (1 shl 3) Flat data selector (ring 0)
+CODE_SELECTOR			equ 16			; (2 shl 3) 32-bit code selector (ring 0)
+USER_DATA_SELECTOR		equ 24
+USER_CODE_SELECTOR		equ 32
+REAL_MODE_DATA_SELECTOR	equ 40
+REAL_MODE_CODE_SELECTOR	equ 48
+
+; Memory map information from BOOT.
+SYSTEM_RAM				dq 0			; Total RAM on the system. Does not distinguish between mem types (free / reserved).
+MMAP_SIZE				db 0			; How many entries are there in the system memory map created by the Bootloader?
+MEM_INFO				equ 0x500		; Storage starting location for memory map.
+
+; Some heap info.
+HEAP_INFO				equ 0x6FFF0		; 16 bytes of heap info. Of main interest to the kernel is the PID count field. See MEMOPS for format.
+RUNNING_PROCESSES		equ 0x70000		; Base ptr to an array of running processes. Max size of 1000h (4KiB). See memops for more.
+
+; Connected device info.
+PCI_INFO				equ 0x00071000		; Base ptr to filled info about PCI Devices. 512b of space (up to 71200h)
+
+; Processor info.
+CPU_INFO				equ 0x700		; Store CPU info starting at 0x700. Assume MEM_INFO won't be larger than 0x200 (>20 entries)
+
+; Video/Graphics information.
+VGA_INFORMATION			equ 0x800		; Store the VGA/VIDEO info starting at 0x800, for 0x400 bytes (to 0xc00).
+VESA_CURRENT_MODE_INFO 	equ 0xC00		; Store VESA info from 0xC00 to 0xD00.
+VESA_DESIRED_MODE		equ 0x0118
+SCREEN_PITCH			equ VESA_CURRENT_MODE_INFO+0x10		;how many bytes per line. (WORD)
+SCREEN_WIDTH			equ VESA_CURRENT_MODE_INFO+0x12		; WORD
+SCREEN_HEIGHT			equ VESA_CURRENT_MODE_INFO+0x14		; WORD
+SCREEN_BPP				equ VESA_CURRENT_MODE_INFO+0x19		; BYTE
+SCREEN_FRAMEBUFFER_ADDR	equ VESA_CURRENT_MODE_INFO+0x28		; DWORD
+SCREEN_OFFSCREEN_MEMORY equ VESA_CURRENT_MODE_INFO+0x30		; Amount of memory outside the framebuffer, off-screen (extra mem). (WORD)
+SCREEN_BACKBUFFER		equ 0x100000						; Second buffer for LFB is going to be allocated at 0x100000 (1MiB into phys mem).
+BYTES_PER_PIXEL			db 0x00
+SCREEN_FRAMEBUFFER		dd 0x00000000
+SCREEN_LFB_SIZE_KB		dw 0x0000
+SCREEN_PIXEL_COUNT		dd 0x00000000
+
+; Keyboard info. Move later once more generic keyboard driver is loaded.
+KEYBOARD_BUFFER			db 0			; ASCII value for the current keyboard press.
+
+; Shell strings. Move them later, as they're technically not global variables of major importance...
+szOverlay				db "Orchid -> SHELL"
+						times (80-32)-(0x0+($-szOverlay)) db 0x20
+szShellDate				db "XXXX XXX XX, 20XX",
+szShellTimeZone			db ", UTC"
+szShellTime				db "[xx:xx:xx]"
+						db 0
+szIRQCall				db "Interrupt Called:", 0
+iTermLine				db 0
+
+
+;%include "PAGING.asm"			; ---UNUSED, WILL LIKELY BE TRASHED FOR A FLAT MEMORY MODEL.---
+%include "MEMOPS.asm"			; Heap setup and memory operations.
+%include "idt/IDT.asm"			; Interrupt Descriptor Table and ISRs.
+%include "shell/PARSER.asm"		; Parser in the case of SHELL_MODE.
+%include "shell/SCREEN.asm"		; SHELL_MODE basic screen wrappers.
+%include "devices/PIT.asm"		; Programmable Interval Timer setup.
+%include "PCI.asm"				; PCI Bus setup and implementation.
+%include "INIT.asm"				; Initialization functions, mainly for setting global variables and putting together devices.
+
+%include "libraries/drivers/DRIVERS.asm"	; SYSTEM DRIVERS (mouse, HDD, USB, and all other PCI devices not used in SHELL_MODE)
+;%include "LIBRARIES.asm"					; SYSTEM LIBRARIES.
+
+%include "misc/MACROS.asm"
+
+; UTILITY HAS A BITS 16 IN IT, BE CAREFUL
+%include "misc/UTILITY.asm"		; Miscellaneous utility functions used across the system & kernel, such as numeric conversions or ASCII outputs.
+
+;PrintMe db "No VendorID", 0
+[BITS 32]
+kernel_main:
+	cld
+	clc
+	cli
+	call _initPICandIDT		; "INIT.asm" - Load the Interrupt Descriptor Table.
+	call _initGetSystemInfo ; "INIT.asm" - Get information about the system: RAM, CPU, CMOS time/date, running disk. Sets up globals as well.
+	;call _initPaging		; "PAGING.asm" - Set up virtual address mapping. MIGHT NOT USE...
+	call MEMOPS_initHeap	; "MEMOPS.asm" - Initialize the Heap at 0x100000 to 0x1100000 (16 MiB wide). Flat memory model.
+	call PIT_initialize		; "PIT.asm" - Initialize the Programmable Interval Timer.
+
+	; NOT WORKING ATM
+	;mov esp, STACK_BEGIN	; Set the stack pointer to our reserved space. Create GDT entry for this later (to protect from overflow)
+
+	; Before interacting with the shell: check BOOT_ERROR_FLAGS for bit 1 to see whether shell or gui mode.
+	; This is GUI_MODE space.
+	mov DWORD eax, [BOOT_ERROR_FLAGS]
+	and eax, 0x00000001
+	cmp eax, 1
+	je modeGUI		; If GUI_MODE is flagged, go there.
+	; This is SHELL_MODE space.
+	call _kernelWelcomeDisplay
+	mov byte [currentMode], SHELL_MODE	;SHELL MODE
+	mov word [SHELL_SHIFT_INDICATOR], 0x301F	; Default shift indicator. MOVE THIS OUT OF MAIN FUNC LATER.
+	mov word [SHELL_CAPS_INDICATOR], 0x3019		; Default caps indicator. See above.
+
+	KMALLOC 8
+	mov edi, eax		; set EDI to return address of alloc start
+	mov ecx, 0x3B
+	mov eax, 0x0f0f0f0f
+	add edi, 0x0C		; don't overwrite the header...
+	rep stosd
+;	jmp .skipothers
+	KMALLOC 13
+	KMALLOC 128
+	KMALLOC 0x358
+	KMALLOC 0x00FF0000
+	KMALLOC 0x00008123
+	KMALLOC 0x01000000
+	KMALLOC 0x10000000
+
+	KFREE 0x00100000		; successfully clears memory at 0x100000
+	KFREE 0x00100100		; Now see if it combines holes.
+	KFREE 0x00100200
+
+	KMALLOC 8				; Yes, it worked!
+; .skipothers:
+
+	mov eax, 0x01010101
+	mov ebx, 0x02020202
+	mov ecx, 0x04040404
+	mov edx, 0x08080808
+	mov esi, 0x10101010
+	mov edi, 0x20202020
+
+	; Hang and wait for some ISRs.
+	sti
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; MAIN KERNEL IDLE LOOP. SHELL MODE ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ .repHalt:
+	call _parserCheckQueue
+
+	cmp byte [currentMode], USER_MODE
+	je .usrMode
+
+	push edx
+	mov dl, [SYSTEM_TIME_UPDATE]		; check timer update flags.
+	and dl, 0x01						; check only bit 1
+	cmp dl, 1
+	pop edx
+	jne .noTimerUpdate
+	call _updateTimeDisplay
+ .noTimerUpdate:
+	; works to get the keyboard last keypress
+	;mov ah, 0x30
+	;mov al, [KEYBOARD_BUFFER]
+	;mov word [0xb8050], ax
+	hlt
+	jmp kernel_main.repHalt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ .usrMode:
+	call _initUserSpace		; "USR.asm" - Handle the initialization of userspace from the command file that called it.
+
+	jmp $
+
+
+a20_fail:
+	mov esi, szShellIntro
+	mov bl, 0x4E
+	call _screenWrite
+	jmp $
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; MAIN KERNEL IDLE LOOP. GUI MODE   ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+modeGUI:
+	mov byte [currentMode], GUI_MODE
+
+	push dword 0x00009999					; cyan color.
+	push dword [SCREEN_FRAMEBUFFER_ADDR]	; LFB addy
+	call VIDEO_clearDesktop
+	add esp, 8
+
+
+	mov ecx, 10000
+	mov ebx, 0x01000100		;Try placing pixel at 256,256 (y, x)
+ .test:
+	push dword 0x000000FF		; Color - blue
+	push dword ebx				; x | (y << 16)
+	call VIDEO_putPixel
+	add esp, 8
+	inc ebx
+	loop .test
+
+
+	push dword 0x00FFBB00	; color = orange
+	push dword 0x01700120	; final(y,x)
+	push dword 0x00500050	; start(y,x)
+	call VIDEO_fillRectangle
+	add esp, 12
+
+
+	push dword 0x00FF0000	; color = red
+	push dword 0x020002F0	; final(y,x)
+	push dword 0x00500200	; start(y,x)
+	call VIDEO_drawRectangle
+	add esp, 12
+	push dword 0x00FF0000	; color = red
+	push dword 0x020102F1	; final(y,x)
+	push dword 0x004F01FF	; start(y,x)
+	call VIDEO_drawRectangle
+	add esp, 12
+	push dword 0x00000000	; color = black
+	push dword 0x01FF02EF	; final(y,x)
+	push dword 0x00510201	; start(y,x)
+	call VIDEO_drawRectangle
+	add esp, 12
+
+	;mov dword [0xFD000C0F], 0x00FFFFFF
+
+	push dword 0x00FFFFFF	; color =
+	push dword 0x02040304	; final(y,x)
+	push dword 0x02000300	; start(y,x)
+	call VIDEO_drawRectangle
+	add esp, 12
+
+
+	sti
+ .repHalt:
+	hlt
+	jmp .repHalt
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;SECTION .data		; MISC DATA
+commandInQueue		db 0x00 		; Boolean flag to tell the parser whether or not a command is waiting to be processed.
+;									; Only set on a LF from the keyboard.
+cursorOffset 		dw 0x0000
+videoMemIndex		dw 0x0000
+inputBuffer			times 32 dq 0x0	; Reserve a 256-byte space for the user's input. Handled in SCREEN.asm
+inputIndex			dw 0x0000		; Number from 0-127 as an index of current user input position.
+
+STACK_BEGIN:
+	times 256 db 0					; Reserve a 256-byte //4 KiB// space for the stack and point to the beginning on load.
+STACK_END:
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+times  (KERNEL_SIZE_SECTORS*512)-($-$$) db 0			; Pad out the kernel to an even multiple of 512
