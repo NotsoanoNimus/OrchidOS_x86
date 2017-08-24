@@ -12,6 +12,14 @@ See the /docs/ folder for more specific information about each command, the pars
 - ELF binary support.
 - Basic system calls and I/O piping.
 
+## How To Run
+Take the binary image and force it over the MBR of a removable media, such as a flash drive or external HDD. Write the whole image to LBA 0 of the disk.
+<strong>BE CAREFUL</strong>: Replacing the MBR of a disk can cause a loss of personal data. Do not use a disk you have data stored on!!!
+
+If you're using an emulator, check out the compiler Batch file in the /src/ directory to view the compatible QEMU emulator settings.
+
+<i><u>NOTE</u></i>: Orchid cannot run on CDs, and has not been tested on floopy disks. Try at your own peril. Also, <u>orchid is not UEFI-compatible in any way</u>, so always run the legacy BIOS setting.
+
 ## Capabilities
 - Read PCI devices and initialize them.
 - Parse commands and arguments in SHELL_MODE (see /docs/commands/ for more).
