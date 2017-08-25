@@ -22,7 +22,7 @@ If you're using an emulator, check out the compiler Batch file in the /src/ dire
 
 ## Capabilities
 - Read PCI devices and initialize them.
-- Parse commands and arguments in SHELL_MODE (see /docs/commands/ for more).
+- Parse commands and arguments in SHELL_MODE (see /docs/SHELL_MODE.md for more).
 - VGA basic display driver (graphical, non-text modes), for drawing primitive shapes. Supports both 24bpp and 32bpp dynamically.
 - Heap initialization and memory management in a flat environment. Supports a max of 4GB RAM.
 
