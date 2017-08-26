@@ -48,6 +48,53 @@ PCI_STATUS_INTERRUPT	equ 0x0004		; Stt BIT 03 = If set, interrupts are asserted.
 PCI_INFO_INDEX			 dd 0x00071000	; Pointer the the end of the PCI_INFO table @0x71000. Each entry is 20 bytes.
 PCI_NEXT_BUS			 db 0x00		; Next bus to check in a multi-controller environment.
 
+; Applicable to both 00h and 01h.
+PCI_BAR0				equ 0x10
+PCI_BAR1				equ 0x14
+PCI_CAPABILITIES_PTR	equ 0x34 	; Low byte only.
+PCI_INTERRUPT_PIN		equ 0x3C	; high byte. 0x00 = no pin.
+PCI_INTERRUPT_LINE		equ 0x3C	; low byte. 0xFF = no connection.
+
+; Specific to header-type 00h.
+PCI_BAR2				equ 0x18
+PCI_BAR3				equ 0x1C
+PCI_BAR4				equ 0x20
+PCI_BAR5				equ 0x24
+PCI_CARDBUS_CIS_PTR		equ 0x28
+PCI_SUBSYS_ID			equ (0x2C|PCI_GET_HIGH_WORD)
+PCI_SUBSYS_VENDOR_ID	equ 0x2C
+PCI_EXPANSION_ROM_BASE	equ 0x30
+PCI_MAX_LATENCY			equ (0x3C|PCI_GET_HIGH_WORD)	; high byte of WORD. READ-ONLY. How often in 1/4-microsecond the device accesses the bus.
+PCI_MIN_GRANT			equ (0x3C|PCI_GET_HIGH_WORD)	; low byte of WORD. Burst period length needed (in 1/4us).
+
+; Specific to header-type 01h (PCI-to-PCI).
+PCI_SECONDARY_LATENCY	equ 0x18|PCI_GET_HIGH_WORD		; high byte of WORD.
+PCI_SUBORDINATE_BUS		equ 0x18|PCI_GET_HIGH_WORD		; low byte.
+PCI_SECONDARY_BUS		equ 0x18	; high byte
+PCI_PRIMARY_BUS			equ 0x18	; low byte
+PCI_SECONDARY_STATUS	equ 0x1C|PCI_GET_HIGH_WORD
+PCI_IO_LIMIT			equ 0x1C	; high byte
+PCI_IO_BASE				equ 0x1C	; low byte
+PCI_MEMORY_LIMIT		equ 0x20|PCI_GET_HIGH_WORD
+PCI_MEMORY_BASE			equ 0x20
+PCI_PREFETCH_MEMLIMIT	equ 0x24|PCI_GET_HIGH_WORD
+PCI_PREFETCH_MEMBASE	equ 0x24
+PCI_PREFETCH_LIMIT_32	equ 0x28
+PCI_PREFETCH_BASE_32	equ 0x2C
+PCI_IO_LIMIT_UPPER_16	equ 0x30|PCI_GET_HIGH_WORD
+PCI_IO_BASE_UPPER_16	equ 0x30
+PCI_BRIDGE_ROM_BASE		equ 0x38
+PCI_BRIDGE_CONTROL_WORD equ 0x3C|PCI_GET_HIGH_WORD
+
+; No CardBus support for now.
+
+; BAR# masks to get info for memory and I/O types.
+PCI_BAR_TYPE_MEMORY		equ 0x00
+PCI_BAR_MEM_GET_ADDR	equ 0xFFFFFFF0	; bits 31-4, 16-byte-aligned address.
+PCI_BAR_MEM_PREFETCH_EN equ 0x00000008	; bit 3. Is it prefetchable.
+PCI_BAR_MEM_TYPE		equ 0x00000006	; bits 2-1, Type. 00h = 32 wide. 0x02 = 64 wide. 0x01 = reserved (legacy)
+PCI_BAR_TYPE_IO			equ 0x01
+PCI_BAR_IO_GET_ADDR		equ 0xFFFFFFFC	; bits 31-2 = 4-byte-aligned base address.
 
 ; -- Capture all devices and functions using a recursive method of scanning.
 ; ---- Scans the first (0-th) bus, and uses each bridge to scan others.
@@ -68,7 +115,7 @@ PCI_getDevicesInfo:
 ;	BH = Device Number (slot)
 ;	CL = Function Number
 ;	CH = Register Number (LOWEST 2 BITS = offset --> If offset=2, use high word.)
-; 	*Args are pushed as a whole DWORD, with CH (rno) being at the least significant side
+; 	*Args are pushed as a whole DWORD, with CH (reg#) being at the least significant side
 ; OUTPUTS:
 ;	AX = WORD read from CONFIG_DATA
 ; -- Reads from the configuration port on the PCI bus. A return WORD of FFFFh means the device does not exist.
@@ -85,26 +132,8 @@ PCI_configReadWord:
 
 	mov dword edx, [ebp+20]		;edx = pushed arg
 	push edx
-	mov ch, dl					; CH = Register Number
-	shr edx, 8
-	mov cl, dl					; CL = Function Number
-	shr edx, 8
-	mov bh, dl					; BH = Device Number
-	shr edx, 8
-	mov bl, dl					; BL = Bus Number
-
-	and ch, 0xFC				; ensure the last 2 bits of the lowest byte in CONFIG_DATA are 00b
-	and cl, 0x07				; ensure the function is only for bits 10-8 (00000111b)
-	shl bh, 3					; shift the device number value up by 3 to make room to OR with CL
-	or bh, cl					; Combine to make bits 15-8 of CONFIG_DATA
-
-	mov al, 0x80				; bits 31-24 (10000000b)
-	shl eax, 8
-	mov al, bl					; bits 23-16 (Bus Number)
-	shl eax, 8
-	mov al, bh 					; bits 15-8 (Device Number | Function Number)
-	shl eax, 8
-	mov al, ch					; bits 7-0	(Register Number & 11111100b)
+	mov eax, edx				; eax = edx
+	call PCI_INTERNAL_translateConfigAddr	; EAX = IDSEL signal.
 
 	; EAX now = address to send to PCI_CONFIG_DATA
 	mov dx, PCI_CONFIG_ADDRESS
@@ -129,6 +158,102 @@ PCI_configReadWord:
 	pop edx
 	pop ecx
 	pop ebx
+	ret
+
+
+; STILL LEARNING PCI CONFIGURATIONS. I DON'T BELIEVE THIS FUNCTION ACTUALLY DOES ANYTHING. WILL DO MORE RESEARCH VERY SOON.
+; INPUTS:
+;	ARG1: (Bus|Device|Function|4-byte-aligned Offset)
+;	ARG2: DWORD of bit-flags to AND the config with.
+;	ARG3: 01h = Set mask. 02h = Clear mask. 03h = toggle mask.
+; OUTPUTS: CF on error.
+; -- Writes to the config space of a device on the PCI Bus.
+; ---- If the kernel wants to only change a bit-flag, it will read the whole DWORD first and change the value by pushing the masked bits.
+PCI_configWriteDataMask:
+	push ebx
+	push ecx
+	push edx
+	push ebp
+	mov ebp, esp
+
+	xor eax, eax
+	xor ebx, ebx
+	xor ecx, ecx
+
+	mov dword edx, [ebp+20]		;arg1
+	mov eax, edx
+	call PCI_INTERNAL_translateConfigAddr
+	mov ebx, eax	; save IDSEL value.
+
+	; EAX now = address to send to PCI_CONFIG_DATA
+	mov dx, PCI_CONFIG_ADDRESS
+	out dx, eax		; IDSEL.
+	mov dx, PCI_CONFIG_DATA
+	in eax, dx		; read config space DWORD
+
+	mov dword edx, [ebp+24]		;arg2: 32-bit mask.
+	mov dword ecx, [ebp+28]		;arg3: operation
+	cmp dword ecx, 0x00000001	; set mask (OR)
+	je .setMask
+	cmp dword ecx, 0x00000002	; clear mask (~ and &)
+	je .clearMask
+	cmp dword ecx, 0x00000003	; toggle mask (XOR)
+	je .toggleMask
+	jmp .leaveCall				; do nothing if arg3 invalid.
+
+ .setMask:
+	or eax, edx	; config space info @offset & passed mask.
+	jmp .writeData
+ .clearMask:
+ 	not edx			;negate mask
+	and eax, edx	;apply what's left
+	jmp .writeData
+ .toggleMask:
+ 	xor eax, edx
+	jmp .writeData	; no bleed JIC
+
+ .writeData:
+ 	mov dx, PCI_CONFIG_ADDRESS
+	mov eax, ebx
+	out dx, eax			; write stored IDSEL.
+	mov dx, PCI_CONFIG_DATA
+	out dx, eax
+ .leaveCall:
+	pop ebp
+	pop edx
+	pop ecx
+	pop ebx
+	ret
+
+
+; INPUTS:
+;	EAX = (Bus|Device|Function|Offset)
+; OUTPUTS:
+; 	EAX = Converted for proper "chip select"
+; -- Converts an input such as the above (EAX) into a proper ISDEL signal for the PCI_CONFIG_ADDRESS port.
+; ---- Don't worry about trashed registers: this is internal and is called inside of preserved areas.
+PCI_INTERNAL_translateConfigAddr:
+	mov ch, dl					; CH = Register Number
+	shr edx, 8
+	mov cl, dl					; CL = Function Number
+	shr edx, 8
+	mov bh, dl					; BH = Device Number
+	shr edx, 8
+	mov bl, dl					; BL = Bus Number
+
+	and ch, 0xFC				; ensure the last 2 bits of the lowest byte in CONFIG_DATA are 00b
+	and cl, 0x07				; ensure the function is only for bits 10-8 (00000111b)
+	shl bh, 3					; shift the device number value up by 3 to make room to OR with CL
+	or bh, cl					; Combine to make bits 15-8 of CONFIG_DATA
+
+	mov al, 0x80				; bits 31-24 (10000000b)
+	shl eax, 8
+	mov al, bl					; bits 23-16 (Bus Number)
+	shl eax, 8
+	mov al, bh 					; bits 15-8 (Device Number | Function Number)
+	shl eax, 8
+	mov al, ch					; bits 7-0	(Register Number & 11111100b)
+	; EAX is now in the proper IDSEL format.
 	ret
 
 
@@ -390,7 +515,7 @@ PCI_checkBus:
 PCI_checkPCItoPCI:
 	push eax
 	call PCI_get2ndPrimBuses
-	;mov byte [PCI_NEXT_BUS], ah
+	;mov byte [PCI_NEXT_BUS], ah	; AH = secondary bus.
 	shr eax, 8		; AL = Bus to check.
 	push dword eax
 	call PCI_checkBus
@@ -405,7 +530,7 @@ PCI_checkPCItoPCI:
 ; 	EAX = 0x0000----. AH = Secondary Bus# // AL = Primary Bus#
 ; -- Reads configs with header-type 01h only to get Secondary and Primary buses for PCI-to-PCI.
 PCI_get2ndPrimBuses:
-	mov al, 0x18	;replace offset by 0x18, low WORD, so the return gives us bus info.
+	mov al, PCI_SECONDARY_BUS	;replace offset by 0x18, low WORD, so the return gives us bus info.
 	push dword eax
 	call PCI_configReadWord
 	add esp, 4
@@ -435,16 +560,10 @@ PCI_changeValue:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Configuration & BAR operations.
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; IDE BUS AREA ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-PCI_initializeIDEController:	; this is used only if the system detects an IDE controller.
+; INPUTS:
+;	EAX = (Bus|Device|Function|BAR register).
+PCI_BAR_getSpaceNeeded:
 
 	ret
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
