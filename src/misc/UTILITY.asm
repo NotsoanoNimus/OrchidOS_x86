@@ -177,12 +177,12 @@ UTILITY_INTERNAL_convertASCIItoHEX:
 
  .uppercase:	; already checked for digit versions, so if it's lower than the uppercase chars it's an error.
  	cmp bl, 0x41
-	jbe .error
+	jb .error
 	sub bl, 0x37
 	jmp .leaveCall
  .lowercase:
  	cmp bl, 0x61
-	jbe .error
+	jb .error
 	sub bl, 0x57
 	jmp .leaveCall
  .notHex:

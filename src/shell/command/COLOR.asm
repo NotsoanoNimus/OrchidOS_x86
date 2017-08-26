@@ -15,10 +15,7 @@ _commandCOLOR:
     mov esi, PARSER_ARG1
     mov bl, 02h
     call UTILITY_HEX_STRINGtoINT    ;AL = color
-
-    ; is the new color 0x00?
-    or al, al
-    jz .noChange
+    jc .syntax
 
     ; is the new color two digits that are the same?
     push eax

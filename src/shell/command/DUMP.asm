@@ -12,10 +12,10 @@ dd 0x0
  	mov eax, %1
 	mov esi, szDUMPOutput%2+21			; +21 = End of buffer for each line.
 	call UTILITY_DWORD_HEXtoASCII	; EAX = conversion.
-	mov esi, szDUMPOutput%2+5			; base +spacers
-	mov dword [esi], %3
-	add esi, 4
-	mov dword [esi], ": 0x"		; needed JIC buffers get cleared...
+	mov esi, szDUMPOutput%2+1			; base +spacers
+    mov dword [esi], "    "
+	mov dword [esi+4], %3
+	mov dword [esi+8], ": 0x"		; needed JIC buffers get cleared...
 %endmacro
 
 ; INPUTS:
@@ -80,8 +80,9 @@ _commandDUMP:
 	; EAX.
 	mov esi, szDUMPOutput1+21
 	call UTILITY_DWORD_HEXtoASCII
-	mov esi, szDUMPOutput1+5
-	mov dword [esi], " EAX"
+	mov esi, szDUMPOutput1+1
+    mov dword [esi], "    "
+	mov dword [esi+4], " EAX"
 	GetASCIIFromReg EBX,2," EBX"
 	GetASCIIFromReg ECX,3," ECX"
 	; Print EAX/EBX/ECX
@@ -93,8 +94,9 @@ _commandDUMP:
 	mov eax, esi
 	mov esi, szDUMPOutput2+21
 	call UTILITY_DWORD_HEXtoASCII
-	mov esi, szDUMPOutput2+5
-	mov dword [esi], " ESI"
+	mov esi, szDUMPOutput2+1
+    mov dword [esi], "    "
+	mov dword [esi+4], " ESI"
 	GetASCIIFromReg EDI,3," EDI"
 	; Print EDX/ESI/EDI
 	call DUMP_outputString
