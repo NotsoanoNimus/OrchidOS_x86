@@ -2,7 +2,6 @@
 ; --- Time/Date functions and IRQ0 handlers.
 
 SLEEP_TICKS_COUNTER				dd 0	; Used for the global sleep function
-;TICKS_COUNTER_TICKER			db 0	; Used as a 
 PIT_RELOAD_VALUE				dw 0
 
 SYSTEM_TICKS					dd 0	; 35Hz oscillator.
@@ -26,27 +25,27 @@ ISR_timerHandler:	;called every 28.57143 ms (every 7 calls is 200ms)
 	jz .noSleep		; no value in the ticks counter?
 	dec eax
 	mov dword [SLEEP_TICKS_COUNTER], eax
-	
+
  .noSleep:
 	; handle system timer
 	mov eax, [SYSTEM_TICKS]
 	inc eax
 	mov dword [SYSTEM_TICKS], eax
-	
-	
+
+
 	cmp eax, 35
 	jl .noUpdate
 	call TIMER_updateSystemTime
-	
+
 	;nothing else is done here, so interrupt can exit quickly.
-	
+
  .noUpdate:
 	xor dl, dl				; IRQ#0
 	call PIC_sendEOI		; acknowledge the interrupt to PIC
 	ret
 
-	
-[GLOBAL _SLEEP]
+
+;;;;;;;; GLOBALLY-USED FUNCTION ;;;;;;;;
 _SLEEP:		; ARGS: EAX = Duration to sleep in chunks of 200ms.
 	pushad
 	mov ebx, 0x00000007		;multiplied by 7 because 200ms worth of time is 7 IRQ ticks
@@ -67,15 +66,15 @@ _SLEEP:		; ARGS: EAX = Duration to sleep in chunks of 200ms.
  .naptimeOver:
 	popad
 	ret
-	
-	
+
+
 TIMER_updateSystemTime:
 	; add on to seconds, then check for updates to minutes & hrs
 	mov al, [SYSTEM_SECONDS]
 	add al, 1
 	cmp al, 60
 	jl .noRollSeconds
-	
+
 	; seconds >= 60, roll over a minute, then check roll for hours
 	mov byte [SYSTEM_SECONDS], 0
 	mov word [szSYSTime+7], "00"
@@ -83,7 +82,7 @@ TIMER_updateSystemTime:
 	add bl, 1
 	cmp bl, 60
 	jl .noRollMinutes
-	
+
 	; next hour
 	mov byte [SYSTEM_MINUTES], 0
 	mov word [szSYSTime+4], "00"
@@ -94,29 +93,29 @@ TIMER_updateSystemTime:
 	jge .newDay
 	mov [SYSTEM_HOURS], dl
 	jmp .exitTimerUpdate
-	
+
  .noRollSeconds:
 	mov [SYSTEM_SECONDS], al
 	jmp .exitTimerUpdate
-	
+
  .noRollMinutes:
 	mov [SYSTEM_MINUTES], bl
 	jmp .exitTimerUpdate
-	
+
  .newDay:
 	mov byte [SYSTEM_SECONDS], 0
 	mov byte [SYSTEM_MINUTES], 0
 	mov byte [SYSTEM_HOURS], 0
 	;call TIMER_nextDay
 	; bleed into exit function, no need to JMP
-	
+
  .exitTimerUpdate:
 	mov byte [SYSTEM_TICKS], 0	;reset the ms counter
 	;call _updateTimeDisplay
 	or byte [SYSTEM_TIME_UPDATE], 1		; tell the OS that the time has updated.
 	ret
 
-	
+
 _updateTimeDisplay:
 	; convert current system_ms time into readble format and update the display if a second has passed.
 	pushad
@@ -125,33 +124,33 @@ _updateTimeDisplay:
 	cmp cl, 0x80		; if so, correct the timer's drift.
 	jne .noDrift
 	call SYSTEM_getTimeAndDate		; supposed to do this hourly.
- .noDrift:	
+ .noDrift:
 	mov byte [SYSTEM_TIME_UPDATE], 0	; reset update flag
-	
+
 	; Check which mode we're in.
 	mov dl, [currentMode]
 	cmp dl, 00000001b			; are we in shell mode?
 	jne .notShellMode			; this update is useless if we're in a different mode.
-	
+
 	xor eax, eax
-	
+
 	mov esi, szSYSTime+9
 	mov al, [SYSTEM_SECONDS]
 	call UTILITY_BYTE_convertHEXtoASCII_lessThan100
-	
+
 	mov esi, szSYSTime+6
 	mov al, [SYSTEM_MINUTES]
 	call UTILITY_BYTE_convertHEXtoASCII_lessThan100
-	
+
 	mov esi, szSYSTime+3
 	mov al, [SYSTEM_HOURS]
 	call UTILITY_BYTE_convertHEXtoASCII_lessThan100
-	
+
 	mov ah, 0x3F
 	mov esi, szSYSTime
 	mov edi, SYSTIME_VIDEO_LOCATION
 	call _updateTimeDisplay.loopPrint
-	
+
 	; Get DATE fields.
 	mov esi, szSYSDate
 	mov al, [SYSTEM_WEEKDAY]	; Sunday = 1, Saturday = 7
@@ -193,7 +192,7 @@ _updateTimeDisplay:
  .daySAT:
 	mov DWORD [esi], " Sat"
 	; bleed
- 
+
  .gotWeekday:		; Success, now onto MONTH.
 	mov esi, szSYSDate+5
 	mov al, [SYSTEM_MONTH]
@@ -260,23 +259,23 @@ _updateTimeDisplay:
  .monthDEC:
 	mov DWORD [esi], "Dec "
 	jmp .gotMonth
-	
+
  .gotMonth:			; Success, now onto DAY.
 	mov esi, szSYSDate+11	;end of buffer for day var
 	mov al, [SYSTEM_DAY]
 	;call UTILITY_BYTE_convertHEXtoASCII_lessThan100
 	call UTILITY_BYTE_convertBCDtoASCII_lessThan100
-	
+
 	mov esi, szSYSDate+17
 	mov al, [SYSTEM_YEAR]	; YEAR is AUTOMATICALLY A BCD NUMBER (since it can't go higher than 99)
 	call UTILITY_BYTE_convertBCDtoASCII_lessThan100
-	
+
 	mov ah, 0x3F
 	mov esi, szSYSDate
 	mov edi, SYSDATE_VIDEO_LOCATION
 	call _updateTimeDisplay.loopPrint
 	jmp .leaveCall
-	
+
  .loopPrint:
 	lodsb
 	or al, al
@@ -285,7 +284,7 @@ _updateTimeDisplay:
 	jmp .loopPrint
   .stopPrinting:
 	ret
-	
+
  .notShellMode:
  .leaveCall:
 	popad
@@ -302,7 +301,7 @@ CMOS_ACCESS_bideTime:		; THIS IS EATING TIME. Kill later if startup too long.
 	loop .bideTime
 	pop ecx
 	ret
-	
+
 CMOS_TIME_checkInput:
 	push ecx
 	cmp ebx, 1
@@ -312,24 +311,24 @@ CMOS_TIME_checkInput:
  .BCDMode:
 	; handle BCD mode here.
 	xor ecx, ecx
-	
+
 	push eax
 	mov cl, al
 	and cl, 0xF0
 	shr cl, 1
-	
+
 	and al, 0xF0
 	shr al, 3
-	
+
 	add cl, al		; CL = [(BCD & 0xF0) >> 1] + [(BCD & 0xF0) >> 3]
 	pop eax			; restore original BCD to AL
-	
+
 	and al, 0x0F	; (BCD & 0x0F)
 	add al, cl		; {[(BCD & 0xF0) >> 1] + [(BCD & 0xF0) >> 3]} + (BCD & 0x0F)
  .leaveCall:
 	pop ecx
 	ret
-	
+
 CMOS_TIME_hourConvert:
 	cmp edx, 1
 	je .mode24
@@ -339,7 +338,7 @@ CMOS_TIME_hourConvert:
 	cmp eax, 0x80	; check it.
 	pop eax
 	je .timePM
-	
+
 	; AM hours, we're good. Just check for the midnight hour, fix if needed, and leave.
 	cmp al, 12		; looking for literal 12 first. Then check for BCD 12.
 	jne .not12Hex
@@ -351,16 +350,16 @@ CMOS_TIME_hourConvert:
 	xor al, al			; if it is, zero it out. bleed into jmp to leaveCall
   .not12BCD:
 	jmp .leaveCall
-	
+
   .timePM:			; easy to take care of: just mask off the high bit.
 	and al, 0x7F	; AL & 0111 1111. Doesn't matter if BCD or not.
-	jmp .leaveCall	; In the high nibble for BCD, only the low two bits are ever used for time. 
-	
+	jmp .leaveCall	; In the high nibble for BCD, only the low two bits are ever used for time.
+
  .mode24:	;if it's 24-hr mode, it requires no change to its value.
  .leaveCall:
 	ret
-	
-	
+
+
 ;szCMOSRAMError		db "CMOS RAM: No power detected!", 0
 SYSTEM_getTimeAndDate:		; use the CMOS to get the real time/date.
 	; Check CMOS RAM power status.
@@ -368,7 +367,7 @@ SYSTEM_getTimeAndDate:		; use the CMOS to get the real time/date.
 	out 0x70, al
 	call CMOS_ACCESS_bideTime
 	in al, 0x71
-	
+
 	and al, 0x80			; bit 7 = CMOS RAM status. bits 0-6 = reserved (0).
 	cmp al, 0x80
 	je .CMOSPowered
@@ -377,7 +376,7 @@ SYSTEM_getTimeAndDate:		; use the CMOS to get the real time/date.
 	;mov bl, 0x0B
 	;call _screenWrite
 	;ret
-	
+
 	; CMOS = good, continue fetchin T&D.
  .CMOSPowered:
 	xor edx, edx			; EDX = 12(00b) or 24(01b)
@@ -386,7 +385,7 @@ SYSTEM_getTimeAndDate:		; use the CMOS to get the real time/date.
 	out 0x70, al
 	call CMOS_ACCESS_bideTime
 	in al, 0x71
-	
+
 	; CHECK CMOS TIME SETTINGS
 	push eax
 	and al, 00000010b		; only checking BIT1
@@ -395,7 +394,7 @@ SYSTEM_getTimeAndDate:		; use the CMOS to get the real time/date.
 	mov edx, 1				; otherwise, flag 24-hr mode
  .format12hr:
 	pop eax
-	
+
 	push eax
 	and al, 00000100b		; only checking BIT2
 	cmp al, 00000100b		; Check bit 2 (BINARY IF SET)
@@ -403,22 +402,22 @@ SYSTEM_getTimeAndDate:		; use the CMOS to get the real time/date.
 	mov ebx, 1				; otherwise, flag BCD mode
  .binaryMode:
 	pop eax
-	
-	
+
+
 	mov al, (0x80|0x00)		; CMOS: NMI & get SECONDS
 	out 0x70, al			; NMI & access CMOS register 0x00
 	call CMOS_ACCESS_bideTime
 	in al, 0x71				; Read seconds.
 	call CMOS_TIME_checkInput
 	mov byte [SYSTEM_SECONDS], al
-	
+
 	mov al, (0x80|0x02)		; CMOS: NMI & get MINUTES
 	out 0x70, al
 	call CMOS_ACCESS_bideTime
 	in al, 0x71				; Read minutes.
 	call CMOS_TIME_checkInput
 	mov byte [SYSTEM_MINUTES], al
-	
+
 	mov al, (0x80|0x04)		; CMOS: NMI & get HOURS
 	out 0x70, al
 	call CMOS_ACCESS_bideTime
@@ -426,36 +425,36 @@ SYSTEM_getTimeAndDate:		; use the CMOS to get the real time/date.
 	call CMOS_TIME_hourConvert	; call the special hourConvert function. Moves AL to proper format.
 	call CMOS_TIME_checkInput
 	mov byte [SYSTEM_HOURS], al
-	
+
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	
+
 	mov al, (0x80|0x06)		; CMOS: NMI & get day of the week.
 	out 0x70, al
 	call CMOS_ACCESS_bideTime
 	in al, 0x71				; Read weekday.
 	mov byte [SYSTEM_WEEKDAY], al
-	
+
 	mov al, (0x80|0x07)		; CMOS: NMI & day of Month
 	out 0x70, al
 	call CMOS_ACCESS_bideTime
 	in al, 0x71				; Read day.
 	mov byte [SYSTEM_DAY], al
-	
+
 	mov al, (0x80|0x08)		; CMOS: NMI & get MONTH
 	out 0x70, al
 	call CMOS_ACCESS_bideTime
 	in al, 0x71				; Read month.
 	mov byte [SYSTEM_MONTH], al
-	
+
 	mov al, (0x80|0x09)		; CMOS: NMI & get YEAR (2-digit, <99)
 	out 0x70, al
 	call CMOS_ACCESS_bideTime
 	in al, 0x71				; Read year.
 	mov byte [SYSTEM_YEAR], al
-	
+
 	ret
-	
-	
+
+
 SYSTEM_setTimeAndDate:		; set the T&D on the CMOS/RTC system.
 
 	ret
@@ -465,7 +464,7 @@ SYSTEM_setTimeAndDate:		; set the T&D on the CMOS/RTC system.
 ; INPUTS: EAX = hex to convert, ESI = Decimal output (starting at end of buffer).
 UTILITY_WORD_convertDECtoASCII:
 	pushad
-	
+
 	popad
 	ret
 
@@ -491,52 +490,52 @@ _convertHexToDec:
  .end:
 	popad
 	ret
-	
-	
+
+
 UTILITY_BYTE_convertBCDtoASCII_lessThan100: ; INPUTS --> AL = BCD byte, ESI = END OF OUTPUT BUFFER (WORD)
 	push eax
 	xor ah, ah
 	mov ah, al
-	
+
 	and al, 0x0F
 	and ah, 0xF0
 	shr ah, 4
-	
+
 	add al, '0'
 	add ah, '0'
-	
+
 	dec esi
 	mov byte [esi], al
 	mov byte [esi-1], ah
 	pop eax
 	ret
-	
+
 UTILITY_BYTE_convertHEXtoASCII_lessThan100:	; INPUTS --> AL = byte to convert. ESI = END OF BUFFER (WORD)
 	;OUTPUTS --> AX = ASCII byte outputs.
 	push ecx
 	push ebx
 	push edx
-	
+
 	xor ah, ah
 	cmp al, 100
 	jge .leaveCall
-	
+
 	mov bl, 10
 	div bl		;al = quotient, ah = remainder/10
-	
+
 	and al, 0x0F	; ensure low nibble
 	shl al, 4		; shift it to high nibble place
 	and ah, 0x0F	; ensure lower nibble
-	
+
 	or al, ah		; easy conversion.
 	jmp .endFunc
-	
+
  .endFunc:
 	mov ah, al
 	and al, 0x0F	; low BCD nibble
 	and ah, 0xF0	; high BCD nibble
 	shr ah, 4		; trim
-	
+
 	add al, '0'
 	add ah, '0'		; convert both to ASCII
 
@@ -546,7 +545,7 @@ UTILITY_BYTE_convertHEXtoASCII_lessThan100:	; INPUTS --> AL = byte to convert. E
 	;mov cl, [currentMode]
 	;cmp cl, SHELL_MODE
 	;jne .leaveCall
-	
+
 	dec esi
 	mov byte [esi], al
 	mov byte [esi-1], ah
@@ -557,7 +556,7 @@ UTILITY_BYTE_convertHEXtoASCII_lessThan100:	; INPUTS --> AL = byte to convert. E
 	pop ecx
 	ret
 
-	
+
 UTILITY_BYTE_convertBCDtoASCII: ; INPUTS = AX as BCD of byte (max 256d) // OUTPUTS = EAX as string output.
 	push ecx
 	push edx
@@ -577,31 +576,22 @@ UTILITY_BYTE_convertBCDtoASCII: ; INPUTS = AX as BCD of byte (max 256d) // OUTPU
 	add dh, '0'
 	add cl, '0'
 	mov ch, '0'		; force highest byte to be '0' (no value >256d)
-	
+
 	; EAX = ch->cl->dh->dl
 	xor eax, eax
 	mov al, ch
 	shl eax, 8
-	
+
 	mov al, cl
 	shl eax, 8
-	
+
 	mov al, dh
 	shl eax, 8
-	
+
 	mov al, dl
 	shl eax, 8
-	
+
 	pop edx
 	pop ecx
 	ret
-	
-	
-; Convert a BCD number to hex
-UTILITY_convertBCDtoHEX:
-	pushad
-	
-	popad
-	ret
-	
 	

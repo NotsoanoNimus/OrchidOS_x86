@@ -80,4 +80,4 @@ bKEYBOARDSTATUS		db 0x00		; keyboard status byte for shifts, capslock, etc.
 ; Bit 0 = Caps lock
 ; Bit 1 = SHIFT Status (1=on // 0=off)
 
-%include "idt/keyboard/KEYMAP.asm"
+%include "libraries/drivers/keyboard/KEYMAP.asm"

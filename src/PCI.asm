@@ -9,15 +9,18 @@ PCI_CONFIG_DATA			equ 0xCFC		; 32-bit register.
 ; Register Number = Offset into the 256-byte config space.
 PCI_GET_HIGH_WORD		equ 0x00000002	; Flag to get higher WORD from 32-bit CONFIG_DATA output.
 
+; Header Types.
 PCI_STANDARD_HEADER		equ 0x00
 PCI_TO_PCI_HEADER		equ 0x01
 PCI_TO_CARDBUS_HEADER	equ 0x02
 PCI_HEADER_MULT_FUNC	equ 0x80		; In the header-type byte, bit 7 tells whether or not the device has multiple functions.
 
+; BIST definitions.
 PCI_BIST_CAPABLE		equ 10000000b	; Check for device BIST capability.
 PCI_BIST_ACTIVATE		equ 01000000b	; Setting bit 6 of the BIST section will activate the Built-in Self Test.
 ; BIST returns 000b in the bottom 3 bits if successful.
 
+; Command Register flags.
 PCI_COMMAND_INT_DISABLE equ 0x0400		; Cmd BIT 10 = disable interrupt assertions if set.
 PCI_COMMAND_FAST_BTB_EN equ 0x0200		; Cmd BIT 09 = enable fast back-to-back transactions if set.
 PCI_COMMAND_SERR_EN		equ 0x0100		; Cmd BIT 08 = SERR# driver enable if set.
@@ -29,6 +32,7 @@ PCI_COMMAND_BUS_MASTER	equ 0x0004		; Cmd BIT 02 = 1 -> Device can act as Bus Mas
 PCI_COMMAND_MEM_SPACE	equ 0x0002		; Cmd BIT 01 = 1 -> Device can respond to Memory Space accesses. // 0 -> Device response disabled.
 PCI_COMMAND_IO_SPACE	equ 0x0001		; Cmd BIT 00 = 1 -> Device can respond to I/O Space accesses. // 0 -> Device response disabled.
 
+; Status Register flags.
 PCI_STATUS_PARITY_ERROR equ 0x8000		; Stt BIT 15 = Flagged if parity error, even if PERR handling disabled.
 PCI_STATUS_SYSTEM_ERROR equ 0x4000		; Stt BIT 14 = Flagged if device asserts a SERR# (system error).
 PCI_STATUS_MASTER_ABORT equ 0x2000		; Stt BIT 13 = Flagged by a master device when its transaction (ecx. Special) is terminated with Master-Abort.
@@ -46,7 +50,8 @@ PCI_NEXT_BUS			 db 0x00		; Next bus to check in a multi-controller environment.
 
 
 ; -- Capture all devices and functions using a recursive method of scanning.
-; ---- Scans 256 buses, 32 devices each. Each entry found is put into memory from PCI_INFO
+; ---- Scans the first (0-th) bus, and uses each bridge to scan others.
+; ---- Each device/function entry found is put into memory from PCI_INFO.
 PCI_getDevicesInfo:
 	push edi
 	call PCI_checkAllBuses
@@ -54,50 +59,7 @@ PCI_getDevicesInfo:
 	mov dword [edi], 0xFFFFFFFF		; end of block signature.
 	add edi, 4
 	mov dword [PCI_INFO_INDEX], edi	; Set end ptr to true end to measure full size.
-
-	;Might not even be worth calling...
-	;call PCI_INTERNAL_destroyDuplicates
-
 	pop edi
-	ret
-
-; This function may remain unused, since the checkBus function has become so efficient.
-PCI_INTERNAL_destroyDuplicates:
-	pushad
-
-	mov edi, PCI_INFO
-	mov esi, edi
-	add esi, 20
- .scanForDupes:
-	cmp dword [esi], 0xFFFFFFFF		; Is the next entry the end signature?
-	je .leaveCall					;  If so, leave.
-	cmpsd							; EDI = ESI?
-	je .dupeFound
-	add edi, 16
-	add esi, 16						; Increment both to the next Bus/Dev/Func ptr
-	jmp .scanForDupes
-
- .dupeFound:
-	push edi
-	push esi
-	;call _commandDUMP
-	;jmp $
-  .repFix:
-	movsd
-	cmp dword [esi], 0xFFFFFFFF		; Is the src the end signature?
-	je .cleaningAfter
-	jmp .repFix
-
- .cleaningAfter:	; avoids endless loops
-	;add esi, 16
-	;add edi, 16
-	pop esi
-	pop edi
-	mov dword [edi], 0xFFFFFFFF
-	jmp .scanForDupes
-
- .leaveCall:
-	popad
 	ret
 
 

@@ -426,6 +426,7 @@ ISR_SecondaryATA:
 	ret
 
 
+; Placeholder.
 ISR_LPTSpurHandler:
 	; Check for spurious IRQ
 	call PIC_getISR		; AH = slave ISR, AL = master ISR
@@ -437,9 +438,3 @@ ISR_LPTSpurHandler:
 	call PIC_sendEOI
  .leaveFunc:
 	ret
-
-
-%include "idt/keyboard/KEYBOARD.asm"
-%include "idt/timer/TIMER.asm"
-
-;%include "idt/ISRs.asm"

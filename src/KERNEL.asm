@@ -104,13 +104,12 @@ iTermLine				db 0
 
 
 
-%include "MEMOPS.asm"			; Heap setup and memory operations.
-%include "idt/IDT.asm"			; Interrupt Descriptor Table and ISRs.
+%include "libraries/MEMOPS.asm"	; Heap setup and memory operations.
+%include "IDT.asm"				; Interrupt Descriptor Table and ISRs.
 %include "shell/PARSER.asm"		; Parser in the case of SHELL_MODE.
 %include "shell/SCREEN.asm"		; SHELL_MODE basic screen wrapper functions.
-%include "devices/PIT.asm"		; Programmable Interval Timer setup.
 %include "PCI.asm"				; PCI Bus setup and implementation.
-%include "INIT.asm"				; Initialization functions, mainly for setting global variables and putting together devices.
+%include "misc/INIT.asm"		; Initialization functions, mainly for setting global variables and putting together devices.
 
 %include "libraries/drivers/DRIVERS.asm"	; SYSTEM DRIVERS (mouse, HDD, USB, and all other PCI devices not used in SHELL_MODE)
 ;%include "LIBRARIES.asm"					; SYSTEM LIBRARIES. Placeholder for its later implementation.
@@ -161,7 +160,7 @@ kernel_main:
 	KFREE 0x00100200
 	KMALLOC 8				; Yes, it worked! Use "MEMD 100000 100" and "MEMD 100100 100" to compare and check.
 
-	
+
 
 	; Hang and wait for some ISRs.
 	sti
