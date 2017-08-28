@@ -45,4 +45,4 @@ echo.
 CHOICE /C YN /M "Would you like to test the bootable image with QEMU?"
 IF ERRORLEVEL 2 EXIT
 :: Emulate an i386 system with 128MB of RAM.
-"%PROGRAMFILES%\qemu\qemu-system-i386.exe" -m 128M -drive format=raw,index=0,file="..\bin\image.img"
+qemu-system-i386 -m 128M -drive format=raw,index=0,file="..\bin\image.img"
