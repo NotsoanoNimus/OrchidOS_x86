@@ -6,6 +6,7 @@ jmp kernel_main
 nop
 
 ; Misc information.
+%define ORCHID_VERSION "0.3"
 KERNEL_OFFSET			equ 0x10000
 KERNEL_SIZE_SECTORS		equ 0x0040			; Change this in every other file based on the growth of the kernel.
 COMMAND_QUEUE			equ KERNEL_OFFSET+commandInQueue	; FOR EXTERNAL USE ONLY!

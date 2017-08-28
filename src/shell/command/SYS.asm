@@ -51,7 +51,10 @@ _commandSYS:
 	ret
 
 
-szSysInfo1			db "SYSTEM INFORMATION:  Orchid v0.3, 32-bit x86 -- DLB(dd.mm.yyyy): 24.08.2017", 0
+%strcat szSysInfo1cat "SYSTEM INFO: Orchid v",ORCHID_VERSION
+szSysInfo1			db szSysInfo1cat
+szSysInfo1Ext		db ", 32-bit x86 --> Date of Last Build: "
+szSysDateofLB		db __DATE__, 0
 szSysInfo2 			db "CPU - Vendor ID: '"
 szSysInfoVendor 	db "xxxxxxxxxxxx'", 0
 szSysInfo3			db "MEMORY - Total RAM: "
