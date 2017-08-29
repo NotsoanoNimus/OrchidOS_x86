@@ -162,6 +162,15 @@ kernel_main:
 	KMALLOC 8				; Yes, it worked! Use "MEMD 100000 100" and "MEMD 100100 100" to compare and check.
 
 
+	; debugging code typically goes here.
+
+	; debugging - stop for now since the buffer-clearing will make them all 0 anyway.
+	;mov edi, PCI_MATCHED_DEVICE1
+	;call _commandDUMP
+	mov edi, UHCI_BARIO_1
+	call _commandDUMP
+
+
 
 	; Hang and wait for some ISRs.
 	sti

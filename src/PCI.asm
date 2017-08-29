@@ -8,6 +8,8 @@ PCI_CONFIG_DATA			equ 0xCFC		; 32-bit register.
 ; Enable? | Reserved |  Bus No. |  Device No | Func No  |  Register No | Always 00
 ; Register Number = Offset into the 256-byte config space.
 PCI_GET_HIGH_WORD		equ 0x00000002	; Flag to get higher WORD from 32-bit CONFIG_DATA output.
+PCI_INFO_INDEX			 dd 0x00071000	; Pointer the the end of the PCI_INFO table @0x71000. Each entry is 20 bytes.
+PCI_NEXT_BUS			 db 0x00		; Next bus to check in a multi-controller environment.
 
 ; Header Types.
 PCI_STANDARD_HEADER		equ 0x00
@@ -44,9 +46,6 @@ PCI_STATUS_FAST_BTB_STT	equ 0x0080		; Stt BIT 07 = If set, device can accept fas
 PCI_STATUS_66MHZ_POSS	equ 0x0020		; Stt BIT 05 = If set, 66MHz. If not, 33MHz.
 PCI_STATUS_CAPABILITIES equ 0x0008		; Stt BIT 04 = If set, device supports ptr to New Capab Linked List at offs 0x34. Otherwise, not available.
 PCI_STATUS_INTERRUPT	equ 0x0004		; Stt BIT 03 = If set, interrupts are asserted. Otherwise, not asserted.
-
-PCI_INFO_INDEX			 dd 0x00071000	; Pointer the the end of the PCI_INFO table @0x71000. Each entry is 20 bytes.
-PCI_NEXT_BUS			 db 0x00		; Next bus to check in a multi-controller environment.
 
 ; Applicable to both 00h and 01h.
 PCI_BAR0				equ 0x10
@@ -358,7 +357,6 @@ PCI_checkDevice:
 	popad
 	stc
 	ret
-
  .leaveCall:
 	pop ebp
 	popad
@@ -536,6 +534,88 @@ PCI_get2ndPrimBuses:
 	add esp, 4
 	ret
 
+
+NUM_MATCHABLE_DEVICES		equ 0x08
+PCI_MATCHED_DEVICE1			dd 0x00000000
+PCI_MATCHED_DEVICE2			dd 0x00000000
+PCI_MATCHED_DEVICE3			dd 0x00000000
+PCI_MATCHED_DEVICE4			dd 0x00000000
+PCI_MATCHED_DEVICE5			dd 0x00000000
+PCI_MATCHED_DEVICE6			dd 0x00000000
+PCI_MATCHED_DEVICE7			dd 0x00000000
+PCI_MATCHED_DEVICE8			dd 0x00000000
+PCI_NUM_MATCHED_DEVICES		db 0x00
+; INPUTS:
+; INPUTS:
+;	ARG1 = (CLASS<<24|SUBCLASS<<16|INTERFACE<<8|REVISION)
+; OUTPUTS:
+;	No direct outputs. Stores matching devices in PCI_MATCHED_DEVICE[N], where N = the number of matching devices found.
+; -- Enumerate the stored PCI devices starting @PCI_INFO
+PCI_returnMatchingDevices:
+	push ebp
+	mov ebp, esp
+	push edi
+	push esi
+	push eax
+	push ebx
+	push ecx
+	xor eax, eax
+	xor ebx, ebx
+	xor ecx, ecx
+
+	mov dword eax, [ebp+8]	;arg1 --> EAX = specific device to search for.
+	and eax, 0xFFFFFF00		; mask revision number -- useless to track.
+	mov esi, PCI_INFO
+	mov edi, PCI_MATCHED_DEVICE1
+	; Structure of PCI_INFO entries = 5DWORDs.
+	;  #1 = [esi]    = Bus<<24|Dev<<16|Func<<8|00
+	;  #2 = [esi+4]  = DeviceID<<16 | VendorID
+	;  #3 = [esi+8]  = Status<<16|Command
+	;  #4 = [esi+12] = CLASS<<24|SUBCLASS<<16|INTERFACE<<8|REVISION (or 00)
+	;  #5 = [esi+16] = BIST<<24|Header<<16|Latency<<8|Cache
+
+ .enumerateArray:
+	mov dword ebx, [esi+12]
+	and ebx, 0xFFFFFF00		; Mask the revision number, we don't care about it.
+	cmp dword eax, ebx
+	jne .noMatch
+	cmp byte cl, NUM_MATCHABLE_DEVICES	; are we about to overflow?
+	jae .noMatch						;  if so, protect the system.
+	movsd			; [ESI] --> DWORD --> [EDI]
+	sub esi, 4		; next PCI_MATCHED_DEVICE is already loaded (edi+4) thanks to movsd. just correct ESI.
+	inc cl
+  .noMatch:
+ 	add esi, 5*4	; inc EDI up by 5 DWORDs (one entry)
+	cmp dword [esi], 0xFFFFFFFF		; did the index hit the signature DWORD?
+	jne .enumerateArray				; nope, keep checking
+	jmp .leaveCall					;  yes, exit.
+
+ .leaveCall:
+ 	mov byte [PCI_NUM_MATCHED_DEVICES], cl
+ 	pop ecx
+ 	pop ebx
+	pop eax
+	pop esi
+	pop edi
+	pop ebp
+	ret
+
+
+; Used to clean the buffers after a usage of the MATCHED_DEVICE variables.
+;  Typically only called from the init.asm file.
+PCI_INTERNAL_cleanMatchedBuffers:
+	push edi
+	push eax
+	push ecx
+	xor eax, eax
+	xor ecx, ecx
+	mov cl, NUM_MATCHABLE_DEVICES
+	mov edi, PCI_MATCHED_DEVICE1
+	rep stosd
+	pop ecx
+	pop eax
+	pop edi
+	ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; PCI EDIT VALS FUNCTIONS;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

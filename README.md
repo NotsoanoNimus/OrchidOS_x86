@@ -7,7 +7,9 @@ See the /docs/ folder for more specific information about each command, the pars
 ## TO-DO
 - <strike>Optimize old commands by centralizing some utility functions.</strike>
 - Finish exception-handling and basic IDT hooks.
-- Add USB driver to read mass-storage devices.
+- USB 1.0 support (<strike>UHCI</strike> & OHCI).
+- USB 2.0 support (EHCI).
+- Read USB mass-storage devices (since that's typically orchid's boot device).
 - File system based on FAT16, or some customized variant of it.
 - ELF binary support.
 - Basic system calls and I/O piping.
@@ -28,7 +30,7 @@ If you're using an emulator, check out the compiler Batch file in the /src/ dire
 
 ## Future Plans (distant, in no particular order)
 - Network stack.
-- Multitasking using PIT IRQ0. Implement TSS ops and inter-process COMM channels as well.
+- Multitasking using PIT IRQ0. Maybe/Undecided. Implement TSS ops and inter-process COMM channels as well.
 - Interactive, layered GUI with a Windows-style Desktop Window Manager (which will manage layers).
 - Implement system processes in separate ELF binaries, such as the DWM, GUI control, driver control.
 - Eventually shrink the orchidOS kernel to just a simple memory manager and syscall handler. (?)
