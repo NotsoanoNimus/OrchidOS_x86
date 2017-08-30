@@ -16,6 +16,7 @@ HEAP_STATUS_BLOCKS_NEXT			 dd 0x00000000		; Contains saved stack pointer.
 HEAP_BLOCK_CLEAN				equ 0x00			; Block is free.
 HEAP_BLOCK_DIRTY				equ 0x01			; Block is being accessed.
 
+; HEAP_INFO information (pointers).
 HEAP_PID_COUNT					equ 0x0006FFFC		;Ptr to dword at 0x6FFF8: counts how many processes running. Will be used to thread/multitask w/ IRQ0.
 HEAP_CURRENT_SIZE				equ 0x0006FFF8		;Ptr to dword at 0x6FFF0: keeps track of the current heap size.
 HEAP_END						equ 0x0006FFF4		; Contains a pointer to the end of the heap. This variable changes as the heap size changes.

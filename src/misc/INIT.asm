@@ -175,7 +175,6 @@ _initGetSystemInfo:
 	mov WORD bx, [SCREEN_WIDTH]
 	mul ebx
 	mov DWORD [SCREEN_PIXEL_COUNT], eax
-	;mov DWORD [0xFF8], eax
 
 	; Get BYTES_PER_PIXEL.
 	xor eax, eax

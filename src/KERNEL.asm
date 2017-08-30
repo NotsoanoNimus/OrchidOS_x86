@@ -61,14 +61,14 @@ HEAP_INFO				equ 0x6FFF0		; 16 bytes of heap info. Of main interest to the kerne
 RUNNING_PROCESSES		equ 0x70000		; Base ptr to an array of running processes. Max size of 1000h (4KiB). See memops for more.
 
 ; Connected device info.
-PCI_INFO				equ 0x71000		; Base ptr to filled info about PCI Devices. 512b of space (up to 71200h)
+PCI_INFO				equ 0x71000		; Base ptr to filled info about PCI Devices. 1KiB of space (up to 71400h)
 
 ; Processor info.
 CPU_INFO				equ 0x700		; Store CPU info starting at 0x700. Assume MEM_INFO won't be larger than 0x200 (>20 entries)
 
 ; Video/Graphics information.
 VGA_INFORMATION			equ 0x800		; Store the VGA/VIDEO info starting at 0x800, for 0x400 bytes (to 0xc00).
-VESA_CURRENT_MODE_INFO 	equ 0xC00		; Store VESA info from 0xC00 to 0xD00.
+VESA_CURRENT_MODE_INFO 	equ 0xC00		; Store VESA info from 0xC00 to 0xE00.
 VESA_DESIRED_MODE		equ 0x0118		; Tentative mode. Will change later to be more flexible than supporting only one standard.
 SCREEN_PITCH			equ VESA_CURRENT_MODE_INFO+0x10		;how many bytes per line. (WORD)
 SCREEN_WIDTH			equ VESA_CURRENT_MODE_INFO+0x12		; WORD
@@ -76,7 +76,8 @@ SCREEN_HEIGHT			equ VESA_CURRENT_MODE_INFO+0x14		; WORD
 SCREEN_BPP				equ VESA_CURRENT_MODE_INFO+0x19		; BYTE
 SCREEN_FRAMEBUFFER_ADDR	equ VESA_CURRENT_MODE_INFO+0x28		; DWORD
 SCREEN_OFFSCREEN_MEMORY equ VESA_CURRENT_MODE_INFO+0x30		; Amount of memory outside the framebuffer, off-screen (extra mem). (WORD)
-SCREEN_BACKBUFFER		equ 0x100000						; Second buffer for LFB is going to be allocated at 0x100000 (1MiB into phys mem).
+;SCREEN_BACKBUFFER		equ 0x100000						; Second buffer for LFB is going to be allocated at 0x100000 (1MiB into phys mem).
+; This will not happen because the SystemWindowManager process will control the management of GUI layers.
 BYTES_PER_PIXEL			db 0x00
 SCREEN_FRAMEBUFFER		dd 0x00000000
 SCREEN_LFB_SIZE_KB		dw 0x0000
@@ -142,33 +143,53 @@ kernel_main:
 	call _kernelWelcomeDisplay
 	mov byte [currentMode], SHELL_MODE	;SHELL MODE
 
+
+	; SHELL_MODE debugging code typically goes below, before idling.
+
 	; Test code.
 	KMALLOC 8
+	; This snippet here is what the regular MALLOC function syscall will do later.
+	;  It will account for headers and footers while writing a program into allocated memory.
 	mov edi, eax		; set EDI to return address of alloc start
 	mov ecx, 0x3B
 	mov eax, 0x0f0f0f0f
 	add edi, 0x0C		; don't overwrite the header...
 	rep stosd
-	KMALLOC 13
-	KMALLOC 128
-	KMALLOC 0x358
-	KMALLOC 0x00FF0000
-	KMALLOC 0x00008123
-	KMALLOC 0x01000000
-	KMALLOC 0x10000000
+	KMALLOC 13			; alloc 00100000 to 00100100
+	KMALLOC 128			; alloc 00100100 to 00100200
+	KMALLOC 0x358		; alloc 00100200 to 00100600
+	KMALLOC 0x00FF0000	; alloc 00100600 to 010F0600
+	KMALLOC 0x00008123	; alloc 010F0600 to 010F8800
+	KMALLOC 0x01000000	; alloc 010F8800 to 020F8800
+	KMALLOC 0x10000000	; alloc 020F8800 to 10000000
 	KFREE 0x00100000		; successfully clears memory at 0x100000
 	KFREE 0x00100100		; Now see if it combines holes.
 	KFREE 0x00100200
 	KMALLOC 8				; Yes, it worked! Use "MEMD 100000 100" and "MEMD 100100 100" to compare and check.
 
 
-	; debugging code typically goes here.
-
-	; debugging - stop for now since the buffer-clearing will make them all 0 anyway.
-	;mov edi, PCI_MATCHED_DEVICE1
-	;call _commandDUMP
+	; debugging - check connectivity of each UHCI usb device. Works to display connected status of all UHCI-compatible ports!
+	; --> When checking ports found in the BARIO variables, simply type dump in the console when the system starts
+	;      and look at the addr EDI is pointing to. MEMD it to see the stored BARIOs.
 	mov edi, UHCI_BARIO_1
-	call _commandDUMP
+  .testing:
+  	cmp word [edi], 0x0000		; is there no next port?
+  	je .break_test				; if not, leave
+	push byte 0x00
+  	push strict byte UHCI_PORTSC1
+  	push strict word [edi]
+	call USB_UHCI_DEBUG_outputPortVariable
+	add esp, 4
+	push byte 0x00
+	push strict byte UHCI_PORTSC2
+	push strict word [edi]
+	call USB_UHCI_DEBUG_outputPortVariable
+	add esp, 4
+	add edi, 2		; next port in line
+	jmp .testing
+   .break_test:
+
+
 
 
 

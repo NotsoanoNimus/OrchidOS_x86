@@ -26,7 +26,7 @@ A quick syntax reference:
 - %N implies the N-th argument in the command sequence.
 - Arguments are separated by one space.
 - Arguments in double-quotes are treated as one argument from quote to quote, regardless of spacing.
-- [] around an argument implies that the argument is optional.
+- [] around an argument implies that the argument is optional. <i>Note</i>: If the brackets fall around multiple arguments without breaking (i.e. [%1 %2]), then those arguments are contingent upon each other and will require both to be present.
 
 ### CLS
 Clears the console screen.
@@ -35,9 +35,9 @@ Clears the console screen.
 Changes the color of the user's input. Both the foreground and background colors are changeable.
 The two digits of the 4-bit colors cannot be the same.
 
-### CONN [%1 %2]
+### CONN [%1]
 Show an enumerated list of PCI devices. No support for PCIe (but those should be backwards-compatible).
-The arguments are an option that is pending approval, to allow detailed information on a specific bus->device. The brackets around both of them imply that one cannot be passed without the other. More info will be provided upon implementation.
+The arguments are an option that is pending implementation: to allow detailed information on a specific device number (device numbers are listed when calling CONN itself). More info will be provided upon implementation.
 
 ### DUMP
 Dump the states of all general-purpose registers, stack pointer, segments, and indices.

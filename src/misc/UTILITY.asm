@@ -263,8 +263,8 @@ UTILITY_HEX_STRINGtoINT:
 ; NO OUTPUTS.
 ; -- System Blue-Screen-Of-Death. Bad crash. :(  Goes back to Real Mode to display crash message.
 ; ---- This will be JMPed to (NOT CALLED) on irrecoverable IDT software IRQs & crashes.
-iBSODErrASCII	dd 0x00000000
-				dd 0x00000000
+;iBSODErrASCII	dd 0x00000000
+;				dd 0x00000000
 SYSTEM_BSOD:
 	; Mask everything...
 	mov al, 0xFF

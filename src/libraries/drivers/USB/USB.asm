@@ -4,10 +4,13 @@
 
 ; KNOWN ISSUES:
 ; -- If there's a USB controller on Bus0, Dev0, Func0 (HIGHLY UNLIKELY),
-;     the driver won't interpret ANY USB ports.
+;     the UHCI driver won't interpret ANY USB ports.
+
+USB_CONNECTED_DEVICE_COUNT      db 0x00
+
 
 %include "libraries/drivers/USB/UHCI/UHCI.asm"
-;%include "libraries/drivers/USB/OHCI/OHCI.asm"
+;%include "libraries/drivers/USB/OHCI/OHCI.asm"  ; OHCI = untested physically. Unsure if functional.
 ;%include "libraries/drivers/USB/EHCI/EHCI.asm"
 
 
