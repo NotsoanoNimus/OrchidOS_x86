@@ -60,7 +60,7 @@ When allocation occurs, memory is aligned to **256-byte "parcels"**. The entire 
 #### Elements of the Heap
 1. **Header**
     - DWORD: Starts the header every time (0xBEABEA57). Mnemonic is "BE A BEAST" for this signature.
-    - DWORD: Lists the size of the
+    - DWORD: Lists the size of the block, from header-to-footer.
     - DWORD: Technically only a byte, this space is reserved for future flags. When the LSBit is set, it means the block is 'dirty' and therefore not free to allocate or merge.
 2. **Footer**
     - DWORD: Footer signature. Always 0xDEADBEEF. May change later.

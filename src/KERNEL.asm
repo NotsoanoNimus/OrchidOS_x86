@@ -190,7 +190,23 @@ kernel_main:
    .break_test:
 
 
-
+	mov edi, UHCI_BARIO_1
+ 	cmp word [edi], 0x0000
+	je .break_bariotest
+	xor eax, eax
+	mov word ax, [edi]
+	shl eax, 16
+	mov ah, UHCI_PORTSC1
+	mov al, UHCI_WORD_OPERATION
+	push dword eax	;EAX = (BARIO<<16|Offset<<8|OperationType)
+	call USB_UHCI_readFromBARIO
+	add esp, 4
+	mov bl, 0x0A
+	mov esi, szUSBDeviceConn+8
+	call UTILITY_DWORD_HEXtoASCII
+	mov esi, szUSBDeviceConn
+	call _screenWrite
+  .break_bariotest:
 
 
 	; Hang and wait for some ISRs.

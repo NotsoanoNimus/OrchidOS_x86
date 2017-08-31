@@ -37,6 +37,11 @@ UHCI_PORTSC1    equ 10h
 UHCI_PORTSC2    equ 12h
 
 
+UHCI_BYTE_OPERATION     equ 00h
+UHCI_WORD_OPERATION     equ 01h
+UHCI_DWORD_OPERATION    equ 02h
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -93,44 +98,8 @@ USB_UHCI_DEBUG_outputPortVariable:
 ;POLLING/BOOLEAN/MISC FUNCTIONS.
 
 
-; INPUTS:
-;   ARG1: I/O Base Address
-; OUTPUTS:
-;   EAX: bit 0 --> Set = True (device is connected)
-; -- Polls the PORTSC# I/O ports to see if there is a device connected.
-USB_UHCI_isDeviceConnected:
-    push ebp
-    mov ebp, esp
-    push edx
-    xor eax, eax
 
-    mov strict word dx, [ebp+8]      ;arg1
-    and edx, 0x0000FFFF
-    push edx
-    add edx, UHCI_PORTSC1
-    in ax, dx
 
-    mov esi, szUSBDeviceConn+8
-    call UTILITY_DWORD_HEXtoASCII
-    mov bl, 0x06
-    mov esi, szUSBDeviceConn
-    call _screenWrite
-
-    pop edx
-    xor eax, eax
-    add edx, UHCI_PORTSC2
-    in ax, dx
-
-    mov esi, szUSBDeviceConn+8
-    call UTILITY_DWORD_HEXtoASCII
-    mov bl, 0x06
-    mov esi, szUSBDeviceConn
-    call _screenWrite
-
- .leaveCall:
-    pop edx
-    pop ebp
-    ret
 
 
 
@@ -139,6 +108,93 @@ USB_UHCI_isDeviceConnected:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;READ/WRITE/STATUS FUNCTIONS.
 
+
+; INPUTS:
+;   ARG1: Size of value to read.
+;   ARG2: Register Offset.
+;   ARG3: BARIO# base I/O port.
+; *--*--* All arguments are pushed in a single DWORD --> (ARG3<<16|ARG2<<8|ARG1).
+;          This will be referenced in the driver specification as a ROO variable (Register, Offset, Opsize).
+; OUTPUTS:
+;   EAX = Value read.
+; -- Reads a configuration register of the specified size, at the specified offset.
+USB_UHCI_readFromBARIO:
+    push ebp
+    mov ebp, esp
+    push ebx
+    push ecx
+    push edx
+
+    xor eax, eax
+    xor edx, edx
+    xor ebx, ebx
+    xor ecx, ecx
+
+    mov strict word dx, [ebp+10]    ;arg3
+    mov strict byte cl, [ebp+9]
+    add dl, cl                      ;arg2 - adding offset
+    mov strict byte bl, [ebp+8]     ;arg1
+    cmp byte bl, UHCI_BYTE_OPERATION
+    je .readByte
+    cmp byte bl, UHCI_WORD_OPERATION
+    je .readWord
+    ; assume dword
+    in eax, dx
+    jmp .leaveCall
+  .readByte:
+    in al, dx
+    jmp .leaveCall
+  .readWord:
+    in ax, dx
+    jmp .leaveCall
+
+ .leaveCall:
+    pop edx
+    pop ecx
+    pop ebx
+    pop ebp
+    ret
+
+
+; INPUTS:
+;   ARG1: Size of value to write (ARG4).
+;   ARG2: Register Offset.
+;   ARG3: BARIO# base I/O port
+;   ARG4: Value to write.
+; *--*--* The first 3 arguments are pushed in a single DWORD --> (ARG3<<16|ARG2<<8|ARG1).
+;          This will be referenced in the driver specification as a ROO variable (Register, Offset, Opsize).
+; NO OUTPUTS.
+; -- Write a value of the specified size to the BARIO register specified, at the specified offset.
+USB_UHCI_writeToBARIO:
+    pushad
+    mov ebp, esp
+    xor ebx, ebx
+    xor eax, eax        ; EAX = value to write
+    xor edx, edx        ;  DX = Port to write to.
+
+    mov strict byte bl, [ebp+36]    ;arg1
+    mov strict word dx, [ebp+38]    ;arg3
+    add strict byte dl, [ebp+37]    ;arg2 add offset to register.
+    cmp byte bl, UHCI_BYTE_OPERATION   ;byte
+    je .byteWrite
+    cmp byte bl, UHCI_WORD_OPERATION   ;word
+    je .wordWrite
+    ;assume dword.
+    mov dword eax, [ebp+40]
+    out dx, eax
+    jmp .leaveCall
+  .byteWrite:
+    mov strict byte al, [ebp+40]
+    out dx, al
+    jmp .leaveCall
+  .wordWrite:
+    mov strict word ax, [ebp+40]
+    out dx, ax
+    jmp .leaveCall
+
+ .leaveCall:
+    popad
+    ret
 
 
 
