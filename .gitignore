@@ -1,2 +1,3 @@
 bin/image.img
 src/__compile32.bat
+misc/snippets.asm
