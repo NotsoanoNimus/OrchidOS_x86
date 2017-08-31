@@ -48,7 +48,11 @@ If you're using an emulator, check out the compiler Batch file in the /src/ dire
 ## Why Reinvent the Wheel? (Anecdotal Commentary)
 Most people would consider the concept of designing an operating system from the ground-up a masochistic venture at best.
 Personally, I believe it's a journey that's not about the end-product, but more about the experience being so close to the system's hardware gets you.
+
 I have never felt a greater sense of accomplishment than successfully building the next version of an orchid kernel, and having a new feature work smoothly. It's enthralling to work at my own independent shell -- every. single. time.
+
 In the same vein, a failed compilation becomes one more surmountable hurdle, and experience in my tool-belt for later recollection.
+
 I hope someone enjoys this operating system as much as I enjoy creating it!
+
 Thanks for reading!

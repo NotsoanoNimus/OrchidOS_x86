@@ -168,45 +168,6 @@ kernel_main:
 	KMALLOC 8				; Yes, it worked! Use "MEMD 100000 100" and "MEMD 100100 100" to compare and check.
 
 
-	; debugging - check connectivity of each UHCI usb device. Works to display connected status of all UHCI-compatible ports!
-	; --> When checking ports found in the BARIO variables, simply type dump in the console when the system starts
-	;      and look at the addr EDI is pointing to. MEMD it to see the stored BARIOs.
-	mov edi, UHCI_BARIO_1
-  .testing:
-  	cmp word [edi], 0x0000		; is there no next port?
-  	je .break_test				; if not, leave
-	push byte 0x00
-  	push strict byte UHCI_PORTSC1
-  	push strict word [edi]
-	call USB_UHCI_DEBUG_outputPortVariable
-	add esp, 4
-	push byte 0x00
-	push strict byte UHCI_PORTSC2
-	push strict word [edi]
-	call USB_UHCI_DEBUG_outputPortVariable
-	add esp, 4
-	add edi, 2		; next port in line
-	jmp .testing
-   .break_test:
-
-
-	mov edi, UHCI_BARIO_1
- 	cmp word [edi], 0x0000
-	je .break_bariotest
-	xor eax, eax
-	mov word ax, [edi]
-	shl eax, 16
-	mov ah, UHCI_PORTSC1
-	mov al, UHCI_WORD_OPERATION
-	push dword eax	;EAX = (BARIO<<16|Offset<<8|OperationType)
-	call USB_UHCI_readFromBARIO
-	add esp, 4
-	mov bl, 0x0A
-	mov esi, szUSBDeviceConn+8
-	call UTILITY_DWORD_HEXtoASCII
-	mov esi, szUSBDeviceConn
-	call _screenWrite
-  .break_bariotest:
 
 
 	; Hang and wait for some ISRs.

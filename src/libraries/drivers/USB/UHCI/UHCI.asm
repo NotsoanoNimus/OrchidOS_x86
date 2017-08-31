@@ -53,6 +53,7 @@ szUSBDeviceConn db "XXXXXXXX", 0
 ;   ARG1: Which port? Accepts BARIO 1-8.
 ;   ARG2: Offset into port. UHCI_USBCMD to UHCI_PORTSC2.
 ;   ARG3: 0x00 = word // 0x01 = dword
+; *--*--* Input as a ROO.
 ; OUTPUTS:
 ;   * Print value received from port to the screen.
 ; -- Debugging function to output a read-back on a port.
@@ -68,7 +69,7 @@ USB_UHCI_DEBUG_outputPortVariable:
     mov strict byte cl, [ebp+38]        ;arg2 - byte
     mov strict byte bl, [ebp+39]        ;arg3 - byte
     add dx, cx      ; combine offset with base.
-    cmp bl, 0x01
+    cmp bl, UHCI_DWORD_OPERATION
     je .dword_in
     in ax, dx       ; read into ax
     jmp .printout
@@ -204,6 +205,8 @@ USB_UHCI_writeToBARIO:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;SETUP FUNCTIONS.
 
+
+; Find devices on the PCI bus(es) that match the class code of a UHCI.
 USB_INTERNAL_findMatchingUHCI:
     pushad
 
@@ -224,6 +227,7 @@ USB_INTERNAL_findMatchingUHCI:
     ret
 
 
+; Set up the BARIO variables that will contain each USB controller's I/O port bases.
 USB_INTERNAL_iterateUHCIBARs:
     pushad
     mov esi, PCI_MATCHED_DEVICE1
