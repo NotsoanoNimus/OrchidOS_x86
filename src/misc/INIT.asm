@@ -20,9 +20,11 @@ _initPICandIDT:
 
 
 szShellIntro			db "Welcome! Type 'help' for a list of orchid shell commands.", 0
-szVESAFailureMsg		db "Due to an incompatibility with VGA hardware, orchid has started in shell mode.", 0
 _kernelWelcomeDisplay:
 	pushad
+	xor edx, edx
+	mov edx, dword [BOOT_ERROR_FLAGS]
+
 	call _introOverlay				; SPLASH screen
 	call _graphicsRefreshOverlay	;set up initial header
 	mov bx, 0x0001					;add intro message.
@@ -30,14 +32,36 @@ _kernelWelcomeDisplay:
 	mov esi, szShellIntro
 	mov bl, 0x0A
 	call _screenWrite
-	mov esi, szVESAFailureMsg
+
+	call SYSTEM_tellErrors
+
+	mov word [SHELL_SHIFT_INDICATOR], 0x301F	; Default shift indicator.
+	mov word [SHELL_CAPS_INDICATOR], 0x3019		; Default caps indicator.
+	popad
+	ret
+
+
+; Tell the user what errors are flagged from the startup procedure.
+szVESAFailureMsg		db "*Due to an incompatibility with VGA hardware, orchid has started in shell mode.", 0
+szACPIFailureMsg		db "*Could not start the Advanced Configuration and Power Interface (ACPI) manager.", 0
+SYSTEM_tellErrors:
+	mov esi, szVESAFailureMsg		; this is always written in shell startup.
 	mov bl, 0x0C
 	call _screenWrite
 
-	mov word [SHELL_SHIFT_INDICATOR], 0x301F	; Default shift indicator. MOVE THIS OUT OF MAIN FUNC LATER.
-	mov word [SHELL_CAPS_INDICATOR], 0x3019		; Default caps indicator. See above.
-	popad
+	push dword edx
+	and edx, 0x00000080		;check bit 7
+	cmp edx, 0x00000080
+	jne .noACPIError
+	mov esi, szACPIFailureMsg
+	call _screenWrite
+ .noACPIError:
+ 	pop dword edx
+
 	ret
+
+
+
 
 
 iMemoryFree			dd 0
@@ -190,6 +214,7 @@ _initGetSystemInfo:
 	call SYSTEM_getCPUInfo		; do CPUID and get info.
 	call SYSTEM_getMEMInfo		; get memory information on the system.
 	call PCI_getDevicesInfo		; Get information about attached PCI devices to 0x71000. (DONE, INTERPRETER WILL IGNORE DUPLICATES)
+	call ACPI_initialize		; Initialize ACPI controller.
 	;call KEYBOARD_initialize	; Initialize the keyboard to the proper scan code set.
 	call USB_initializeDriver	; Initialize the USB devices found on the PCI bus.
 		call PCI_INTERNAL_cleanMatchedBuffers	; required before handling other device inits. Indented for visibility.

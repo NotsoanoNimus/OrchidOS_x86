@@ -13,8 +13,9 @@ If you would like more information about System Calls regarding allocations and 
 - 00000500 to 000006FF: MEM_INFO --> Map of system memory & system memory holes; retrieved from BIOS at boot.
 - 00000700 to 000007FF: CPU_INFO --> CPU information, such as the vendor string and processing power. May deprecate.
 - 00000800 to 00000BFF: VGA_INFO --> Information about the VGA and supported video modes.
-- 00000C00 to 00000DFF: VESA_INFO -> Information about VESA and the requested mode (typically 0x118).
-- **00000E00 to 00000FFB**: FREE.
+- 00000C00 to 00000DFF: VESA_INFO --> Information about VESA and the requested mode (typically 0x118).
+- 00000E00 to 00000EFF: ACPI_RSDP/RSDT & ACPI_INFO --> Pointers to ACPI information tables.
+- **00000F00 to 00000FFB**: FREE.
 - 00000FFC to 00000FFF: BOOT_ERROR_FLAGS. Important flags that tell the system which devices/protocols failed on start.
 - 00001000 to 000011FF: Extended Boot Sector, also referenced in src as ST2 (2 sectors).
 - **00001200 to 00007BFF**: FREE.

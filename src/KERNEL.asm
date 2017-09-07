@@ -27,6 +27,7 @@ SYSTEM_BSOD_ERROR_CODE	equ 0x11F8		; DWORD ASCII rep at PA 0x11F8 (end of ST2 lo
 BOOT_ERROR_FLAGS		equ 0x0FFC		; Error flags for startup. DWORD of bit-flags. Right underneath the ST2L.
 ; Bit 0: GUI Mode (1), SHELL Mode (0)
 ; Bit 1: Unable to load system memory information (1), All clear (0).
+; Bit 7: Unalbe to load ACPI information for power management.
 
 ; More internal system state info.
 BOOT_MODE				equ 00000000b
@@ -106,7 +107,10 @@ iTermLine				db 0
 
 
 
+%include "misc/MACROS.asm"
+
 %include "libraries/MEMOPS.asm"	; Heap setup and memory operations.
+%include "libraries/ACPI.asm"	; ACPI init functions and power management system.
 %include "IDT.asm"				; Interrupt Descriptor Table and ISRs.
 %include "shell/PARSER.asm"		; Parser in the case of SHELL_MODE.
 %include "shell/SCREEN.asm"		; SHELL_MODE basic screen wrapper functions.
@@ -115,8 +119,6 @@ iTermLine				db 0
 
 %include "libraries/drivers/DRIVERS.asm"	; SYSTEM DRIVERS (mouse, HDD, USB, and all other PCI devices not used in SHELL_MODE)
 ;%include "LIBRARIES.asm"					; SYSTEM LIBRARIES. Placeholder for its later implementation.
-
-%include "misc/MACROS.asm"
 
 ; UTILITY HAS A BITS 16 IN IT, BE CAREFUL
 %include "misc/UTILITY.asm"		; Miscellaneous utility functions used across the system & kernel, such as numeric conversions or ASCII outputs.

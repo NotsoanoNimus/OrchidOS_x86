@@ -35,6 +35,19 @@ PIC_EOI			equ 0x20	; End-of_interrupt command code.
 	dw ISRHIGH%1		; Offset 16-31
 %endmacro
 
+; HARDWARE IRQ CALLERS (just to condense some code).
+%macro HARDWARE_IRQ 1
+	cli
+	pushad
+	call %1
+	popad
+	sti
+	iretd
+%endmacro
+
+
+
+
 ; Main IDT table with all entries predefined.
 IDT:
  IDTENTRY 0		; divide by zero
@@ -97,7 +110,11 @@ IDT_Desc:
 ; Set up ISRs
 ISR_NOERRORCODE 0
 ISR_NOERRORCODE 1
-ISR_NOERRORCODE 2
+;ISR_NOERRORCODE 2		; non-maskable interrupt. Mostly indicated a hardware issue. irrecoverable crash for now.
+isr2:
+	cli
+	push dword 0x00000002
+	jmp SYSTEM_BSOD
 ISR_NOERRORCODE 3
 ISR_NOERRORCODE 4
 ISR_NOERRORCODE 5
@@ -106,7 +123,7 @@ ISR_NOERRORCODE 7
 ;ISR_NOERRORCODE 8		; irrecoverable software failure. For now it crashes the system.
 isr8:
 	cli
-	push dword 0x00000001
+	push dword 0x00000008
 	jmp SYSTEM_BSOD
 ISR_NOERRORCODE 9
 ISR_NOERRORCODE 10
@@ -128,6 +145,8 @@ ISR_NOERRORCODE 17
 ISR_NOERRORCODE 18
 ISR_NOERRORCODE 19
 ISR_NOERRORCODE 20
+
+; -- RESERVED --
 ISR_NOERRORCODE 21
 ISR_NOERRORCODE 22
 ISR_NOERRORCODE 23
@@ -137,37 +156,21 @@ ISR_NOERRORCODE 26
 ISR_NOERRORCODE 27
 ISR_NOERRORCODE 28
 ISR_NOERRORCODE 29
+; --------------
+
 ISR_NOERRORCODE 30
 ISR_NOERRORCODE 31
-;ISR_NOERRORCODE 32		;TIMER IRQ0
-isr32:
-	cli
-	pushad
-	call ISR_timerHandler
-	popad
-	;add esp, 4
-	sti
-	iretd
-;ISR_NOERRORCODE 33		;KEYBOARD IRQ1
-isr33:
-	cli
-	pushad
-	call ISR_keyboardHandler
-	popad
-	sti
-	iretd
+
+isr32:	;TIMER IRQ0
+	HARDWARE_IRQ ISR_timerHandler
+isr33:	; KEYBOARD IRQ1
+	HARDWARE_IRQ ISR_keyboardHandler
 ISR_NOERRORCODE 34
 ISR_NOERRORCODE 35
 ISR_NOERRORCODE 36
 ISR_NOERRORCODE 37
-;ISR_NOERRORCODE 38		; LPT1 / Spurious IRQ7
-isr38:
-	cli
-	pushad
-	call ISR_LPTSpurHandler
-	popad
-	sti
-	iretd
+isr38:	; LPT1 / Spurious IRQ7
+	HARDWARE_IRQ ISR_LPTSpurHandler
 ISR_NOERRORCODE 39
 ISR_NOERRORCODE 40
 ISR_NOERRORCODE 41
@@ -176,14 +179,8 @@ ISR_NOERRORCODE 43
 ISR_NOERRORCODE 44		; Mouse controller.
 ISR_NOERRORCODE 45
 ISR_NOERRORCODE 46
-;ISR_NOERRORCODE 47		;SecATA / Spurious IRQ15
-isr47:
-	cli
-	pushad
-	call ISR_SecondaryATA
-	popad
-	sti
-	iretd
+isr47:	;SecATA / Spurious IRQ15
+	HARDWARE_IRQ ISR_SecondaryATA
 ISR_NOERRORCODE 48
 ISR_NOERRORCODE 49
 ISR_NOERRORCODE 50
