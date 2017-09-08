@@ -12,15 +12,15 @@
   .Not%1:
 %endmacro
 
-szPARSERNoCMD 	db "Invalid command! Type HELP for commands.", 0
-szPARSERSynErr1	db "Parser detected a syntax error in the passed arguments.", 0
-szPARSERSynErr2 db "-- Check the orchid documentation for more information about the parser!", 0
-PARSER_ARG1_LENGTH db 0x00
-PARSER_ARG2_LENGTH db 0x00
-PARSER_ARG3_LENGTH db 0x00
-PARSER_ARG1 times 64 db 0x00
-PARSER_ARG2 times 64 db 0x00
-PARSER_ARG3 times 64 db 0x00
+szPARSERNoCMD 			db "Invalid command! Type HELP for commands.", 0
+szPARSERSynErr1			db "Parser detected a syntax error in the passed arguments.", 0
+szPARSERSynErr2 		db "-- Check the orchid documentation for more information about the parser!", 0
+PARSER_ARG1_LENGTH 		db 0x00
+PARSER_ARG2_LENGTH 		db 0x00
+PARSER_ARG3_LENGTH 		db 0x00
+PARSER_ARG1 times 64	db 0x00
+PARSER_ARG2 times 64	db 0x00
+PARSER_ARG3 times 64	db 0x00
 
 iPARSERsaveEIP	dd 0x0	; used so that the popad by dump doesn't pop the return EIP.
 
@@ -62,8 +62,15 @@ _parseCommand:
 
 	; The .return label is only for exiting commands to use. Otherwise, the default return is to give an error msg.
 .endFirstRead:		; ECX is now = to the buffer length. Use this to narrow down the command tests.
-	cmp ecx, 0
-	je _parseCommand.returnCMD		; Check if the user even wrote anything. If not, exit with no output.
+
+	; Before anything, make sure reboot isn't being called.
+	cmp edx, 0x626F6F74
+	je .skipClearFlag
+	mov byte [bREBOOTPending], 0x00
+  .skipClearFlag:
+
+	cmp ecx, 0						; Check if the user even wrote anything.
+	je _parseCommand.returnCMD		; If not, exit with no output.
 	cmp ecx, 2		; 2-letter cmd
 	jg _parseCommand.not2
 	jmp _parseCommand.returnWMSG
@@ -100,7 +107,7 @@ _parseCommand:
  .not5:
 	cmp ecx, 6
 	jg _parseCommand.not6
-	;CheckCMD (some 6-letter CMD),0x00000000
+	CheckCMD REBOOT,0x626F6F74 ;"boot"
 	jmp _parseCommand.returnWMSG
  .not6:				; at this point, the cmds left to check aren't many.
 	jmp _parseCommand.returnWMSG

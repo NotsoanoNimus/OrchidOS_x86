@@ -1,26 +1,13 @@
 ; ACPI.asm
 ; -- Advanced Configuration Power Interface: setup functions and driver interaction functions.
 
-ACPI_RSDT       equ 0x00000E04      ; ACPI Root System Description Table base ptr.
-ACPI_RSDP       equ 0x00000E00      ; ACPI Root System Description Pointer table base ptr.
+%include "libraries/ACPI/ACPI_definitions.asm"
 
-ACPI_VERSION     db 0x00            ; BYTE-sized snippet containing verision #
-
-; Root System Description Pointer Table v1.0:
-;  BYTE Signature (x8) --> "RSD PTR "
-;  BYTE Checksum
-;  BYTE OEMID (x6)
-;  BYTE Revision
-; DWORD RSDTaddress
-;+RSDP v2.0+:
-;  ((RSDP1.0 Structure))
-;  DWORD Length
-;  QWORD EXTaddress
-;   BYTE EXTchecksum
-;   BYTE reserved (x3)
-
-
-ACPI_initialize:
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; MAIN INIT FUNCTION.
+ACPI_initialize:    ; Called from INIT.asm.
     pushad
     xor eax, eax
     xor ebx, ebx
@@ -29,10 +16,11 @@ ACPI_initialize:
     xor esi, esi
     xor edi, edi
 
-    call ACPI_findRSDT
+    call ACPI_findRSDT      ; find the root table.
     CheckErrorFlags 0x00000080,.leaveCall
-    call ACPI_parseRSDT
+    call ACPI_parseRSDT     ; get the other system tables from the root.
     CheckErrorFlags 0x00000080,.leaveCall
+
 
  .leaveCall:
     popad
@@ -133,14 +121,27 @@ ACPI_RSDP_checksum:
 ACPI_parseRSDT:
     ; For now, we're going to support only ACPI_VERSION = 00 (version 1), so just assume
     ;  the OS is working with an ACPI RSDT, not an XtnSDT, which is usually in 64-bit space.
-    call ACPI_RSDT_checkSum
-    cmp eax, 1
-    jne .continueParsing
-    or dword [BOOT_ERROR_FLAGS], 0x00000080     ;set bit 7
-    jmp .leaveCall
+
+    ; ==> BUG: This checksum is currently flawed and needs review.
+    ;call ACPI_RSDT_checkSum
+    ;cmp eax, 1
+    ;jne .continueParsing
+    ;or dword [BOOT_ERROR_FLAGS], 0x00000080     ;set bit 7
+    ;jmp .leaveCall
 
  .continueParsing:
-
+    mov esi, [ACPI_RSDT]
+    xor ecx, ecx
+    mov cl, strict byte [esi+4]     ; get RSDT table length
+    sub cl, SIZEOF_ACPISDTHeader    ; subtract the size of the default header. Now CL = array size.
+    add esi, SIZEOF_ACPISDTHeader   ; move esi up to the first entry of the SDTPtrArray
+    mov edi, ACPI_TABLES            ; get ready to copy the pointer array.
+  .getNextEntry:
+    cmp cl, 0
+    jle .leaveCall
+    movsd
+    sub cl, 4
+    jmp .getNextEntry
 
  .leaveCall:
     ret

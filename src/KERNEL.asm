@@ -95,6 +95,10 @@ videoMemIndex		dw 0x0000
 inputBuffer			times 32 dq 0x0	; Reserve a 256-byte space for the user's input. Handled in SCREEN.asm
 inputIndex			dw 0x0000		; Number from 0-127 as an index of current user input position.
 
+NULL_IDT:		; USED FOR REBOOTING ONLY.
+	dw 0x0000
+	dd 0x00000000
+
 ; Shell strings. Move them later, as they're technically not global variables of major importance...
 szOverlay				db "Orchid -> SHELL"
 						times (80-32)-(0x0+($-szOverlay)) db 0x20
@@ -109,20 +113,19 @@ iTermLine				db 0
 
 %include "misc/MACROS.asm"
 
-%include "libraries/MEMOPS.asm"	; Heap setup and memory operations.
-%include "libraries/ACPI.asm"	; ACPI init functions and power management system.
-%include "IDT.asm"				; Interrupt Descriptor Table and ISRs.
-%include "shell/PARSER.asm"		; Parser in the case of SHELL_MODE.
-%include "shell/SCREEN.asm"		; SHELL_MODE basic screen wrapper functions.
-%include "PCI.asm"				; PCI Bus setup and implementation.
-%include "misc/INIT.asm"		; Initialization functions, mainly for setting global variables and putting together devices.
+%include "libraries/MEMOPS.asm"		; Heap setup and memory operations.
+%include "libraries/ACPI/ACPI.asm"	; ACPI init functions and power management system.
+%include "IDT.asm"					; Interrupt Descriptor Table and ISRs.
+%include "shell/PARSER.asm"			; Parser in the case of SHELL_MODE.
+%include "shell/SCREEN.asm"			; SHELL_MODE basic screen wrapper functions.
+%include "PCI.asm"					; PCI Bus setup and implementation.
+%include "misc/INIT.asm"			; Initialization functions, mainly for setting global variables and putting together devices.
 
 %include "libraries/drivers/DRIVERS.asm"	; SYSTEM DRIVERS (mouse, HDD, USB, and all other PCI devices not used in SHELL_MODE)
 ;%include "LIBRARIES.asm"					; SYSTEM LIBRARIES. Placeholder for its later implementation.
 
-; UTILITY HAS A BITS 16 IN IT, BE CAREFUL
+; UTILITY HAS A BITS 16 IN IT, BE CAREFUL TO PLACE IT ACCORDINGLY.
 %include "misc/UTILITY.asm"		; Miscellaneous utility functions used across the system & kernel, such as numeric conversions or ASCII outputs.
-
 
 [BITS 32]
 kernel_main:
@@ -145,30 +148,7 @@ kernel_main:
 	call _kernelWelcomeDisplay
 	mov byte [currentMode], SHELL_MODE	;SHELL MODE
 
-
-	; SHELL_MODE debugging code typically goes below, before idling.
-
-	; Test code.
-	KMALLOC 8
-	; This snippet here is what the regular MALLOC function syscall will do later.
-	;  It will account for headers and footers while writing a program into allocated memory.
-	mov edi, eax		; set EDI to return address of alloc start
-	mov ecx, 0x3B
-	mov eax, 0x0f0f0f0f
-	add edi, 0x0C		; don't overwrite the header...
-	rep stosd
-	KMALLOC 13			; alloc 00100000 to 00100100
-	KMALLOC 128			; alloc 00100100 to 00100200
-	KMALLOC 0x358		; alloc 00100200 to 00100600
-	KMALLOC 0x00FF0000	; alloc 00100600 to 010F0600
-	KMALLOC 0x00008123	; alloc 010F0600 to 010F8800
-	KMALLOC 0x01000000	; alloc 010F8800 to 020F8800
-	KMALLOC 0x10000000	; alloc 020F8800 to 10000000
-	KFREE 0x00100000		; successfully clears memory at 0x100000
-	KFREE 0x00100100		; Now see if it combines holes.
-	KFREE 0x00100200
-	KMALLOC 8				; Yes, it worked! Use "MEMD 100000 100" and "MEMD 100100 100" to compare and check.
-
+	; SHELL_MODE debugging/snippet code typically goes below, before idling.
 
 
 
