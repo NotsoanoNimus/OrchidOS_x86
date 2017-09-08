@@ -63,11 +63,13 @@ _parseCommand:
 	; The .return label is only for exiting commands to use. Otherwise, the default return is to give an error msg.
 .endFirstRead:		; ECX is now = to the buffer length. Use this to narrow down the command tests.
 
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	; Before anything, make sure reboot isn't being called.
 	cmp edx, 0x626F6F74
 	je .skipClearFlag
-	mov byte [bREBOOTPending], 0x00
+	mov byte [bREBOOTPending], FALSE
   .skipClearFlag:
+  	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 	cmp ecx, 0						; Check if the user even wrote anything.
 	je _parseCommand.returnCMD		; If not, exit with no output.

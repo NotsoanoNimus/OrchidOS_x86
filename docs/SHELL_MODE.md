@@ -21,7 +21,7 @@ Argument Restrictions:
 Upon error, the parser will let the user know that there was an error, and to check the documentation here.
 
 ## Commands
-All commands <strong><i>must be entered in lowercase text</i></strong>. Uppercase calls to commands are not supported yet, but can be quickly implemented later.
+All commands are case-<em>insensitive</em>, because all capitalized characters the user enters are automatically taken to lowercase behind-the-scenes, although the proper case will always display.
 A quick syntax reference:
 - %N implies the N-th argument in the command sequence.
 - Arguments are separated by one space.
@@ -50,3 +50,6 @@ Arg2 is the length of the dump in hex. This is always 16-byte-aligned (meaning r
 
 ### SYS
 Tell the user information about the system they're running on.
+
+### REBOOT
+Reboot the system by forcing a null IDT and calling a software interruption. This command is safeguarded by the parser, which only forces a reboot after the command is entered twice, <em>consecutively</em>.

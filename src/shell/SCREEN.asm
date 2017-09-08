@@ -193,9 +193,24 @@ _screenPrintChar:	; ah = color attrib, al = char
 	cmp al, 0x19
 	jle _screenPrintChar.return
 
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	; Capitalized letter check.
+	; Save state of EAX, store it in parser as a lowercase...
+	; ... but make it display as whatever case it actually is.
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	push dword eax
+	cmp al, 0x41	;'A'
+	jl .notCaps
+	cmp al, 0x5A 	;'Z'
+	jg .notCaps
+	; Letter is a capital letter.
+	add al, 0x20	; 0x20 is the difference between caps and lowercase letters.
+ .notCaps:
+
 	; Handle the input buffer.
 	mov byte [KERNEL_OFFSET+inputBuffer+ecx], al
 
+	pop dword eax
 	stosw
 
 	inc cx	; add to inputIndex

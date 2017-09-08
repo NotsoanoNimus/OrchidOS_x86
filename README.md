@@ -11,9 +11,7 @@ See the /docs/ folder for more specific information about each command, the pars
 - USB 1.0 support (<strike>UHCI</strike> & OHCI).
 - USB 2.0 support (EHCI).
 - Read USB mass-storage devices (since that's typically orchid's boot device).
-- File system based on FAT16, or some customized variant of it.
-- ELF binary support.
-- Basic system calls and I/O piping.
+- Clean up the deprecated, inefficient screen wrapper functions (one of the first files drafted at this project's inception).
 
 
 ## How To Run
@@ -22,7 +20,7 @@ Take the binary image and force it over the MBR of a removable media, such as a 
 
 If you're using an emulator, check out the compiler Batch file in the /src/ directory to view the compatible QEMU emulator settings.
 
-<i><u>NOTE</u></i>: Orchid cannot run on CDs, and has not been tested on floopy disks. Try at your own peril. Also, <u>orchid is not UEFI-compatible in any way</u>, so always run the legacy BIOS setting.
+<i><u>NOTE</u></i>: Orchid cannot run on CDs, and has not been tested on floppy disks. Try at your own peril. Also, <u>orchid is not UEFI-compatible in any way</u>, so always run the legacy BIOS setting.
 
 
 ## Capabilities
@@ -33,6 +31,9 @@ If you're using an emulator, check out the compiler Batch file in the /src/ dire
 
 
 ## Future Plans (distant, in no particular order)
+- File system based on FAT16, or some customized variant of it.
+- ELF binary support.
+- Basic system calls and I/O piping.
 - Network stack.
 - Multitasking using PIT IRQ0. Maybe/Undecided. Implement TSS ops and inter-process COMM channels as well.
 - Interactive, layered GUI with a Windows-style Desktop Window Manager (which will manage layers).
