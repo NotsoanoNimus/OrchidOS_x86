@@ -37,11 +37,6 @@ UHCI_PORTSC1    equ 10h
 UHCI_PORTSC2    equ 12h
 
 
-UHCI_BYTE_OPERATION     equ 00h
-UHCI_WORD_OPERATION     equ 01h
-UHCI_DWORD_OPERATION    equ 02h
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -69,7 +64,7 @@ USB_UHCI_DEBUG_outputPortVariable:
     mov strict byte cl, [ebp+38]        ;arg2 - byte
     mov strict byte bl, [ebp+39]        ;arg3 - byte
     add dx, cx      ; combine offset with base.
-    cmp bl, UHCI_DWORD_OPERATION
+    cmp bl, DWORD_OPERATION
     je .dword_in
     in ax, dx       ; read into ax
     jmp .printout
@@ -135,9 +130,9 @@ USB_UHCI_readFromBARIO:
     mov strict byte cl, [ebp+9]
     add dl, cl                      ;arg2 - adding offset
     mov strict byte bl, [ebp+8]     ;arg1
-    cmp byte bl, UHCI_BYTE_OPERATION
+    cmp byte bl, BYTE_OPERATION
     je .readByte
-    cmp byte bl, UHCI_WORD_OPERATION
+    cmp byte bl, WORD_OPERATION
     je .readWord
     ; assume dword
     in eax, dx
@@ -176,9 +171,9 @@ USB_UHCI_writeToBARIO:
     mov strict byte bl, [ebp+36]    ;arg1
     mov strict word dx, [ebp+38]    ;arg3
     add strict byte dl, [ebp+37]    ;arg2 add offset to register.
-    cmp byte bl, UHCI_BYTE_OPERATION   ;byte
+    cmp byte bl, BYTE_OPERATION   ;byte
     je .byteWrite
-    cmp byte bl, UHCI_WORD_OPERATION   ;word
+    cmp byte bl, WORD_OPERATION   ;word
     je .wordWrite
     ;assume dword.
     mov dword eax, [ebp+40]

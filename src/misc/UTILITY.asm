@@ -252,6 +252,72 @@ UTILITY_HEX_STRINGtoINT:
 	ret
 
 
+; INPUTS:
+; 	ARG1 = Comparison size: 0x01 = Byte // 0x02 = Word // 0x03 = Dword
+;	ARG2 = Ptr to start addr in physical memory.
+; 	ARG3 = Length to check.
+;	ARG4 = Value to check for.
+; OUTPUTS: EAX = ptr to matching value. 0x00000000 if no match found.
+; -- Compares
+MEMCMP_func:
+	push ebp
+	mov ebp, esp
+	push esi
+	push ecx
+	push ebx
+
+	xor eax, eax	; EAX = 0, only will change if a match is found.
+	xor ebx, ebx
+	xor ecx, ecx
+	mov dword ebx, [ebp+8]	;arg1 - Size
+	mov dword esi, [ebp+12]	;arg2 - Start addr
+	mov dword ecx, [ebp+16]	;arg3 - Length
+	mov dword edx, [ebp+20]	;arg4 - Cmp value.
+
+	cmp dword ebx, DWORD_OPERATION	;dword?
+	je .dwordSearch
+	and edx, 0x0000FFFF				; cut off DWORD portion of arg4.
+	cmp dword ebx, WORD_OPERATION	;word?
+	je .wordSearch
+	and edx, 0x000000FF				; cut off WORD potion of arg4.
+	cmp dword ebx, BYTE_OPERATION	;byte?
+	je .byteSearch
+	; if this point is reached, the argument contains an invalid value. Error-exit.
+ .errorExit:
+	jmp .leaveCall
+
+ .byteSearch:
+	cmp strict byte [esi], dl
+	je .matchFound
+	inc esi
+ 	loop .byteSearch
+	jmp .errorExit
+
+ .wordSearch:
+	cmp strict word [esi], dx
+	je .matchFound
+	add esi, 2
+	loop .wordSearch
+	jmp .errorExit
+
+ .dwordSearch:
+	cmp strict dword [esi], edx
+	je .matchFound
+	add esi, 4
+	loop .dwordSearch
+	jmp .errorExit
+
+ .matchFound:
+	mov eax, esi
+ .leaveCall:
+ 	pop ebx
+	pop ecx
+	pop esi
+	pop ebp
+	ret
+
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

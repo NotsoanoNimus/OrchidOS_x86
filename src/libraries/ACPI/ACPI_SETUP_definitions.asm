@@ -29,8 +29,10 @@ ACPI_SCI_INTERRUPT      dw 0x0000
 ACPI_S5_SLP_TYPa   dw 0x0000
 ACPI_S5_SLP_TYPb   dw 0x0000
 
-; Some misc definitions...
+; Some misc definitions for the PMxx_CONTROL registers.
+; PM1a...
 ACPI_SLP_EN     equ 1<<13
+
 
 ; Root System Description Pointer Table v1.0:
 ;  BYTE Signature (x8) --> "RSD PTR "
@@ -170,4 +172,4 @@ AML_DWORD_PREFIX    equ 0x0C
 AML_STRING_PREFIX   equ 0x0D
 AML_QWORD_PREFIX    equ 0x0E
 
-AML_PACKAGE         equ 0x12
+AML_PACKAGE         equ 0x12    ; NOTE: MS2B indicate how many following bytes are in the PACKAGE_LENGTH encoding.

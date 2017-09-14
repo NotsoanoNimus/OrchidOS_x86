@@ -120,7 +120,7 @@ iTermLine				db 0
 %include "shell/PARSER.asm"			; Parser in the case of SHELL_MODE.
 %include "shell/SCREEN.asm"			; SHELL_MODE basic screen wrapper functions.
 %include "PCI.asm"					; PCI Bus setup and implementation.
-%include "misc/INIT.asm"			; Initialization functions, mainly for setting global variables and putting together devices.
+%include "misc/INIT.asm"			; For setting global variables/device Initialization.
 
 %include "libraries/drivers/DRIVERS.asm"	; SYSTEM DRIVERS (mouse, HDD, USB, and all other PCI devices not used in SHELL_MODE)
 ;%include "LIBRARIES.asm"					; SYSTEM LIBRARIES. Placeholder for its later implementation.
@@ -157,7 +157,10 @@ kernel_main:
 	; Starts at ACPI_VERSION, since that's the first linear variable space adjacent to all of the others ahead of it.
 	;mov esi, ACPI_VERSION
 	;call _commandDUMP
-
+	; debugging - check if MEMCMP works. There is an "RSD PTR " in the RSDT address.
+	; Check with MEMD at the address that EAX returns to verify that "PTR " exists at that location --> SUCCESS!
+	MEMCMP DWORD_OPERATION,[ACPI_RSDP],0x20,"PTR "
+	call _commandDUMP
 
 
 	; Hang and wait for some ISRs.

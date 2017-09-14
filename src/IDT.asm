@@ -108,7 +108,13 @@ IDT_Desc:
 
 
 ; Set up ISRs
-ISR_NOERRORCODE 0
+;ISR_NOERRORCODE 0
+; `--> divide by zero. This ISR will be a simple crash,
+;       until a process handler is implemented that will terminate the faulted process.
+isr0:
+	cli
+	push dword 0x00000000
+	jmp SYSTEM_BSOD
 ISR_NOERRORCODE 1
 ;ISR_NOERRORCODE 2		; non-maskable interrupt. Mostly indicated a hardware issue. irrecoverable crash for now.
 isr2:

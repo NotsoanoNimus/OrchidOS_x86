@@ -1,12 +1,16 @@
 ; ACPI.asm
-; -- Advanced Configuration Power Interface: setup functions and driver interaction functions.
+; -- Advanced Configuration Power Interface: mostly setup functions; some driver interaction functions.
+; ---- For system policies, such as thermal management, power profiles(policies),
+; ----  and ISR service routines for the PIC, see the related files.
 
-%include "libraries/ACPI/ACPI_definitions.asm"
+%include "libraries/ACPI/ACPI_SETUP_definitions.asm"
+%include "libraries/ACPI/Policies/ACPI_POLICIES.asm"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; MAIN INIT FUNCTION.
+; MAIN INIT FUNCTION. This function gathers all important ACPI driver setup variables from the ACPI memory,
+;  and will eventually select a default/preferred power policy for the system.
 ACPI_initialize:    ; Called from INIT.asm.
     pushad
     xor eax, eax
@@ -292,6 +296,8 @@ ACPI_disable:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Find the system's preferred power profile based on the FADT's value.
+;  In order to add a preferred 'profile', the profiles must be defined in the first place,
+;   inclusive of everything the policy must manage.
 ACPI_setPowerProfile:
     pushad
 

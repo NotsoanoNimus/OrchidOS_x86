@@ -3,6 +3,10 @@
 
 %define TRUE 0x01
 %define FALSE 0x00
+; Functions which need a size specifier will take these values.
+%define BYTE_OPERATION     00h
+%define WORD_OPERATION     01h
+%define DWORD_OPERATION    02h
 
 ; PARSER-specific macro to check commands.
 ; Arg1 = Command name in CAPS. Arg2 = DWORD of cmp operation (or direct string if >3 chars).
@@ -72,4 +76,12 @@
 	push %2
 	push %1
 	call kmemcpy
+%endmacro
+
+%macro MEMCMP 4
+	push dword %4
+	push dword %3
+	push dword %2
+	push dword %1
+	call MEMCMP_func
 %endmacro
