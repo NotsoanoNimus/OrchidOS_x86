@@ -150,7 +150,10 @@ kernel_main:
 
 	; SHELL_MODE debugging/snippet code typically goes below, before idling.
 
-
+	; debugging - find out where the ACPI kernel info is stored internally, to read the values through memd.
+	; Starts at ACPI_VERSION, since that's the first linear variable space adjacent to all of the others ahead of it.
+	mov esi, ACPI_VERSION
+	call _commandDUMP
 
 	; Hang and wait for some ISRs.
 	sti

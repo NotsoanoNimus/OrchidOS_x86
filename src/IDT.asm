@@ -91,7 +91,7 @@ IDT:
  IDTENTRY 38	; Floppy Disk
  IDTENTRY 39	; LPT1 / Unreliable "Spurious" IRQ (usually)
  IDTENTRY 40	; CMOS real-time clock (if enabled)
- IDTENTRY 41	; Free for peripherals / Legacy SCSI / NIC
+ IDTENTRY 41	; Free for peripherals / Legacy SCSI / NIC <-- often used by ACPI to detect power events.
  IDTENTRY 42	; Free for peripherals / SCSI / NIC
  IDTENTRY 43	; Free for peripherals / SCSI / NIC
  IDTENTRY 44	; PS/2 Mouse Controller (not going to be supported by orchid)

@@ -45,23 +45,10 @@ _kernelWelcomeDisplay:
 szVESAFailureMsg		db "*Due to an incompatibility with VGA hardware, orchid has started in shell mode.", 0
 szACPIFailureMsg		db "*Could not start the Advanced Configuration and Power Interface (ACPI) manager.", 0
 SYSTEM_tellErrors:
-	mov esi, szVESAFailureMsg		; this is always written in shell startup.
-	mov bl, 0x0C
-	call _screenWrite
-
-	push dword edx
-	and edx, 0x00000080		;check bit 7
-	cmp edx, 0x00000080
-	jne .noACPIError
-	mov esi, szACPIFailureMsg
-	call _screenWrite
- .noACPIError:
- 	pop dword edx
-
+	mov dword edx, [BOOT_ERROR_FLAGS]
+	PrintString szVESAFailureMsg,0x0C		; this is always written in shell startup.
+	CONSOLETellError 0x00000080,szACPIFailureMsg,.noACPIError
 	ret
-
-
-
 
 
 iMemoryFree			dd 0

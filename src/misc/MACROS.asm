@@ -16,6 +16,18 @@
 	call _screenWrite
 %endmacro
 
+; CONSOLE ERROR MESSAGES. Used in "INIT.asm->SYSTEM_tellErrors" only.
+; -- Args -> %1 = Message Ptr // %2 = BOOT_ERROR_FLAGS value to check // %3 = Label name.
+%macro CONSOLETellError 3
+	push dword edx
+	and edx, %1
+	cmp edx, %1
+	jne %3
+	PrintString %2
+  %3:
+	pop dword edx
+%endmacro
+
 
 ; MEMOPS macros.
 %macro KMALLOC 1
@@ -43,7 +55,7 @@
 %endmacro
 
 
-
+; Compare BOOT_ERROR_FLAGS to %1, and jump to %2 if they're equal.
 %macro CheckErrorFlags 2
     push dword edx
     mov dword edx, [BOOT_ERROR_FLAGS]
