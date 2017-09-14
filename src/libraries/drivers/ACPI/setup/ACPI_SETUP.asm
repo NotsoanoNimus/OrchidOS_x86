@@ -1,10 +1,7 @@
 ; ACPI.asm
-; -- Advanced Configuration Power Interface: mostly setup functions; some driver interaction functions.
-; ---- For system policies, such as thermal management, power profiles(policies),
-; ----  and ISR service routines for the PIC, see the related files.
+; -- Advanced Configuration Power Interface: mostly setup functions.
 
-%include "libraries/ACPI/ACPI_SETUP_definitions.asm"
-%include "libraries/ACPI/Policies/ACPI_POLICIES.asm"
+%include "libraries/drivers/ACPI/setup/ACPI_SETUP_definitions.asm"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

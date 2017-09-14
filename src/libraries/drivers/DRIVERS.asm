@@ -5,3 +5,4 @@
 %include "libraries/drivers/USB/USB.asm"
 %include "libraries/drivers/keyboard/KEYBOARD.asm"
 %include "libraries/drivers/timer/PIT.asm"
+%include "libraries/drivers/ACPI/ACPI.asm"

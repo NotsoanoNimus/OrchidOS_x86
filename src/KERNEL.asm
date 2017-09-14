@@ -112,10 +112,9 @@ iTermLine				db 0
 
 
 
-%include "misc/MACROS.asm"
+%include "misc/MACROS.asm"			; NASM Macros and Pre-Processor definitions for global implementation.
 
 %include "libraries/MEMOPS.asm"		; Heap setup and memory operations.
-%include "libraries/ACPI/ACPI.asm"	; ACPI init functions and power management system.
 %include "IDT.asm"					; Interrupt Descriptor Table and ISRs.
 %include "shell/PARSER.asm"			; Parser in the case of SHELL_MODE.
 %include "shell/SCREEN.asm"			; SHELL_MODE basic screen wrapper functions.

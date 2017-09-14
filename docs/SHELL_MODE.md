@@ -48,8 +48,12 @@ Perform a hexdump of memory at the specified location, for the specified length.
 Arg1 is the physical address to start the hexdump from.
 Arg2 is the length of the dump in hex. This is always 16-byte-aligned (meaning rounded to the nearest 0x10).
 
-### SYS
-Tell the user information about the system they're running on.
-
 ### REBOOT
 Reboot the system by forcing a null IDT and calling a software interruption. This command is safeguarded by the parser, which only forces a reboot after the command is entered twice, <em>consecutively</em>.
+
+### SHUTDOWN
+Shutdown the system by using ACPI. Error-checks to make sure ACPI is enabled before trying a port output to PM1a.
+Just like *REBOOT*, this command is also protected by the same parser safeguard.
+
+### SYS
+Tell the user information about the system they're running on.
