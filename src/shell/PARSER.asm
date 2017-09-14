@@ -1,16 +1,16 @@
+; PARSER.asm
+; -- Command parser: polls results and calls appropriate commands.
 
-;CMD parser, polls results and calls appropriate commands.
-; Parses input buffer. Is called from the keyboard IR
+
+; KNOWN ISSUES:
+; * ON COMMANDS >4 CHARS, THE INPUT CAN BE SKEWED SO THAT ONLY THE 'LAST 4 CHARS' & 'LENGTH'
+;    OF THE COMMAND MATCH THE PARAMETERS.
+;   Solutions: Implement a stricter command parser.
+; * UNKNOWN COMMANDS WITH >4 WORDS WILL GENERATE A "PARSER SYNTAX ERROR" INSTEAD OF
+;    THE APPROPRIATE "UNKNOWN COMMAND" ERROR.
+
+
 %include "shell/CMDDIR.asm"
-
-; Arg1 = Command name in CAPS. Arg2 = DWORD of cmp operation (or direct string if >3 chars).
-%macro CheckCMD 2
-	cmp edx, %2
-	jne _parseCommand.Not%1
-	call _command%1
-	jmp _parseCommand.returnCMD
-  .Not%1:
-%endmacro
 
 szPARSERNoCMD 			db "Invalid command! Type HELP for commands.", 0
 szPARSERSynErr1			db "Parser detected a syntax error in the passed arguments.", 0
@@ -64,11 +64,15 @@ _parseCommand:
 .endFirstRead:		; ECX is now = to the buffer length. Use this to narrow down the command tests.
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	; Before anything, make sure reboot isn't being called.
-	cmp edx, 0x626F6F74
-	je .skipClearFlag
+	; Before anything, make sure reboot & shutdown aren't being called.
+	cmp edx, 0x626F6F74		;"boot"
+	je .skipClearRebootFlag
 	mov byte [bREBOOTPending], FALSE
-  .skipClearFlag:
+  .skipClearRebootFlag:
+	cmp edx, 0x646F776E		;"down"
+	je .skipClearShutdownFlag
+	mov byte [bSHUTDOWNPending], FALSE
+  .skipClearShutdownFlag:
   	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 	cmp ecx, 0						; Check if the user even wrote anything.
@@ -111,8 +115,17 @@ _parseCommand:
 	jg _parseCommand.not6
 	CheckCMD REBOOT,0x626F6F74 ;"boot"
 	jmp _parseCommand.returnWMSG
- .not6:				; at this point, the cmds left to check aren't many.
+ .not6:
+ 	cmp ecx, 7
+	jg _parseCommand.not7
 	jmp _parseCommand.returnWMSG
+ .not7:
+ 	cmp ecx, 8
+	jg _parseCommand.not8
+	CheckCMD SHUTDOWN,0x646F776E	;"down"
+	jmp _parseCommand.returnWMSG
+ .not8:
+ 	; 8 chars WILL be the longest allowable command, so just bleed into the error message.
 
  .returnWMSG:
 	mov esi, szPARSERNoCMD

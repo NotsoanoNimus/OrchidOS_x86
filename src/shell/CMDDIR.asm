@@ -12,3 +12,4 @@
 %include "shell/command/CONN.asm"
 %include "shell/command/COLOR.asm"
 %include "shell/command/REBOOT.asm"
+%include "shell/command/SHUTDOWN.asm"

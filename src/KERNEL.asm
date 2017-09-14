@@ -27,7 +27,8 @@ SYSTEM_BSOD_ERROR_CODE	equ 0x11F8		; DWORD ASCII rep at PA 0x11F8 (end of ST2 lo
 BOOT_ERROR_FLAGS		equ 0x0FFC		; Error flags for startup. DWORD of bit-flags. Right underneath the ST2L.
 ; Bit 0: GUI Mode (1), SHELL Mode (0)
 ; Bit 1: Unable to load system memory information (1), All clear (0).
-; Bit 7: Unalbe to load ACPI information for power management.
+; Bit 6: Unable to load system shutdown variables.
+; Bit 7: Unable to load ACPI information for power management.
 
 ; More internal system state info.
 BOOT_MODE				equ 00000000b
@@ -150,10 +151,14 @@ kernel_main:
 
 	; SHELL_MODE debugging/snippet code typically goes below, before idling.
 
+
+
 	; debugging - find out where the ACPI kernel info is stored internally, to read the values through memd.
 	; Starts at ACPI_VERSION, since that's the first linear variable space adjacent to all of the others ahead of it.
-	mov esi, ACPI_VERSION
-	call _commandDUMP
+	;mov esi, ACPI_VERSION
+	;call _commandDUMP
+
+
 
 	; Hang and wait for some ISRs.
 	sti

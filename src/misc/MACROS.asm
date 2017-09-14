@@ -4,6 +4,16 @@
 %define TRUE 0x01
 %define FALSE 0x00
 
+; PARSER-specific macro to check commands.
+; Arg1 = Command name in CAPS. Arg2 = DWORD of cmp operation (or direct string if >3 chars).
+%macro CheckCMD 2
+	cmp edx, %2
+	jne _parseCommand.Not%1
+	call _command%1
+	jmp _parseCommand.returnCMD
+  .Not%1:
+%endmacro
+
 
 ; PRINT functions (2 args = stringPtr,color // 1 arg = stringPtr)
 %macro PrintString 2
@@ -26,6 +36,16 @@
 	PrintString %2
   %3:
 	pop dword edx
+%endmacro
+
+; Compare BOOT_ERROR_FLAGS to %1, and jump to %2 if they're equal.
+%macro CheckErrorFlags 2
+    push dword edx
+    mov dword edx, [BOOT_ERROR_FLAGS]
+    and edx, %1
+    cmp dword edx, %1
+	pop dword edx
+	je %2
 %endmacro
 
 
@@ -52,15 +72,4 @@
 	push %2
 	push %1
 	call kmemcpy
-%endmacro
-
-
-; Compare BOOT_ERROR_FLAGS to %1, and jump to %2 if they're equal.
-%macro CheckErrorFlags 2
-    push dword edx
-    mov dword edx, [BOOT_ERROR_FLAGS]
-    and edx, %1
-    cmp dword edx, %1
-	pop dword edx
-	je %2
 %endmacro

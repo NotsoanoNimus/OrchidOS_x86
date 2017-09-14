@@ -44,10 +44,20 @@ _kernelWelcomeDisplay:
 ; Tell the user what errors are flagged from the startup procedure.
 szVESAFailureMsg		db "*Due to an incompatibility with VGA hardware, orchid has started in shell mode.", 0
 szACPIFailureMsg		db "*Could not start the Advanced Configuration and Power Interface (ACPI) manager.", 0
+szACPINoShutdown		db "*ACPI: Shutdown variables could not be found! Only manual shutdown is possible!", 0
+szRunningFromEmulator	db "***Orchid is running on an emulator (QEMU/BOCHS).", 0
 SYSTEM_tellErrors:
+	pushad
 	mov dword edx, [BOOT_ERROR_FLAGS]
 	PrintString szVESAFailureMsg,0x0C		; this is always written in shell startup.
 	CONSOLETellError 0x00000080,szACPIFailureMsg,.noACPIError
+	CONSOLETellError 0x00000040,szACPINoShutdown,.noShutdownError
+
+	cmp byte [IS_ON_EMULATOR], TRUE
+	jne .leaveCall
+	PrintString szRunningFromEmulator,0x0E
+ .leaveCall:
+ 	popad
 	ret
 
 

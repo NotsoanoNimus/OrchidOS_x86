@@ -29,8 +29,12 @@ ACPI_initialize:    ; Called from INIT.asm.
     call ACPI_populateFieldsViaFADT     ; Very important function that gets a lot of system ACPI information.
     CheckErrorFlags 0x00000080,.leaveCall
 
-    call ACPI_enable    ; Enable the ACPI by writing ACPI_ENABLE_COMMAND to ACPI_MGMT_CMD_PORT.
-    call ACPI_getPreferredPowerProfile  ; activate the preferred power profile, based on ACPI_PREF_POWER_PROFILE.
+    call ACPI_getShutdownHandlers       ; Another crucial piece to search for. Need to get \_S5_ information.
+    CheckErrorFlags 0x00000040,.leaveCall
+
+    ;call ACPI_enable    ; Enable the ACPI by writing ACPI_ENABLE_COMMAND to ACPI_MGMT_CMD_PORT.
+    ; no need to enable ACPI yet, until a full driver is written to control power policing. Coming soon!
+    call ACPI_setPowerProfile  ; activate the preferred power profile, based on ACPI_PREF_POWER_PROFILE.
 
  .leaveCall:
     popad
@@ -144,7 +148,10 @@ ACPI_parseRSDT:
     ;jne .continueParsing
     ;or dword [BOOT_ERROR_FLAGS], 0x00000080     ;set bit 7
     ;jmp .leaveCall
-
+    mov esi, [ACPI_RSDT]
+    cmp dword [esi+0x0A], "BOCH"
+    jne .continueParsing
+    mov byte [IS_ON_EMULATOR], TRUE
  .continueParsing:
     mov esi, [ACPI_RSDT]
     xor ecx, ecx
@@ -239,41 +246,19 @@ ACPI_populateFieldsViaFADT:
     pushad
     xor ebx, ebx        ; double-sure
     mov esi, dword [ACPI_FADT]  ; Get FADT base address.
-    push esi
-    add esi, ACPI_FADT_SMI_CMD_PORT
-    mov ebx, dword [esi]
+
+    mov ebx, dword [esi+ACPI_FADT_SMI_CMD_PORT]
     mov dword [ACPI_MGMT_CMD_PORT], ebx
-    pop esi
-    push esi
-    add esi, ACPI_FADT_ACPI_ENABLE
-    mov bl, strict byte [esi]
+    mov bl, strict byte [esi+ACPI_FADT_ACPI_ENABLE]
     mov byte [ACPI_ENABLE_COMMAND], bl
-    pop esi
-    push esi
-    add esi, ACPI_FADT_ACPI_DISABLE
-    mov bl, strict byte [esi]
+    mov bl, strict byte [esi+ACPI_FADT_ACPI_DISABLE]
     mov byte [ACPI_DISABLE_COMMAND], bl
-    pop esi
-    push esi
-    add esi, ACPI_FADT_PREF_POWER_MGMT_PROF
-    mov bl, strict byte [esi]
+    mov bl, strict byte [esi+ACPI_FADT_PREF_POWER_MGMT_PROF]
     mov byte [ACPI_PREF_POWER_PROFILE], bl
-    pop esi
-    push esi
-    add esi, ACPI_FADT_SCI_INT
-    mov bx, strict word [esi]
+    mov bx, strict word [esi+ACPI_FADT_SCI_INT]
     mov word [ACPI_SCI_INTERRUPT], bx
-    pop esi
- .leaveCall:
-    popad
-    ret
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Find the system's preferred power profile based on the FADT's value.
-ACPI_getPreferredPowerProfile:
-    pushad
-
+    mov ebx, dword [esi+ACPI_FADT_PM1_A_CONTROLBLOCK]
+    mov dword [ACPI_PM1a_CNT], ebx
  .leaveCall:
     popad
     ret
@@ -289,6 +274,8 @@ ACPI_enable:
     mov al, byte [ACPI_ENABLE_COMMAND]
     mov edx, dword [ACPI_MGMT_CMD_PORT]
     out dx, al
+    ; make sure it's on, and enable bits explained above.
+    mov byte [IS_ACPI_ENABLED], TRUE
  .leaveCall:
     popad
     ret
@@ -297,6 +284,80 @@ ACPI_enable:
 ;  send ACPI_DISABLE_COMMAND to ACPI_MGMT_CMD_PORT, and then let the BIOS take over and pass control to legacy mode.
 ACPI_disable:
     pushad
+
+ .leaveCall:
+    popad
+    ret
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Find the system's preferred power profile based on the FADT's value.
+ACPI_setPowerProfile:
+    pushad
+
+ .leaveCall:
+    popad
+    ret
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Setup the required variables for a system shutdown.
+ACPI_getShutdownHandlers:
+    pushad
+    mov esi, [ACPI_DSDT]            ; Start in DSDT.
+    mov ecx, dword [esi+ACPI_HEADER_LENGTH]
+    add esi, SIZEOF_ACPISDTHeader   ;Skip generic header.
+ .searchForS5:
+    cmp dword [esi], "_S5_"
+    je .foundS5
+    inc esi
+    loop .searchForS5
+
+ .errorGettingHandlers:
+    or dword [BOOT_ERROR_FLAGS], 0x00000040     ; code reached end of loop without jmping, meaning failure.
+    jmp .leaveCall
+
+ .foundS5:  ;when jumping to this label, ESI = the base of _S5_.
+    ; if !(([esi-1] == AML_NAMEOP || ([esi-1] == '\\' && [esi-2] == AML_NAMEOP)) && [esi+4] == AML_PACKAGE) {goto error}
+    cmp byte [esi-1], AML_NAMEOP
+    je .moreSurety
+    cmp byte [esi-1], '\'           ; most AML DSDTs have the definitions laid out as: '\_S5_'
+    jne .errorGettingHandlers
+    cmp byte [esi-2], AML_NAMEOP    ; according to ACPI spec for 1.0, the NameOp always precedes the string name of the package.
+    jne .errorGettingHandlers
+ .moreSurety:   ; look for AML_PACKAGE after the string.
+    cmp byte [esi+4], AML_PACKAGE
+    jne .errorGettingHandlers
+
+    add esi, 5  ; Go to PACKAGE_SIZE.
+    ; calculate package size. Sometimes it can have bits 6&7 set to encode additional package info (up to 2 extra spaces).
+    ; To eliminate this skewing, we'll see if those are set, and if they are, skip over them.
+    xor eax, eax
+    mov al, strict byte [esi]   ;get pkg size
+    and al, 11000000b           ; & 0x0C
+    shr al, 6                   ; >>6
+    add al, 2       ; now, if bits 6&7 were set to mean 2 extra spaces before the S5 definitions, it is taken care of.
+    add esi, eax    ; ESI now points to the first parts of the package (SLP_TYPa).
+    xor ecx, ecx
+ .iterateS5toFindSLP_TYPab:    ; just a label for clarity.
+    cmp byte [esi], AML_BYTE_PREFIX     ;JIC the AML is defining the value as a BYTE --> 0x0A,0x[SLP_TYPa/b]
+    jne .skipBytePrefixA
+    inc esi
+   .skipBytePrefixA:
+    mov cl, strict byte [esi]
+    shl cx, 10
+    mov word [ACPI_S5_SLP_TYPa], cx
+
+    ; now get SLP_TYPb...
+    inc esi
+    cmp byte [esi], AML_BYTE_PREFIX
+    jne .skipBytePrefixB
+    inc esi
+   .skipBytePrefixB:
+    mov cl, strict byte [esi]
+    xor ch, ch
+    shl cx, 10
+    mov word [ACPI_S5_SLP_TYPb], cx
 
  .leaveCall:
     popad

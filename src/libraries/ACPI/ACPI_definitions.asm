@@ -1,6 +1,10 @@
 ; ACPI_definitions.asm
 ; -- Definitions for the ACPI library, to control power management.
 
+IS_ON_EMULATOR   db FALSE           ; 0 = not running from an emulator; 1 = yes. Used for things like shutdown.
+; ^ is set in ACPI_parseRSDT.
+IS_ACPI_ENABLED  db FALSE           ; 0 = no; 1 = yes. Used for quick reference.
+
 ACPI_RSDP       equ 0x00000E00      ; ACPI Root System Description Pointer table base ptr.
 ACPI_RSDT       equ 0x00000E04      ; ACPI Root System Description Table base ptr.
 ACPI_FADT       equ 0x00000E08      ; ACPI Fixed ACPI Description Table base ptr.
@@ -9,11 +13,24 @@ ACPI_MADT       equ 0x00000E10      ; ACPI Multi APIC Description Table base ptr
 ACPI_TABLES     equ 0x00000E20      ; ACPI DWORD OtherSDTPtrs array copy, from RSDT. Array terminated by 0x00000000.
 ACPI_VERSION     db 0x00            ; BYTE-sized snippet containing verision #. Comes from RSDP Table.
 
+ACPI_PM1a_CNT    dd 0x00000000
+; ACPI1.0, 4.7.3.2.1: "PM1 control registers contain the fixed feature control bits. These bits can be split
+;  between two registers: PM1a_CNT, or PM1b_CNT. Each register grouping can be at a different 32-bit aligned
+;  address and is pointed to by the PM1a_CNT_BLK or PM1b_CNT_BLK. Accesses are controlled through words & bytes.
+
 ACPI_MGMT_CMD_PORT      dd 0x00000000
 ACPI_ENABLE_COMMAND     db 0x00
 ACPI_DISABLE_COMMAND    db 0x00
 ACPI_PREF_POWER_PROFILE db 0x00
 ACPI_SCI_INTERRUPT      dw 0x0000
+
+; A few variables for system shutdown.
+; To properly shutdown with ACPI: out ACPI_FADT_PM1_A_CONTROLBLOCK (DWORD), (ACPI_SLP_TYPa | ACPI_SLP_EN) (WORD)
+ACPI_S5_SLP_TYPa   dw 0x0000
+ACPI_S5_SLP_TYPb   dw 0x0000
+
+; Some misc definitions...
+ACPI_SLP_EN     equ 1<<13
 
 ; Root System Description Pointer Table v1.0:
 ;  BYTE Signature (x8) --> "RSD PTR "
@@ -28,17 +45,18 @@ ACPI_SCI_INTERRUPT      dw 0x0000
 ;   BYTE EXTchecksum
 ;   BYTE reserved (x3)
 
+; The values here are OFFSETS into the ACPISDTHeader.
 ; -- RSDT is the main SDT, but there are many others. --
 ; ACPI SDT Header Formats (structure referenced henceforth as ACPISDTHeader):
-;   BYTE Signature (x4)
-;  DWORD Length of Table
-;   BYTE Revision
-;   BYTE Checksum
-;   BYTE OEMID (x6)
-;   BYTE OEMTableID (x8)
-;  DWORD OEMRevision
-;  DWORD CreatorID
-;  DWORD CreatorRevision
+ACPI_HEADER_SIGNATURE       equ 0   ;   BYTE Signature (x4)
+ACPI_HEADER_LENGTH          equ 4   ;  DWORD Length of Table
+ACPI_HEADER_REVISION        equ 8   ;   BYTE Revision
+ACPI_HEADER_CHECKSUM        equ 9   ;   BYTE Checksum
+ACPI_HEADER_OEMID           equ 10  ;   BYTE OEMID (x6)
+ACPI_HEADER_OEMTABLEID      equ 16  ;   BYTE OEMTableID (x8)
+ACPI_HEADER_OEMREVISION     equ 24  ;  DWORD OEMRevision
+ACPI_HEADER_CREATORID       equ 28  ;  DWORD CreatorID
+ACPI_HEADER_CREATORREVISION equ 32  ;  DWORD CreatorRevision
 
 SIZEOF_ACPISDTHeader    equ 0x24    ; ACPISDTHeader structs are 36 bytes each.
 
@@ -137,4 +155,19 @@ ACPI_FADT_GAS_RESET_REGISTER    equ SIZEOF_ACPISDTHeader+78 ;12-byte GAS struct 
 
 ACPI_FADT_RESET_VALUE           equ SIZEOF_ACPISDTHeader+90 ;BYTE
 ACPI_FADT_RESERVED_3            equ SIZEOF_ACPISDTHeader+91 ;BYTE+WORD --> char[3] --> Reserved.
-; Anything beyond this point is only available in ACPI2.0+, which is unsupported by Orchid.
+; Anything beyond this point in the FADT is only available in ACPI2.0+, which is unsupported by Orchid.
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Required AML opcode definitions.
+AML_NAMEOP          equ 0x08
+
+AML_BYTE_PREFIX     equ 0x0A
+AML_WORD_PREFIX     equ 0x0B
+AML_DWORD_PREFIX    equ 0x0C
+AML_STRING_PREFIX   equ 0x0D
+AML_QWORD_PREFIX    equ 0x0E
+
+AML_PACKAGE         equ 0x12
