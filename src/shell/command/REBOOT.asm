@@ -6,27 +6,21 @@ bREBOOTPending	db FALSE
 szREBOOTWarning     db "A reboot is now pending. To finalize it, enter the REBOOT command again.", 0
 szREBOOTWarning2    db "  -- If you wish to cancel this, enter anything other than REBOOT.", 0
 szREBOOTFinal       db "Rebooting...", 0
-_commandREBOOT:
+COMMAND_REBOOT:
     ; On the first call, set the pending reboot. On the next call, initiate reboot.
     cmp byte [bREBOOTPending], TRUE
     je .comeCrashingDown
 
     mov byte [bREBOOTPending], TRUE
-    mov bl, 0x09
-    mov esi, szREBOOTWarning
-    call _screenWrite
-    mov esi, szREBOOTWarning2
-    call _screenWrite
+    PrintString szREBOOTWarning,0x09
+    PrintString szREBOOTWarning2
  .leaveCall:
     ret
 
  .comeCrashingDown:
     ; Let the user know, at least.
-    mov esi, szREBOOTFinal
-    mov bl, 0x0B
-    call _screenWrite
-    mov eax, 7     ; 7x200ms = ~1.5s
-    call _SLEEP
+    PrintString szREBOOTFinal,0x0B
+    SLEEP 7     ; 7x200ms = ~1.5s
     ; Crash this system, with no survivors.
     lidt [NULL_IDT]
     int 0

@@ -59,22 +59,19 @@ DUMP_cleanOutputBuffers:
 
 ; self-explanatory. BL (color) set externally before call.
 DUMP_outputString:
-	mov esi, szDUMPOutput1
-	call _screenWrite
+    PrintString szDUMPOutput1
 	ret
 
 
 
-_commandDUMP:
+COMMAND_DUMP:
 	pushad
 	pushf
 
 	push esi
 
 	push ebx
-	mov bl, 0x0D
-	mov esi, szOutputStart
-	call _screenWrite
+    PrintString szOutputStart,0x0D
 	pop ebx
 
 	; EAX.

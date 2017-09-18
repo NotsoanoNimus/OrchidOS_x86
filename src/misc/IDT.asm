@@ -397,9 +397,8 @@ isr_handler:
 szGPF db "General Protection Fault! [OFF]", 0
 ISR_generalProtectionFault:
 	mov bx, 0x3000
-	call _screenUpdateCursor
-	mov esi, szGPF
-	call _screenWrite
+	call SCREEN_UpdateCursor
+	PrintString szGPF
 	cli
 	jmp $
 
@@ -407,9 +406,7 @@ szSATAINT db "Secondary ATA...", 0
 szSpurious db "Spurious", 0
 szRealIRQ db "Real IRQ", 0
 ISR_SecondaryATA:
-	mov bl, 0x02
-	mov esi, szSATAINT
-	call _screenWrite
+	PrintString szSATAINT,0x02
 
 	; Check for spurious IRQ
 	call PIC_getISR		; AH = slave ISR, AL = master ISR
@@ -425,7 +422,7 @@ ISR_SecondaryATA:
 	mov esi, szRealIRQ
 
  .leaveFunc:
-	call _screenWrite
+	call SCREEN_Write
 	ret
 
 

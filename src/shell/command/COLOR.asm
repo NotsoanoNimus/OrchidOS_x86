@@ -4,7 +4,7 @@
 szCOLORSyntax       db "SYNTAX: Enter a two-digit, 8-bit hex# (ex: 4E). The digits cannot be the same.", 0
 szCOLORSyntax2      db " ---> The default color is 0F. See the orchid documentation for more info.", 0
 
-_commandCOLOR:
+COMMAND_COLOR:
     cmp byte [PARSER_ARG1_LENGTH], 2
     jne .syntax
     cmp byte [PARSER_ARG2_LENGTH], 0
@@ -31,11 +31,8 @@ _commandCOLOR:
     jmp .leaveCall
 
  .syntax:
-    mov bl, 0x0C
-    mov esi, szCOLORSyntax
-    call _screenWrite
-    mov esi, szCOLORSyntax2
-    call _screenWrite
+    PrintString szCOLORSyntax,0x0C
+    PrintString szCOLORSyntax2
  .noChange:
  .leaveCall:
     ret

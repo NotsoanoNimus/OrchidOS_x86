@@ -6,7 +6,7 @@ jmp kernel_main
 nop
 
 ; Misc information.
-%define ORCHID_VERSION "0.3"
+%define ORCHID_VERSION "0.3.12"
 KERNEL_OFFSET			equ 0x10000
 KERNEL_SIZE_SECTORS		equ 0x0040			; Change this in every other file based on the growth of the kernel.
 COMMAND_QUEUE			equ KERNEL_OFFSET+commandInQueue	; FOR EXTERNAL USE ONLY!
@@ -100,13 +100,8 @@ NULL_IDT:		; USED FOR REBOOTING ONLY.
 	dw 0x0000
 	dd 0x00000000
 
-; Shell strings. Move them later, as they're technically not global variables of major importance...
-szOverlay				db "Orchid -> SHELL"
-						times (80-32)-(0x0+($-szOverlay)) db 0x20
-szShellDate				db "XXXX XXX XX, 20XX",
-szShellTimeZone			db ", UTC"
-szShellTime				db "[xx:xx:xx]"
-						db 0
+; These two variables are completely uselses and need to be axed, but that can't
+;  be done until the IRQ handlers are completed...
 szIRQCall				db "Interrupt Called:", 0
 iTermLine				db 0
 
@@ -115,10 +110,9 @@ iTermLine				db 0
 %include "misc/MACROS.asm"			; NASM Macros and Pre-Processor definitions for global implementation.
 
 %include "libraries/MEMOPS.asm"		; Heap setup and memory operations.
-%include "IDT.asm"					; Interrupt Descriptor Table and ISRs.
+%include "misc/IDT.asm"				; Interrupt Descriptor Table and ISRs.
 %include "shell/PARSER.asm"			; Parser in the case of SHELL_MODE.
 %include "shell/SCREEN.asm"			; SHELL_MODE basic screen wrapper functions.
-%include "PCI.asm"					; PCI Bus setup and implementation.
 %include "misc/INIT.asm"			; For setting global variables/device Initialization.
 
 %include "libraries/drivers/DRIVERS.asm"	; SYSTEM DRIVERS (mouse, HDD, USB, and all other PCI devices not used in SHELL_MODE)
@@ -132,8 +126,8 @@ kernel_main:
 	cld
 	clc
 	cli
-	call _initPICandIDT		; "INIT.asm" - Load the Interrupt Descriptor Table.
-	call _initGetSystemInfo ; "INIT.asm" - Get information about the system: RAM, CPU, CMOS time/date, running disk. Sets up globals as well.
+	call INIT_PICandIDT		; "INIT.asm" - Load the Interrupt Descriptor Table.
+	call INIT_getSystemInfo ; "INIT.asm" - Get information about the system: RAM, CPU, CMOS time/date, running disk. Sets up globals as well.
 	call MEMOPS_initHeap	; "MEMOPS.asm" - Initialize the Heap at 0x100000 to 0x1100000 (16 MiB wide). Flat memory model.
 	call PIT_initialize		; "PIT.asm" - Initialize the Programmable Interval Timer.
 
@@ -142,10 +136,10 @@ kernel_main:
 	mov DWORD eax, [BOOT_ERROR_FLAGS]
 	and eax, 0x00000001
 	cmp eax, 1
-	je modeGUI		; If GUI_MODE is flagged, go there.
+	je KERNEL_modeGUI		; If GUI_MODE is flagged, go there.
 
 	; This is SHELL_MODE space.
-	call _kernelWelcomeDisplay
+	call INIT_kernelWelcomeDisplay
 	mov byte [currentMode], SHELL_MODE	;SHELL MODE
 
 	; SHELL_MODE debugging/snippet code typically goes below, before idling.
@@ -156,10 +150,12 @@ kernel_main:
 	; Starts at ACPI_VERSION, since that's the first linear variable space adjacent to all of the others ahead of it.
 	;mov esi, ACPI_VERSION
 	;call _commandDUMP
-	; debugging - check if MEMCMP works. There is an "RSD PTR " in the RSDT address.
+	; debugging - check if MEMCMP & MEMCPY work. There is an "RSD PTR " in the RSDP address.
 	; Check with MEMD at the address that EAX returns to verify that "PTR " exists at that location --> SUCCESS!
 	MEMCMP DWORD_OPERATION,[ACPI_RSDP],0x20,"PTR "
-	call _commandDUMP
+	; now use EAX as the source address of the MEMCPY, to copy 50 bytes from the RSDP to 0x50000.
+	MEMCPY eax,0x00050000,0x00000050
+	call COMMAND_DUMP
 
 
 	; Hang and wait for some ISRs.
@@ -170,7 +166,7 @@ kernel_main:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
  .repHalt:
-	call _parserCheckQueue				; Checking if there's a queued command.
+	call PARSER_CheckQueue				; Checking if there's a queued command.
 	cmp byte [currentMode], USER_MODE	; was the mode changed?
 	je .usrMode
 
@@ -181,14 +177,14 @@ kernel_main:
 	pop edx
 
 	jne .noTimerUpdate
-	call _updateTimeDisplay
+	call TIMER_updateTimeDisplay
  .noTimerUpdate:
 	hlt									; Halt and wait for any processor interruption.
 	jmp kernel_main.repHalt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
  .usrMode:
-	call _initUserSpace		; "USR.asm" - Handle the initialization of userspace from the command file that called it.
+	call KERNEL_initUserSpace		; "USR.asm" - Handle the initialization of userspace from the command file that called it.
 	hlt						; This section will do nothing right now except hang the system.
 
 
@@ -198,7 +194,7 @@ kernel_main:
 ;;  MAIN KERNEL GUI MODE FUNCTION  ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-modeGUI:
+KERNEL_modeGUI:
 	mov byte [currentMode], GUI_MODE
 
 	; Test the GUI by creating a modernist masterpiece.

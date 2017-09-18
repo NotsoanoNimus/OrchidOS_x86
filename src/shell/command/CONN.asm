@@ -16,7 +16,7 @@ szPCITmp10		db "     BIST: xxx  //  Header: 0x00  //  Latency: 0x00  //  Cache: 
 szPCITmpEnd		db 0
 
 ; -- Get connected devices from PCI_INFO. Display the DeviceID, VendorID, and a brief description based on a small included dictionary.
-_commandCONN:
+COMMAND_CONN:
 	mov dword eax, [PCI_INFO_INDEX]
 	sub eax, PCI_INFO			; Get difference between end and start (size of block)
 	sub eax, 4					; Take off the DWORD signature placement.
@@ -30,8 +30,7 @@ _commandCONN:
 	mov bl, 0x0A
 	mov esi, szPCITmpIntro+4
 	call UTILITY_BYTE_HEXtoASCII
-	mov esi, szPCITmpIntro
-	call _screenWrite
+	PrintString szPCITmpIntro
 
 	; [edi]    = Physical location on MB
 	; [edi+4]  = DeviceID | VendorID
@@ -114,27 +113,17 @@ _commandCONN:
 	mov esi, szPCITmpEnd-37
 	call UTILITY_BYTE_HEXtoASCII
 
-	mov bl, 0x0B
-	mov esi, szPCITmp1
-	call _screenWrite
-	mov bl, 0x0E
-	mov esi, szPCITmp3
-	call _screenWrite
-	mov bl, 0x05
-	mov esi, szPCITmp5
-	call _screenWrite
-	mov bl, 0x04
-	mov esi, szPCITmp8
-	call _screenWrite
-	mov bl, 0x02
-	mov esi, szPCITmp10
-	call _screenWrite
+	PrintString szPCITmp1,0x0B
+	PrintString szPCITmp3,0x0E
+	PrintString szPCITmp5,0x05
+	PrintString szPCITmp8,0x04
+	PrintString szPCITmp10,0x02
  .skip:
 	add edi, 20
 	dec cl
 	or cl, cl
 	jz .breakLoop
-	call _screenPause
+	call SCREEN_Pause
 	jmp .getInfo
 
  .breakLoop:

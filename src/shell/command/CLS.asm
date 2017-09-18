@@ -2,10 +2,10 @@
 ; -- Clear the screen.
 
 
-_commandCLS:
+COMMAND_CLS:
 	pushad
-	call _screenCLS
+	call SCREEN_CLS
 	mov bx, 0x0001
-	call _screenUpdateCursor
+	call SCREEN_UpdateCursor
 	popad
 	ret

@@ -22,148 +22,176 @@ PARSER_ARG1 times 64	db 0x00
 PARSER_ARG2 times 64	db 0x00
 PARSER_ARG3 times 64	db 0x00
 
+PARSER_COMMAND_NO_ARGS	times 8 db 0x00		;8-byte buffer to hold ONLY the first command.
+						db 0x00
+
 iPARSERsaveEIP	dd 0x0	; used so that the popad by dump doesn't pop the return EIP.
 
 
-_parserCheckQueue:
+PARSER_CheckQueue:
 	pushad
 	pushad		; doubled so that the DUMP command can have access to them without actually changing them.
 	mov bl, [COMMAND_QUEUE]
 	or bl, bl
-	jz _parserCheckQueue.noCommand
+	jz .noCommand
 
 	;This section will run every time ENTER is hit, so the buffer is always cleared after every entry.
-	call _parseCommand
+	call PARSER_parseCommand
 	mov byte [COMMAND_QUEUE], 0
-	call _parserClearInput
+	call PARSER_ClearInput
  .noCommand:
 	popad
 	popad
 	ret
 
 
-_parseCommand:
+PARSER_parseCommand:
 	;FIRST READING, finds length of buffer
 	mov esi, INPUT_BUFFER	;get base addr of input
+	mov edi, PARSER_COMMAND_NO_ARGS
 	xor ecx, ecx			;length counter
 	xor edx, edx			;prevents a second reading on cmds 4 chars or smaller
  .repeatFirstRead:
 	lodsb
 	cmp al, 0x20	; look for space
-	je _parseCommand.parseArguments
+	je .parseArguments
+
 	cmp al, 0x00	; or find the null terminator
-	je _parseCommand.endFirstRead
-	inc ecx
-	shl edx, 8		; Get the most recent character and push it up to the higher parts of the register.
+	je .endFirstRead
+	;shl edx, 8		; Get the most recent character and push it up to the higher parts of the register.
 					; --This can be done up to 4 times before this instruction becomes useless for this reading.
 					; KEEP IN MIND: This is reading chars left-to-right, NOT little-endian, due to the shifting.
-	mov dl, al
-	jmp _parseCommand.repeatFirstRead
+	;mov dl, al
+	cmp ecx, 8
+	jae .returnWMSG		; if any string in the INPUT_BUFFER exceeds 8 chars before a space,
+						; automatically assume invalid input.
+
+	; Set EDI = current byte in buffer and move it in.
+	; This variable (PARSER_COMMAND_NO_ARGS) allows a direct string comparison, with no more confusing hex cmps.
+	push edi
+	add edi, ecx
+	mov byte [edi], al
+	pop edi
+	inc ecx
+	jmp .repeatFirstRead
 
 	; The .return label is only for exiting commands to use. Otherwise, the default return is to give an error msg.
 .endFirstRead:		; ECX is now = to the buffer length. Use this to narrow down the command tests.
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	; Before anything, make sure reboot & shutdown aren't being called.
-	cmp edx, 0x626F6F74		;"boot"
-	je .skipClearRebootFlag
+	cmp dword [PARSER_COMMAND_NO_ARGS], "re"
+	jne .clearRebootFlag
+	cmp dword [PARSER_COMMAND_NO_ARGS+4], "boot"
+	jne .clearRebootFlag
+	jmp .skipClearRebootFlag
+  .clearRebootFlag:
 	mov byte [bREBOOTPending], FALSE
   .skipClearRebootFlag:
-	cmp edx, 0x646F776E		;"down"
-	je .skipClearShutdownFlag
+	cmp dword [PARSER_COMMAND_NO_ARGS], "shut"
+	jne .clearShutdownFlag
+	cmp dword [PARSER_COMMAND_NO_ARGS+4], "down"
+	jne .clearShutdownFlag
+	jmp .skipClearShutdownFlag
+  .clearShutdownFlag:
 	mov byte [bSHUTDOWNPending], FALSE
   .skipClearShutdownFlag:
   	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 	cmp ecx, 0						; Check if the user even wrote anything.
-	je _parseCommand.returnCMD		; If not, exit with no output.
+	je .returnCMD					; If not, exit with no output.
 	cmp ecx, 2		; 2-letter cmd
-	jg _parseCommand.not2
-	jmp _parseCommand.returnWMSG
+	jg .not2
+	; 2-letter cmds go here.
+	jmp .returnWMSG
  .not2:
 	cmp ecx, 3
-	jg _parseCommand.not3
-	CheckCMD CLS,0x00636C73		;"cls"
-	CheckCMD SYS,0x00737973 	;"sys"
-	CheckCMD USR,0x00757372		;"usr"
-	jmp _parseCommand.returnWMSG
+	jg .not3
+	;CheckCMD CLS,0x00636C73		;"cls"
+	;CheckCMD SYS,0x00737973 	;"sys"
+	;CheckCMD USR,0x00757372		;"usr"
+	CheckL4CMD CLS,"cls"
+	CheckL4CMD SYS,"sys"
+	CheckL4CMD USR,"usr"
+	jmp .returnWMSG
  .not3:
 	cmp ecx, 4
-	jg _parseCommand.not4
-	CheckCMD HELP,0x68656C70	;"help"
+	jg .not4
 	;CheckCMD DUMP,0x64756D70	;"dump" -- This one has to be different because of the pushad/popad.
 	cmp edx, 0x64756D70
-	jne _parseCommand.NotDUMP
+	jne .NotDUMP
 	pop dword [iPARSERsaveEIP]	; save the EIP return pointer pushed due to the CALL opcode.
 	popad						; restore everything.
-	call _commandDUMP
+	call COMMAND_DUMP
 	pushad						; correcting stack pop offset here.
 	push dword [iPARSERsaveEIP]	; restore the ret ptr.
-	jmp _parseCommand.returnCMD
+	jmp .returnCMD
   .NotDUMP:
-	CheckCMD MEMD,0x6D656D64	;"memd"
-	CheckCMD CONN,0x636F6E6E	;"conn"
-	jmp _parseCommand.returnWMSG
+	CheckL4CMD MEMD,"memd"
+	CheckL4CMD CONN,"conn"
+	CheckL4CMD HELP,"help"
+	jmp .returnWMSG
  .not4:
 	cmp ecx, 5
-	jg _parseCommand.not5
-	CheckCMD START,0x74617274  ;"tart"
-	CheckCMD COLOR,0x6F6C6F72  ;"olor"
-	jmp _parseCommand.returnWMSG
+	jg .not5
+	CheckG4CMD START,"star","t"
+	CheckG4CMD COLOR,"colo","r"
+	jmp .returnWMSG
  .not5:
 	cmp ecx, 6
-	jg _parseCommand.not6
-	CheckCMD REBOOT,0x626F6F74 ;"boot"
-	jmp _parseCommand.returnWMSG
+	jg .not6
+	CheckG4CMD REBOOT,"rebo","ot"
+	jmp .returnWMSG
  .not6:
  	cmp ecx, 7
-	jg _parseCommand.not7
-	jmp _parseCommand.returnWMSG
+	jg .not7
+	jmp .returnWMSG
  .not7:
  	cmp ecx, 8
-	jg _parseCommand.not8
-	CheckCMD SHUTDOWN,0x646F776E	;"down"
-	jmp _parseCommand.returnWMSG
+	jg .not8
+	CheckG4CMD SHUTDOWN,"shut","down"
+	jmp .returnWMSG
  .not8:
  	; 8 chars WILL be the longest allowable command, so just bleed into the error message.
-
+	; Due to the error-catching in the first section of this function, this should never be reach anyway.
  .returnWMSG:
-	mov esi, szPARSERNoCMD
-	mov bl, 0x04
-	call _screenWrite
+ 	PrintString szPARSERNoCMD,0x04
  .returnCMD:
 	ret
 
  .parseArguments:
+ 	; Check if the user didn't just enter a leading space.
+ 	cmp byte [PARSER_COMMAND_NO_ARGS], 0x00
+	je .returnWMSG
+	; There is a command, parse its arguments.
  	or ecx, ecx
 	jz .endFirstRead
  	call PARSER_parseArguments		; Check if there were arguments after the command.
  	jc .syntaxError
 	jmp .endFirstRead				; on success, process which command is being called.
  .syntaxError:
- 	mov bl, 0x0C
-	mov esi, szPARSERSynErr1
-	call _screenWrite
-	mov esi, szPARSERSynErr2
-	call _screenWrite
-	ret
+ 	PrintString szPARSERSynErr1,0x0C
+	PrintString szPARSERSynErr2
+ 	ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Clean all 256 bytes of input (set to 0x00).
 ; Also clean the parser's argument buffers.
-_parserClearInput:
+PARSER_ClearInput:
 	pushad
 	mov edi, INPUT_BUFFER
 	xor eax, eax
 	mov ecx, 100h
 	rep stosb
 	mov edi, PARSER_ARG1
-	mov ecx, 64*3
+	mov ecx, 64*3		; 64 bytes per PARSER_ARG x 3 of them.
 	rep stosb
 	mov byte [PARSER_ARG1_LENGTH], 0x00
 	mov byte [PARSER_ARG2_LENGTH], 0x00
 	mov byte [PARSER_ARG3_LENGTH], 0x00
+	mov dword [PARSER_COMMAND_NO_ARGS], 0x00000000
+	mov dword [PARSER_COMMAND_NO_ARGS+4], 0x00000000
 	popad
 	ret
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

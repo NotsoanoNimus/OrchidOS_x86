@@ -46,7 +46,7 @@ ISR_timerHandler:	;called every 28.57143 ms (every 7 calls is 200ms)
 
 
 ;;;;;;;; GLOBALLY-USED FUNCTION ;;;;;;;;
-_SLEEP:		; ARGS: EAX = Duration to sleep in chunks of 200ms.
+GLOBAL_SLEEP:		; ARGS: EAX = Duration to sleep in chunks of 200ms.
 	pushad
 	mov ebx, 0x00000007		;multiplied by 7 because 200ms worth of time is 7 IRQ ticks
 	mul ebx
@@ -116,7 +116,7 @@ TIMER_updateSystemTime:
 	ret
 
 
-_updateTimeDisplay:
+TIMER_updateTimeDisplay:
 	; convert current system_ms time into readble format and update the display if a second has passed.
 	pushad
 	mov cl, [SYSTEM_TIME_UPDATE]
@@ -149,7 +149,7 @@ _updateTimeDisplay:
 	mov ah, 0x3F
 	mov esi, szSYSTime
 	mov edi, SYSTIME_VIDEO_LOCATION
-	call _updateTimeDisplay.loopPrint
+	call TIMER_updateTimeDisplay.loopPrint
 
 	; Get DATE fields.
 	mov esi, szSYSDate
@@ -273,7 +273,7 @@ _updateTimeDisplay:
 	mov ah, 0x3F
 	mov esi, szSYSDate
 	mov edi, SYSDATE_VIDEO_LOCATION
-	call _updateTimeDisplay.loopPrint
+	call TIMER_updateTimeDisplay.loopPrint
 	jmp .leaveCall
 
  .loopPrint:
@@ -594,4 +594,3 @@ UTILITY_BYTE_convertBCDtoASCII: ; INPUTS = AX as BCD of byte (max 256d) // OUTPU
 	pop edx
 	pop ecx
 	ret
-	

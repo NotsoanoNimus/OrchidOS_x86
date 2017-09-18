@@ -16,7 +16,9 @@ ACPI_VERSION     db 0x00            ; BYTE-sized snippet containing verision #. 
 ACPI_PM1a_CNT    dd 0x00000000
 ; ACPI1.0, 4.7.3.2.1: "PM1 control registers contain the fixed feature control bits. These bits can be split
 ;  between two registers: PM1a_CNT, or PM1b_CNT. Each register grouping can be at a different 32-bit aligned
-;  address and is pointed to by the PM1a_CNT_BLK or PM1b_CNT_BLK. Accesses are controlled through words & bytes.
+;  address and is pointed to by the PM1a_CNT_BLK or PM1b_CNT_BLK. Accesses are controlled through words & bytes."
+ACPI_PM1a_STS    dd 0x00000000
+
 
 ACPI_MGMT_CMD_PORT      dd 0x00000000
 ACPI_ENABLE_COMMAND     db 0x00
@@ -24,10 +26,10 @@ ACPI_DISABLE_COMMAND    db 0x00
 ACPI_PREF_POWER_PROFILE db 0x00
 ACPI_SCI_INTERRUPT      dw 0x0000
 
-; A few variables for system shutdown.
-; To properly shutdown with ACPI: out ACPI_FADT_PM1_A_CONTROLBLOCK (DWORD), (ACPI_SLP_TYPa | ACPI_SLP_EN) (WORD)
-ACPI_S5_SLP_TYPa   dw 0x0000
-ACPI_S5_SLP_TYPb   dw 0x0000
+; A few variables for system shutdown/sleep states.
+; To properly shutdown with ACPI: "out ACPI_FADT_PM1_A_CONTROLBLOCK (DWORD), (ACPI_SLP_TYPa | ACPI_SLP_EN) (WORD)"
+ACPI_S5_SLP_TYPa   dw 0x0000    ; only defined as a word because the value is shifted up by 10 bits.
+ACPI_S5_SLP_TYPb   dw 0x0000    ; see ACPI1.0 Specification, section 7.5.2 for the definitions of these.
 
 ; Some misc definitions for the PMxx_CONTROL registers.
 ; PM1a...

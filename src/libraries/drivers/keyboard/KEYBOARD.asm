@@ -31,7 +31,7 @@ ISR_keyboardHandler: ;AL = key return
 	jne ISR_keyboardHandler.notShellMode
 	cmp byte [KEYBOARD_DISABLE_OUTPUT], 0x01
 	je ISR_keyboardHandler.notShellMode
-	call _screenPrintChar	; print it or handle accordingly
+	call SCREEN_PrintChar	; print it or handle accordingly
  .notShellMode:
  .noBuffer:
 	ret

@@ -1,7 +1,7 @@
 ; HELP.asm
 ; -- Print out a list of orchid commands.
 
-_commandHELP:
+COMMAND_HELP:
 	pushad
 	PrintString szHelp1,0x03
 	PrintString szHelp2

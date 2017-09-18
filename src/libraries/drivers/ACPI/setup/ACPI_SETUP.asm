@@ -347,7 +347,7 @@ ACPI_getShutdownHandlers:
     jne .skipBytePrefixA
     inc esi
    .skipBytePrefixA:
-    mov cl, strict byte [esi]
+    mov cl, strict byte [esi]   ; FOR LATER REFERENCE: see section 7.5.2 of ACPI1.0 spec.
     shl cx, 10
     mov word [ACPI_S5_SLP_TYPa], cx
 

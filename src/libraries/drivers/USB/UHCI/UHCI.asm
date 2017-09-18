@@ -73,10 +73,8 @@ USB_UHCI_DEBUG_outputPortVariable:
  .printout:
     mov esi, szUSBDeviceConn+8
     call UTILITY_DWORD_HEXtoASCII
-    mov esi, szUSBDeviceConn
-    mov bl, 0x06
-    call _screenWrite
-
+    PrintString szUSBDeviceConn,0x06
+    
     ; clean buffer.
     mov cl, 8   ; 8 bytes in szUSBDeviceConn
     xor eax, eax

@@ -8,7 +8,7 @@ szSHUTDOWNWarning1  db "  -- If you wish to cancel this, enter anything other th
 szSHUTDOWNFinal     db "Shutting down...", 0
 szSHUTDOWNNotPoss   db "Shutdown error! Manually shut the system down with the power switch.", 0
 szSHUTDOWNEmulator  db "Shutdown", 0
-_commandSHUTDOWN:
+COMMAND_SHUTDOWN:
     CheckErrorFlags 0x00000040,.errorNoShutdown     ; If bit 6 of BEF is set, SD is not possible.
 
     cmp byte [bSHUTDOWNPending], TRUE               ; was it already called once?
@@ -38,8 +38,7 @@ _commandSHUTDOWN:
     je .alreadyEnabled
     call ACPI_enable
   .alreadyEnabled:
-    mov eax, 7      ; 7x200ms = ~1.5s
-    call _SLEEP
+    SLEEP 7         ; 7x200ms = ~1.5s
     ; SHUT IT DOWN.
     xor eax, eax
     xor edx, edx
@@ -57,8 +56,7 @@ _commandSHUTDOWN:
 
 
  .emulatorShutdown:
-    mov eax, 7
-    call _SLEEP
+    SLEEP 7
 
     xor eax, eax
     xor edx, edx

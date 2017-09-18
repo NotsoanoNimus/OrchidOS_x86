@@ -1,7 +1,7 @@
 ; INIT.asm
 ; --- Contains some of initialization functions used by the kernel during load time.
 
-_initPICandIDT:
+INIT_PICandIDT:
 	pushad
 	mov bh, 0x20	; Master vector offset
 	mov bl, 0x28	; Slave vector offset
@@ -20,24 +20,19 @@ _initPICandIDT:
 
 
 szShellIntro			db "Welcome! Type 'help' for a list of orchid shell commands.", 0
-_kernelWelcomeDisplay:
-	pushad
-	xor edx, edx
-	mov edx, dword [BOOT_ERROR_FLAGS]
-
-	call _introOverlay				; SPLASH screen
-	call _graphicsRefreshOverlay	;set up initial header
+INIT_kernelWelcomeDisplay:
+	push ebx
+	call GRAPHICS_introOverlay		; SPLASH screen
+	call GRAPHICS_setShellOverlay	;set up initial header
 	mov bx, 0x0001					;add intro message.
-	call _screenUpdateCursor
-	mov esi, szShellIntro
-	mov bl, 0x0A
-	call _screenWrite
+	call SCREEN_UpdateCursor
+	PrintString szShellIntro,0x0A
 
 	call SYSTEM_tellErrors
 
 	mov word [SHELL_SHIFT_INDICATOR], 0x301F	; Default shift indicator.
 	mov word [SHELL_CAPS_INDICATOR], 0x3019		; Default caps indicator.
-	popad
+	pop ebx
 	ret
 
 
@@ -59,6 +54,8 @@ SYSTEM_tellErrors:
  .leaveCall:
  	popad
 	ret
+
+
 
 
 iMemoryFree			dd 0
@@ -178,7 +175,7 @@ SYSTEM_getCPUInfo:
 
 
 ; GET CPU INFO, TIME/DATE, AND MEMORY INFO HERE...
-_initGetSystemInfo:
+INIT_getSystemInfo:
 	pushad
 
 	push eax

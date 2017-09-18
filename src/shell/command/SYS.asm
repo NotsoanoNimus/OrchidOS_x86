@@ -1,7 +1,7 @@
 ; SYS.asm
 ; --- Display system information and Orchid info.
 
-_commandSYS:
+COMMAND_SYS:
 	pushad
 
 	mov esi, CPU_INFO
@@ -32,20 +32,11 @@ _commandSYS:
 	shr eax, 8
 	loop .convertFreeRAM
 
-	mov bl, 0x09
-	mov esi, szSysInfo1
-	call _screenWrite
-	mov bl, 0x0D
-	mov esi, szSysInfo2
-	call _screenWrite
-	mov bl, 0x0E
-	mov esi, szSysInfo3
-	call _screenWrite
-	mov bl, 0x0A
-	mov esi, szSysInfo8
-	call _screenWrite
-	mov esi, szSysInfo9
-	call _screenWrite
+	PrintString szSysInfo1,0x09
+	PrintString szSysInfo2,0x0D
+	PrintString szSysInfo3,0x0E
+	PrintString szSysInfo8,0x0A
+	PrintString szSysInfo9
 
 	popad
 	ret

@@ -8,26 +8,39 @@
 %define WORD_OPERATION     01h
 %define DWORD_OPERATION    02h
 
-; PARSER-specific macro to check commands.
-; Arg1 = Command name in CAPS. Arg2 = DWORD of cmp operation (or direct string if >3 chars).
-%macro CheckCMD 2
-	cmp edx, %2
-	jne _parseCommand.Not%1
-	call _command%1
-	jmp _parseCommand.returnCMD
+; PARSER-specific macros to check commands. {L4 means <=4 // G4 means >4}
+; Arg1 = Command name in CAPS. Arg2 = command string.
+%macro CheckL4CMD 2
+	cmp dword [PARSER_COMMAND_NO_ARGS], %2
+	jne .Not%1
+	call COMMAND_%1
+	jmp .returnCMD
   .Not%1:
 %endmacro
+%macro CheckG4CMD 3
+	cmp dword [PARSER_COMMAND_NO_ARGS], %2
+	jne .Not%1
+	cmp dword [PARSER_COMMAND_NO_ARGS+4], %3
+	jne .Not%1
+	call COMMAND_%1
+	jmp .returnCMD
+  .Not%1:
+ %endmacro
 
 
 ; PRINT functions (2 args = stringPtr,color // 1 arg = stringPtr)
 %macro PrintString 2
+	push esi
 	mov bl, %2
 	mov esi, %1
-	call _screenWrite
+	call SCREEN_Write
+	pop esi
 %endmacro
 %macro PrintString 1
+	push esi
 	mov esi, %1
-	call _screenWrite
+	call SCREEN_Write
+	pop esi
 %endmacro
 
 ; CONSOLE ERROR MESSAGES. Used in "INIT.asm->SYSTEM_tellErrors" only.
@@ -72,16 +85,33 @@
 	add esp, 4
 	pop ebx
 %endmacro
-%macro MEMCPY 2
-	push %2
-	push %1
+%macro MEMCPY 3
+	push dword %3
+	push dword %2
+	push dword %1
 	call kmemcpy
+	add esp, 12
 %endmacro
-
 %macro MEMCMP 4
 	push dword %4
 	push dword %3
 	push dword %2
 	push dword %1
-	call MEMCMP_func
+	call kmemcmp
+	add esp, 12
+%endmacro
+
+%macro SLEEP 1
+	push eax
+	mov eax, %1
+	call GLOBAL_SLEEP
+	pop eax
+%endmacro
+%macro SLEEP_noINT 1
+	push eax
+	mov eax, %1
+	sti
+	call GLOBAL_SLEEP
+	cli
+	pop eax
 %endmacro

@@ -11,7 +11,7 @@ szMEMDError		db "ARG2 ERROR: Input value is invalid (should be 1-100 in hex)!", 
 szMEMDError2	db "ARG1 ERROR: Number must be 32-bit hex; do not precede address by '0x'.", 0
 
 
-_commandMEMD:
+COMMAND_MEMD:
 	pushad
 	xor ebx, ebx
 
@@ -30,7 +30,7 @@ _commandMEMD:
 	; Check arg1
 	mov byte bl, [PARSER_ARG1_LENGTH]
 	cmp bl, 8
-	jg .err1
+	ja .err1
 	mov esi, PARSER_ARG1
 	call UTILITY_HEX_STRINGtoINT		; EAX = conversion.
 	jc .err1
@@ -39,7 +39,7 @@ _commandMEMD:
 	; Check arg2
 	mov byte bl, [PARSER_ARG2_LENGTH]
 	cmp bl, 4
-	jg .err2
+	ja .err2
 	mov esi, PARSER_ARG2
 	call UTILITY_HEX_STRINGtoINT		; EAX = conversion.
 	jc .err2
@@ -69,9 +69,7 @@ _commandMEMD:
 	rep movsb
 	pop ecx
 	; Output the information string.
-	mov esi, szMEMDInfo
-	mov bl, 0x02
-	call _screenWrite
+	PrintString szMEMDInfo,0x02
 
 	; Get to work.
 	mov esi, edx		; Set ESI = base addr.
@@ -96,7 +94,7 @@ _commandMEMD:
 	mov bl, 0x09
 	mov esi, szMEMDSyntax
  .writeMSG:
-	call _screenWrite
+	call SCREEN_Write
 	jmp .leaveCall
  .leaveCall:
  	; clean up the string buffers.
@@ -154,11 +152,7 @@ MEMD_generateOutput:
 	jmp .back_insertGap
 
  .leaveCall:
- 	push esi
- 	mov esi, szMEMDOutput
-	mov bl, 0x07
-	call _screenWrite
-	pop esi
+	PrintString szMEMDOutput,0x07
 	pop ecx
 	sub ecx, 16
 	ret

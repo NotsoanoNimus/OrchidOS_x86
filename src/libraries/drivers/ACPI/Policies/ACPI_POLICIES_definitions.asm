@@ -9,3 +9,5 @@ ACPI_CURRENT_POLICY     db 0x00     ; ID of current policy on the system.
 ;  require a filesystem and the ability to parse file data/handles.
 ACPI_POLICY_LOW_POWER   db 0x01     ; Low power profile, quiet with no cooling. Used on laptops and battery-based systems.
 ACPI_POLICY_HIGH_POWER  db 0x02     ; High power, high cooling. Used on all other machines.
+
+ACPI_PWR_BTN_STS_CHG    db FALSE

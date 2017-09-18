@@ -88,29 +88,9 @@ MEMOPS_initHeap:
 	ret
 
  .heapInitFailure:
- 	mov bl, 0x0C
-	mov esi, szHeapInitFailed
-	call _screenWrite
+ 	PrintString szHeapInitFailed,0x0C
+	cli
 	jmp $
-
-; INPUTS:
-;	ESI = source address.
-;	EDI = destination address.
-;	ECX = length of copy.
-; OUTPUTS:
-; 	CF set on error.
-; -- Copies a chunk or block of memory into another location. For now, source must point to a block header, otherwise this will return error.
-kmemcpy:
-	pushad
-	clc
-	push ebp
-	mov ebp, esp
-
-
-
-	pop ebp
-	popad
-	ret
 
 
 ; INPUTS:
@@ -287,6 +267,100 @@ kfree:
 	pop eax
 	pop edi
 	call HEAP_INTERNAL_combineAdjacentMemory
+	ret
+
+
+
+; INPUTS:
+;	ARG1 = Source physical address.
+;	ARG2 = Destination physical address.
+;	ARG3 = Size of copy.
+kmemcpy:
+	push ebp
+	mov ebp, esp
+	push esi
+	push edi
+	push ecx
+
+	mov esi, dword [ebp+8]	; arg1 = source addr
+	mov edi, dword [ebp+12]	; arg2 = destination addr
+	mov ecx, dword [ebp+16]	; arg3 = size
+
+ .copyMemory:
+	movsb
+	loop .copyMemory
+
+ .leaveCall:
+ 	pop ecx
+ 	pop edi
+	pop esi
+ 	pop ebp
+	ret
+
+
+
+; INPUTS:
+; 	ARG1 = Comparison size: 0x01 = Byte // 0x02 = Word // 0x03 = Dword
+;	ARG2 = Ptr to start addr in physical memory.
+; 	ARG3 = Length to check.
+;	ARG4 = Value to check for.
+; OUTPUTS: EAX = ptr to matching value. 0x00000000 if no match found.
+; -- Compares
+kmemcmp:
+	push ebp
+	mov ebp, esp
+	push esi
+	push ecx
+	push ebx
+
+	xor eax, eax	; EAX = 0, only will change if a match is found.
+	xor ebx, ebx
+	xor ecx, ecx
+	mov dword ebx, [ebp+8]	;arg1 - Size
+	mov dword esi, [ebp+12]	;arg2 - Start addr
+	mov dword ecx, [ebp+16]	;arg3 - Length
+	mov dword edx, [ebp+20]	;arg4 - Cmp value.
+
+	cmp dword ebx, DWORD_OPERATION	;dword?
+	je .dwordSearch
+	and edx, 0x0000FFFF				; cut off DWORD portion of arg4.
+	cmp dword ebx, WORD_OPERATION	;word?
+	je .wordSearch
+	and edx, 0x000000FF				; cut off WORD potion of arg4.
+	cmp dword ebx, BYTE_OPERATION	;byte?
+	je .byteSearch
+	; if this point is reached, the argument contains an invalid value. Error-exit.
+ .errorExit:
+	jmp .leaveCall
+
+ .byteSearch:
+	cmp strict byte [esi], dl
+	je .matchFound
+	inc esi
+ 	loop .byteSearch
+	jmp .errorExit
+
+ .wordSearch:
+	cmp strict word [esi], dx
+	je .matchFound
+	add esi, 2
+	loop .wordSearch
+	jmp .errorExit
+
+ .dwordSearch:
+	cmp strict dword [esi], edx
+	je .matchFound
+	add esi, 4
+	loop .dwordSearch
+	jmp .errorExit
+
+ .matchFound:
+	mov eax, esi
+ .leaveCall:
+ 	pop ebx
+	pop ecx
+	pop esi
+	pop ebp
 	ret
 
 

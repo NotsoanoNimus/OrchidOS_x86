@@ -1,11 +1,12 @@
-; 32-BIT SCREEN OPERATIONS
+; SCREEN.asm
+; -- Contains all SHELL_MODE functions for controlling the user interface.
 
 %include "shell/GRAPHICS.asm"
 
 
-_screenCLS:
+SCREEN_CLS:
 	pushad
-	mov edi, 0xB80A0
+	mov edi, 0x000B80A0		; Only clear from row 1 and down, to not delete the overlay.
 	mov ecx, 0x0F00
 	mov eax, 0x0F200F20		;black bg, white fg -- spaces.
 	rep stosd
@@ -13,7 +14,7 @@ _screenCLS:
 	ret
 
 
-_screenScroll:
+SCREEN_Scroll:
 	pushad
 
 	xor eax, eax
@@ -23,7 +24,7 @@ _screenScroll:
  .repeatScroll:
 	lodsb			; load BYTE from ESI
 	stosb			; store it into EDI
-	loop _screenScroll.repeatScroll		; repeat until ECX = 0
+	loop .repeatScroll		; repeat until ECX = 0
 
 	; Clear bottom row
 	mov edi, 0x0B8000 + 0x0F00	; row 24, col 0
@@ -33,14 +34,14 @@ _screenScroll:
 
 	; Put cursor at pos 0,24
 	mov bx, 0x0018	;column 0, row 24
-	call _screenUpdateCursor
+	call SCREEN_UpdateCursor
 
 	popad
 	ret
 
 
 ; This function will update both the cursor and the video memory index based on cursor position
-_screenUpdateCursor:;BL = row, BH = column
+SCREEN_UpdateCursor:;BL = row, BH = column
 	pushad
 	mov word [cursorOffset], bx
 
@@ -92,7 +93,7 @@ _screenUpdateCursor:;BL = row, BH = column
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-_screenWrite:	; (ARG1)ESI = string index, (ARG2)BL = color attrib
+SCREEN_Write:	; (ARG1)ESI = string index, (ARG2)BL = color attrib
 	pushad
 	xor edx, edx
 	mov edi, 0x0B8000
@@ -103,38 +104,38 @@ _screenWrite:	; (ARG1)ESI = string index, (ARG2)BL = color attrib
 	mov ah, bl
 	;Check cursorOffset real quick
 	cmp dl, 25
-	jl _screenWrite.continuePrint
-	call _screenScroll
+	jl .continuePrint
+	call SCREEN_Scroll
 	mov edx, [cursorOffset]
  .continuePrint:
 	lodsb
 	or al, al
-	jz _screenWrite.endPrint
+	jz .endPrint
 	stosw
 	inc dh		; next col
 	cmp dh, 80	; end of line?
-	jl _screenWrite.skipNextRow
+	jl .skipNextRow
 
 	xor dh, dh	; reset cols
 	inc dl		; next cursor row
 	cmp dl, 25	; need to scroll?
-	jl _screenWrite.skipNextRow
-	call _screenScroll
+	jl .skipNextRow
+	call SCREEN_Scroll
 	mov dl, 24		; set back to row 24 (0x18)
 
  .skipNextRow:
-	jmp _screenWrite.continuePrint
+	jmp .continuePrint
  .endPrint:
 	;end of printed line, so inc the row and reset column
 	inc dl
 	xor dh, dh
 	cmp dl, 25
-	jl _screenWrite.return
-	call _screenScroll
+	jl .return
+	call SCREEN_Scroll
 	mov dl, 24
  .return:
 	mov bx, dx
-	call _screenUpdateCursor
+	call SCREEN_UpdateCursor
 	popad
 	ret
 
@@ -143,7 +144,7 @@ _screenWrite:	; (ARG1)ESI = string index, (ARG2)BL = color attrib
 ; This is mainly for printing user input.
 ; USER BUFFER = inputBuffer (255 chars/bytes --> 32 QWORDS) <-- HAVING TROUBLE WRITING THIS IN
 ; index = inputIndex
-_screenPrintChar:	; ah = color attrib, al = char
+SCREEN_PrintChar:	; ah = color attrib, al = char
 	pushad
 	mov ah, [SHELL_MODE_TEXT_COLOR]			; text attrib
 	mov cx, [inputIndex]
@@ -161,37 +162,37 @@ _screenPrintChar:	; ah = color attrib, al = char
 	; BACKSPACE is a priority request, as well as ENTER and ESCAPE.
 	; ...meaning they ignore the inputBuffer index
 	cmp al, 0x08	; al = BACKSPACE?
-	je _screenPrintChar.backspace
+	je .backspace
 	cmp al, 0x0A	; al = LF?
-	je _screenPrintChar.nextLine
+	je .nextLine
 	cmp al, 0x1B	; al = ESC?
-	je _screenPrintChar.escapeHit
+	je .escapeHit
 
 	; Check index to see if we're already at max characters.
 	cmp cx, 0x00FF	;255
-	jge _screenPrintChar.return
+	jge .return
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	; Special character check
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	;Disable arrowsfor now
 	cmp al, 0xA4
-	je _screenPrintChar.return
-	;je _screenPrintChar.upArrow
+	je .return
+	;je .upArrow
 	cmp al, 0xA1
-	je _screenPrintChar.return
-	;je _screenPrintChar.downArrow
+	je .return
+	;je .downArrow
 	cmp al, 0xA2
-	je _screenPrintChar.return
-	;je _screenPrintChar.leftArrow
+	je .return
+	;je .leftArrow
 	cmp al, 0xA3
-	je _screenPrintChar.return
-	;je _screenPrintChar.rightArrow
+	je .return
+	;je .rightArrow
 
 	; Caps lock, or other special character below space??
 	; ---> Later on extract important ones, like TAB and ESCAPE, etc. when needed.
 	cmp al, 0x19
-	jle _screenPrintChar.return
+	jle .return
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	; Capitalized letter check.
@@ -217,14 +218,14 @@ _screenPrintChar:	; ah = color attrib, al = char
 	inc bh	; add to cursor xpos
 
 	cmp bh, 80
-	jl _screenPrintChar.return
+	jl .return
 	xor bh, bh
 	inc bl
 	cmp bl, 25
-	jl _screenPrintChar.return
+	jl .return
 	mov bl, 24
-	call _screenScroll
-	jmp _screenPrintChar.return
+	call SCREEN_Scroll
+	jmp .return
 
  .escapeHit:
 	; delete user input based on length of inputIndex
@@ -246,96 +247,94 @@ _screenPrintChar:	; ah = color attrib, al = char
 	push ecx
  .escCursorSet:
 	cmp ecx, 0		; index empty?? Could be user mashing ESC
-	jz _screenPrintChar.escLoopEnd
+	jz .escLoopEnd
 	cmp bl, 1		; first row?
-	jne _screenPrintChar.escNotFirstRow
+	jne .escNotFirstRow
 	xor bh, bh		; reset cursor cols and keep row 1
-	jmp _screenPrintChar.escLoopEnd
+	jmp .escLoopEnd
  .escNotFirstRow:
 	cmp bh, 0		; 1st pos in cols?
-	jne _screenPrintChar.escSkipColEnd	;no, go down
+	jne .escSkipColEnd	;no, go down
 	mov bh, 0x4F	; yes, set to end of prev col
 	dec bl			; and go a row up
-	loop _screenPrintChar.escCursorSet
-	jmp _screenPrintChar.escLoopEnd
+	loop .escCursorSet
+	jmp .escLoopEnd
  .escSkipColEnd:
 	dec bh
-	loop _screenPrintChar.escCursorSet
+	loop .escCursorSet
  .escLoopEnd:
 	pop ecx
 	xor cx, cx	; clear inputIndex
-	call _parserClearInput
-	jmp _screenPrintChar.return
+	call PARSER_ClearInput
+	jmp .return
 
  .backspace:
 	cmp cx, 0	;no input buffer?
-	je _screenPrintChar.return
+	je .return
 	cmp bh, 0
-	jnz _screenPrintChar.bkspNotEOC
+	jnz .bkspNotEOC
 	cmp bl, 1
-	je _screenPrintChar.return
+	je .return
 	dec bl
 	mov bh, 0x50
-	jmp _screenPrintChar.return
+	jmp .return
  .bkspNotEOC:
 	dec bh
 	mov al, 0x20
 	mov word [edi-2], ax
 	dec cx		;decrease inputIndex
 	mov byte [INPUT_BUFFER+ecx], 0x00	;kill the previous input
-	jmp _screenPrintChar.return
+	jmp .return
 
  .nextLine:
 	inc bl			; next row
 	xor bh, bh		; cols = 0
 	xor cx, cx		; clear inputIndex
 	cmp bl, 25
-	jl _screenPrintChar.noScroll
+	jl .noScroll
 	mov bl, 24
-	call _screenScroll
+	call SCREEN_Scroll
  .noScroll:
 	mov byte [COMMAND_QUEUE], 00000001b		; tell the parser there's a command waiting.
-	jmp _screenPrintChar.return
+	jmp .return
 
  .downArrow:
 	cmp bl, 25
-	jge _screenPrintChar.return
+	jge .return
 	inc bl
-	jmp _screenPrintChar.return
+	jmp .return
  .upArrow:
 	cmp bl, 1
-	jle _screenPrintChar.return
+	jle .return
 	dec bl
-	jmp _screenPrintChar.return
+	jmp .return
  .leftArrow:
 	cmp bh, 0
-	jz _screenPrintChar.return
+	jz .return
 	dec bh		; decrement
 	dec cx		; and the inputIndex position; this won't work for now, with the ESCAPE method...
-	jmp _screenPrintChar.return
+	jmp .return
  .rightArrow:
 	cmp bh, 80
-	jge _screenPrintChar.return
+	jge .return
 	inc bh
-	jmp _screenPrintChar.return
+	jmp .return
 
  .return:
 	mov word [inputIndex], cx
-	call _screenUpdateCursor
+	call SCREEN_UpdateCursor
 	popad
 	ret
 
 
 szScreenPause		db "Press any key to continue...", 0
-_screenPause:
+SCREEN_Pause:
 	cmp byte [currentMode], SHELL_MODE
 	jne .leaveCall
 
 	push esi
 	push ebx
-	mov bl, 0x0D
-	mov esi, szScreenPause
-	call _screenWrite
+	PrintString szScreenPause,0x0D
 	xor ebx, ebx
 	mov byte bl, [KEYBOARD_BUFFER]		; Save key in buffer.
 	mov byte [KEYBOARD_BUFFER], 0x00
@@ -349,7 +348,7 @@ _screenPause:
 	and dl, 0x01						; check only bit 1
 	cmp dl, 1
 	jne .noTimerUpdate
-	call _updateTimeDisplay
+	call TIMER_updateTimeDisplay
   .noTimerUpdate:
 	;...
 	jmp .waiting
