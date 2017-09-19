@@ -267,7 +267,7 @@ SCREEN_OFFSCREEN_MEMORY equ VESA_CURRENT_MODE_INFO+0x30
 
 BOOT_ERROR_FLAGS		equ 0x0FFC		; Error flags for startup. DWORD of bit-flags. Right underneath the ST2L.
 
-SYSTEM_BSOD_ERROR_CODE  equ 0x11F8      ; See Kernel definitions section for more info.
+SYSTEM_BSOD_ERROR_CODE  equ 0x13F8      ; See Kernel definitions section for more info.
 
 NULL_SELECTOR	 		equ 0
 DATA_SELECTOR			equ 8			; (1 shl 3) Flat data selector (ring 0)
@@ -309,8 +309,6 @@ KernelDiskAddrPkt:
 times 238 db 0      ; This padding ensures SYSTEM_BSOD_enterRealMode resides at the end of the ST2 loader.
 
 
-
-
 ; System fatal crash function. SYSTEM_BSOD_ERROR holds error code passed from SYSTEM_BSOD call in UTILITY.asm.
 ; -- Error codes can be found in the orchid documentation.
 SYSTEM_BSOD_enterRealMode:
@@ -341,11 +339,14 @@ SYSTEM_BSOD_enterRealMode:
     rep stosw
 
     mov si, szBSODCode
-    mov dword eax, [SYSTEM_BSOD_ERROR_CODE]
-    mov dword [si], eax
-    add si, 4
-    mov dword eax, [SYSTEM_BSOD_ERROR_CODE+4]
-    mov dword [si], eax
+    mov ax, word [SYSTEM_BSOD_ERROR_CODE]
+    mov word [si], ax
+    mov ax, word [SYSTEM_BSOD_ERROR_CODE+2]
+    mov word [si+2], ax
+    mov ax, word [SYSTEM_BSOD_ERROR_CODE+4]
+    mov word [si+4], ax
+    mov ax, word [SYSTEM_BSOD_ERROR_CODE+6]
+    mov word [si+6], ax
     mov si, szBSODCrash1
     mov di, 0x0142
     call SYSTEM_BSOD_screenOut
@@ -369,7 +370,9 @@ SYSTEM_BSOD_screenOut:  ; just a basic real-mode string-printing function.
  .leaveCall:
     ret
 
+
 szBSODCrash1        db "Oh no!", 0
+ALIGN 4
 szBSODCrash2        db "Orchid has encountered a fatal error: 0x"
 szBSODCode          db "00000000", 0
 szBSODCrash3        db "--- Please restart your system ---", 0
@@ -379,6 +382,5 @@ REALMODE_IVT:
 SYSTEM_BSOD_ERROR:  ; Pointer is referenced in Kernel as SYSTEM_BSOD_ERROR_CODE. This holds an ASCII rep of the err code.
     dd 0x00000000
     dd 0x00000000
-
 
 times 1024-($-$$) db 0		; Ensure only 2 sectors.

@@ -128,7 +128,7 @@ TIMER_updateTimeDisplay:
 	mov byte [SYSTEM_TIME_UPDATE], 0	; reset update flag
 
 	; Check which mode we're in.
-	mov dl, [currentMode]
+	mov dl, [SYSTEM_CURRENT_MODE]
 	cmp dl, 00000001b			; are we in shell mode?
 	jne .notShellMode			; this update is useless if we're in a different mode.
 
@@ -542,7 +542,7 @@ UTILITY_BYTE_convertHEXtoASCII_lessThan100:	; INPUTS --> AL = byte to convert. E
 	; FUTURE REFERENCE:
 	; --- don't check mode. If this func is called, an ASCII output is wanted. So always just point the buffer and call.
 	;check mode before outputting ASCII (maybe change later)
-	;mov cl, [currentMode]
+	;mov cl, [SYSTEM_CURRENT_MODE]
 	;cmp cl, SHELL_MODE
 	;jne .leaveCall
 

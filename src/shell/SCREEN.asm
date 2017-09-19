@@ -305,7 +305,7 @@ SCREEN_PrintChar:	; ah = color attrib, al = char
 
 szScreenPause		db "Press any key to continue...", 0
 SCREEN_Pause:
-	cmp byte [currentMode], SHELL_MODE
+	cmp byte [SYSTEM_CURRENT_MODE], SHELL_MODE
 	jne .leaveCall
 
 	push esi

@@ -22,7 +22,7 @@ ISR_keyboardHandler: ;AL = key return
 	; KEY IS IN AL RIGHT HERE.
 	mov byte [KEYBOARD_BUFFER], al
 
-	cmp byte [currentMode], SHELL_MODE	; Shell mode?
+	cmp byte [SYSTEM_CURRENT_MODE], SHELL_MODE	; Shell mode?
 	jne ISR_keyboardHandler.notShellMode
 	cmp byte [KEYBOARD_DISABLE_OUTPUT], TRUE
 	je ISR_keyboardHandler.notShellMode

@@ -17,8 +17,8 @@ SHELL_CAPS_INDICATOR	equ 0x000B8056
 SHELL_MODE_TEXT_COLOR	 db 0x0F		; Default 0x0F attrib. Used by keyboard input. Changed by COLOR command.
 
 SYSTEM_TIME_UPDATE		 db FALSE		; used by the shell's main loop to update the time.
-SYSTEM_BSOD_FUNCTION	equ 0x11DB		; PA to jmp to when computer crashes.
-SYSTEM_BSOD_ERROR_CODE	equ 0x11F8		; DWORD ASCII rep at PA 0x11F8 (end of ST2 loader) for displaying BSOD death code.
+SYSTEM_BSOD_FUNCTION	equ 0x1300		; PA to jmp on crash. This is approx & is ok if < start of BSOD func.
+SYSTEM_BSOD_ERROR_CODE	equ 0x13F8		; DWORD ASCII rep at PA 0x11F8 (end of ST2 loader) for displaying BSOD death code.
 
 ; Internal system state information.
 BOOT_ERROR_FLAGS		equ 0x0FFC		; Error flags for startup. DWORD of bit-flags. Right underneath the ST2L.
@@ -32,7 +32,7 @@ BOOT_MODE				equ 00000000b
 SHELL_MODE				equ 00000001b
 GUI_MODE				equ 00000010b
 USER_MODE				equ 00000100b
-currentMode				db BOOT_MODE	;flags for OS' current mode (set to BOOT MODE - 00b by default)
+SYSTEM_CURRENT_MODE		db BOOT_MODE	;flags for OS' current mode (set to BOOT MODE - 00b by default)
 KEYBOARD_DISABLE_OUTPUT db 0x00
 
 ; File system information.
@@ -86,8 +86,8 @@ SCREEN_PIXEL_COUNT		dd 0x00000000
 KEYBOARD_BUFFER			db 0			; ASCII value for the current keyboard press.
 
 ; Shell misc. variables. These are important, but the names need to be changed later to something less generic.
-SHELL_INPUT_BUFFER		equ 0x00001200		; 256-byte (100h) buffer for user input.
-SHELL_SHADOW_BUFFER		equ 0x00001300		; 256-byte shadow buffer that holds the previous command.
+SHELL_INPUT_BUFFER		equ 0x00001400		; 256-byte (100h) buffer for user input.
+SHELL_SHADOW_BUFFER		equ 0x00001500		; 256-byte shadow buffer that holds the previous command.
 SHELL_COMMAND_IN_QUEUE	db FALSE 			; Tell parser if cmd waiting. Triggered by LF from keyboard.
 SHELL_CURSOR_OFFSET		dw 0x0000
 SHELL_VIDEO_INDEX		dw 0x0000

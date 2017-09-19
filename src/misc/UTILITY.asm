@@ -9,7 +9,7 @@
 ; -- Outputs an ASCII representation of a hex value into the buffer specified.
 ; ---- This function will be consolidated eventually, in the same manner as UTILITY_HEX_STRINGtoINT.
 UTILITY_DWORD_HEXtoASCII:
-	cmp byte [currentMode], SHELL_MODE
+	cmp byte [SYSTEM_CURRENT_MODE], SHELL_MODE
 	jne .leaveCall
 
 	push esi
@@ -60,7 +60,7 @@ UTILITY_DWORD_HEXtoASCII:
 
 ; same args as above, except AX is the part that's output, NOT EAX!!
 UTILITY_WORD_HEXtoASCII:
-	cmp byte [currentMode], SHELL_MODE
+	cmp byte [SYSTEM_CURRENT_MODE], SHELL_MODE
 	jne .leaveCall
 
 	push esi
@@ -111,7 +111,7 @@ UTILITY_WORD_HEXtoASCII:
 
 ; same args as above, except AL is the part that's output, NOT EAX!!
 UTILITY_BYTE_HEXtoASCII:
-	cmp byte [currentMode], SHELL_MODE
+	cmp byte [SYSTEM_CURRENT_MODE], SHELL_MODE
 	jne .leaveCall
 
 	push esi

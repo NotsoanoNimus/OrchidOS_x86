@@ -203,7 +203,7 @@ KEYBOARD_keyboardMapping:	; start with actual key chars first, special chars las
 	ret
 
  .returnShift:		; separate return to set shell indicator.
- 	cmp byte [currentMode], SHELL_MODE
+ 	cmp byte [SYSTEM_CURRENT_MODE], SHELL_MODE
 	jne .return
 	mov bl, [bKEYBOARDSTATUS]
 	and bl, 00000010b
@@ -221,7 +221,7 @@ KEYBOARD_keyboardMapping:	; start with actual key chars first, special chars las
 	;shl bl, 2	; if bit is set, BL now = 4 (00000100b)
 	;mov bh, 0xFE		; LED command
 	;call KEYBOARD_sendSpecialCmd
-	cmp byte [currentMode], SHELL_MODE
+	cmp byte [SYSTEM_CURRENT_MODE], SHELL_MODE
 	jne .return
 	cmp bl, 00000001b
 	jne .arrowDown

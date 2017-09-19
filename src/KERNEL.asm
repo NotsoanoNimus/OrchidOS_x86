@@ -41,7 +41,7 @@ kernel_main:
 
 	; This is SHELL_MODE space.
 	call INIT_kernelWelcomeDisplay
-	mov byte [currentMode], SHELL_MODE	;SHELL MODE
+	mov byte [SYSTEM_CURRENT_MODE], SHELL_MODE	;SHELL MODE
 
 	; SHELL_MODE debugging/snippet code typically goes below, before idling.
 
@@ -57,7 +57,7 @@ kernel_main:
 	; now use EAX as the source address of the MEMCPY, to copy 50 bytes from the RSDP to 0x50000.
 	MEMCPY eax,0x00050000,0x00000050
 	call COMMAND_DUMP
-
+	int 8
 
 	; Hang and wait for some ISRs.
 	sti
@@ -68,7 +68,7 @@ kernel_main:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
  .repHalt:
 	call PARSER_CheckQueue				; Checking if there's a queued command.
-	cmp byte [currentMode], USER_MODE	; was the mode changed?
+	cmp byte [SYSTEM_CURRENT_MODE], USER_MODE	; was the mode changed?
 	je .usrMode
 
 	cmp byte [SYSTEM_TIME_UPDATE], TRUE
@@ -91,7 +91,7 @@ kernel_main:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 KERNEL_modeGUI:
-	mov byte [currentMode], GUI_MODE
+	mov byte [SYSTEM_CURRENT_MODE], GUI_MODE
 
 	; Test the GUI by creating a modernist masterpiece.
 	push dword 0x00009999					; cyan color.
