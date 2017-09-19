@@ -18,7 +18,9 @@ If you would like more information about System Calls regarding allocations and 
 - **00000F00 to 00000FFB**: FREE.
 - 00000FFC to 00000FFF: BOOT_ERROR_FLAGS. Important flags that tell the system which devices/protocols failed on start.
 - 00001000 to 000011FF: Extended Boot Sector, also referenced in src as ST2 (2 sectors).
-- **00001200 to 00007BFF**: FREE.
+- 00001200 to 000012FF: SHELL_MODE user input buffer for command parsing.
+- 00001300 to 000013FF: SHELL_MODE shadow buffer, used to retrieve the last command used.
+- **00001400 to 00007BFF**: FREE.
 - 00007C00 to 00007DFF: OS Boot Sector. Can be overwritten after booting.
 - **00007E00 to 00010000**: FREE.
 - 00010000 to 0006FFF0: **SYSTEM KERNEL.**
