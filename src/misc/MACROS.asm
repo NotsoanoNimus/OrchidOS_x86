@@ -98,7 +98,7 @@
 	push dword %2
 	push dword %1
 	call kmemcmp
-	add esp, 12
+	add esp, 16
 %endmacro
 
 %macro SLEEP 1
