@@ -179,6 +179,11 @@ PARSER_parseCommand:
 ; Also clean the parser's argument buffers.
 PARSER_ClearInput:
 	pushad
+	; Move the current buffer into the shadow before cleaning.
+	; See "SCREEN.asm" -- not happening until better keyboard driver implementation.
+	;MEMCPY SHELL_INPUT_BUFFER,SHELL_SHADOW_BUFFER,0x100
+	; Index can be saved here because the .return local call in PrintChar sets the INPUT_INDEX after this.
+	;MEMCPY SHELL_INPUT_INDEX,SHELL_SHADOW_INDEX,0x02
 	mov edi, SHELL_INPUT_BUFFER
 	xor eax, eax
 	mov ecx, 100h

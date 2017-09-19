@@ -285,10 +285,7 @@ kmemcpy:
 	mov esi, dword [ebp+8]	; arg1 = source addr
 	mov edi, dword [ebp+12]	; arg2 = destination addr
 	mov ecx, dword [ebp+16]	; arg3 = size
-
- .copyMemory:
-	movsb
-	loop .copyMemory
+	rep movsb
 
  .leaveCall:
  	pop ecx
@@ -343,14 +340,14 @@ kmemcmp:
  .wordSearch:
 	cmp strict word [esi], dx
 	je .matchFound
-	add esi, 2
+	inc esi
 	loop .wordSearch
 	jmp .errorExit
 
  .dwordSearch:
 	cmp strict dword [esi], edx
 	je .matchFound
-	add esi, 4
+	inc esi
 	loop .dwordSearch
 	jmp .errorExit
 

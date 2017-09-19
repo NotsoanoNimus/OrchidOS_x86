@@ -21,14 +21,11 @@ SCREEN_Scroll:
 	mov esi, 0xB8140; Start collecting data at row #2 (technically 3)
 	mov edi, 0xB80A0; Place that data to the previous row
 	mov ecx, 0x1040	; 160 chars per row, 26 rows (grabbing any overflows)
- .repeatScroll:
-	lodsb			; load BYTE from ESI
-	stosb			; store it into EDI
-	loop .repeatScroll		; repeat until ECX = 0
+	rep movsb
 
 	; Clear bottom row
 	mov edi, 0x0B8000 + 0x0F00	; row 24, col 0
-	mov ah, [DEFAULT_COLOR]
+	mov ah, byte [DEFAULT_COLOR]
 	mov al, 0x20
 	rep stosw
 
@@ -97,8 +94,8 @@ SCREEN_Write:	; (ARG1)ESI = string index, (ARG2)BL = color attrib
 	pushad
 	xor edx, edx
 	mov edi, 0x0B8000
-	mov eax, [SHELL_VIDEO_INDEX]
-	mov edx, [SHELL_CURSOR_OFFSET]
+	movzx eax, word [SHELL_VIDEO_INDEX]
+	movzx edx, word [SHELL_CURSOR_OFFSET]
 	add edi, eax
 	xor eax, eax
 	mov ah, bl
@@ -106,7 +103,7 @@ SCREEN_Write:	; (ARG1)ESI = string index, (ARG2)BL = color attrib
 	cmp dl, 25
 	jl .continuePrint
 	call SCREEN_Scroll
-	mov edx, [SHELL_CURSOR_OFFSET]
+	movzx edx, word [SHELL_CURSOR_OFFSET]
  .continuePrint:
 	lodsb
 	or al, al
@@ -174,15 +171,8 @@ SCREEN_PrintChar:	; ah = color attrib, al = char
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	; Special character check
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	;Disable arrowsfor now
-	cmp al, 0xA1
-	je .return
-	cmp al, 0xA2
-	je .return
-	cmp al, 0xA3
-	je .return
-	cmp al, 0xA4
-	je .return
+	;Disable arrows for now
+	;cmp al, 0x0D
 	;je .upArrow
 
 	; Caps lock, or other special character below space??
@@ -296,8 +286,13 @@ SCREEN_PrintChar:	; ah = color attrib, al = char
 
  .upArrow:
 	; Display shadow buffer and memcpy it to input buffer
+	; This is not happening until a better keyboard driver is implemented.
+	;MEMCPY SHELL_SHADOW_BUFFER,SHELL_INPUT_BUFFER,0x100
+	;MEMCPY SHELL_SHADOW_INDEX,SHELL_INPUT_INDEX,0x02
+	jmp .leaveCall
  .return:
 	mov word [SHELL_INPUT_INDEX], cx
+   .leaveCall:
 	call SCREEN_UpdateCursor
 	popad
 	ret

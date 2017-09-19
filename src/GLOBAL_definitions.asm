@@ -51,7 +51,6 @@ REAL_MODE_DATA_SELECTOR	equ 40
 REAL_MODE_CODE_SELECTOR	equ 48
 
 ; Memory map information from BOOT.
-SYSTEM_RAM				dq 0			; Total RAM on the system. Does not distinguish between mem types (free / reserved).
 MMAP_SIZE				db 0			; How many entries are there in the system memory map created by the Bootloader?
 MEM_INFO				equ 0x500		; Storage starting location for memory map.
 
@@ -92,6 +91,7 @@ SHELL_COMMAND_IN_QUEUE	db FALSE 			; Tell parser if cmd waiting. Triggered by LF
 SHELL_CURSOR_OFFSET		dw 0x0000
 SHELL_VIDEO_INDEX		dw 0x0000
 SHELL_INPUT_INDEX		dw 0x0000		; Number from 0-127 as an index of current user input position.
+SHELL_SHADOW_INDEX		dw 0x0000
 
 NULL_IDT:		; USED FOR REBOOTING ONLY.
 	dw 0x0000

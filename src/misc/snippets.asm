@@ -75,3 +75,18 @@
     KFREE 0x00100100		; Now see if it combines holes.
     KFREE 0x00100200
     KMALLOC 8				; Yes, it worked! Use "MEMD 100000 100" and "MEMD 100100 100" to compare and check.
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    ; debugging - find out where the ACPI kernel info is stored internally, to read the values through memd.
+	; Starts at ACPI_VERSION, since that's the first linear variable space adjacent to all of the others ahead of it.
+	;mov esi, ACPI_VERSION
+	;call _commandDUMP
+	; debugging - check if MEMCMP & MEMCPY work. There is an "RSD PTR " in the RSDP address.
+	; Check with MEMD at the address that EAX returns to verify that "PTR " exists at that location --> SUCCESS!
+	MEMCMP DWORD_OPERATION,[ACPI_RSDP],0x20,"PTR "
+	; now use EAX as the source address of the MEMCPY, to copy 50 bytes from the RSDP to 0x50000.
+	MEMCPY eax,0x00050000,0x00000050
+	call COMMAND_DUMP
