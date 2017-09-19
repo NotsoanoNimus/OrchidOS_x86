@@ -73,7 +73,7 @@ GRAPHICS_setShellOverlay:
 	pushad
 	call SCREEN_CLS				; Clears all but line 1. That will be handled momentarily...
 
-	movzx bx, [cursorOffset]
+	movzx bx, [SHELL_CURSOR_OFFSET]
 	push ebx	; save original cursor position
 
 	mov bx, 0x0000

@@ -4,44 +4,44 @@
 ; ---Maps keycodes to their ascii equivalents.
 %macro KeyMap 2
 	cmp al, %1
-	jne _keyboardMapping.not%1
+	jne KEYBOARD_keyboardMapping.not%1
 	mov al, %2
-	jmp _keyboardMapping.return
+	jmp KEYBOARD_keyboardMapping.return
  .not%1:
 %endmacro
 
 %macro CKeyMap 2
 	cmp al, %1
-	jne _keyboardMapping.capsnot%1
+	jne KEYBOARD_keyboardMapping.capsnot%1
 	mov al, %2
-	jmp _keyboardMapping.return
+	jmp KEYBOARD_keyboardMapping.return
  .capsnot%1:
 %endmacro
 
 ; ARG -> #1: al = keycode
-_keyboardMapping:	; start with actual key chars first, special chars last
+KEYBOARD_keyboardMapping:	; start with actual key chars first, special chars last
 	push ebx
 
 	; LEFT SHIFT
 	cmp al, 0x2A
-	jne _keyboardMapping.not0x2A
+	jne KEYBOARD_keyboardMapping.not0x2A
 	mov al, 0x14
 	xor byte [bKEYBOARDSTATUS], 00000010b	;set ShiftOn status
-	jmp _keyboardMapping.returnShift
+	jmp KEYBOARD_keyboardMapping.returnShift
  .not0x2A:
 	; RIGHT SHIFT
 	cmp al, 0x36
-	jne _keyboardMapping.not0x36
+	jne KEYBOARD_keyboardMapping.not0x36
 	mov al, 0x15
 	xor byte [bKEYBOARDSTATUS], 00000010b	;set ShiftOn status
-	jmp _keyboardMapping.returnShift
+	jmp KEYBOARD_keyboardMapping.returnShift
  .not0x36:
 	;Caps Lock, toggle the boolean
 	cmp al, 0x3A		; Caps
-	jne _keyboardMapping.not0x3A
+	jne KEYBOARD_keyboardMapping.not0x3A
 	xor byte [bKEYBOARDSTATUS], 00000001b		;toggle capslock
 	mov al, 0x11		; caps lock indicator
-	jmp _keyboardMapping.returnCaps
+	jmp KEYBOARD_keyboardMapping.returnCaps
  .not0x3A:
 	KeyMap 0x01,0x1B	; ESC
 	KeyMap 0x0E,0x08	; 'BACKSPACE'
@@ -112,7 +112,7 @@ _keyboardMapping:	; start with actual key chars first, special chars last
 	mov bl, [bKEYBOARDSTATUS]
 	and bl, 00000011b		; is either shift or capslock set?
 	cmp bl, 00000000b
-	jne _keyboardMapping.capsOn
+	jne KEYBOARD_keyboardMapping.capsOn
 
 	KeyMap 0x10,0x71	; 'q'
 	KeyMap 0x11,0x77	; 'w'
@@ -142,7 +142,7 @@ _keyboardMapping:	; start with actual key chars first, special chars last
 	KeyMap 0x32,0x6D	; 'm'
 	; This is in case the keycode isn't recognized.
 	xor al, al
-	jmp _keyboardMapping.return
+	jmp KEYBOARD_keyboardMapping.return
 
 	; Caps lock characters
  .capsOn:
@@ -196,7 +196,7 @@ _keyboardMapping:	; start with actual key chars first, special chars last
 	CKeyMap 0x35,0x3F	; '?'
 	; This is in case the keycode isn't recognized.
 	xor al, al
-	jmp _keyboardMapping.return
+	jmp KEYBOARD_keyboardMapping.return
 
  .return:
 	pop ebx

@@ -112,7 +112,7 @@ TIMER_updateSystemTime:
  .exitTimerUpdate:
 	mov byte [SYSTEM_TICKS], 0	;reset the ms counter
 	;call _updateTimeDisplay
-	or byte [SYSTEM_TIME_UPDATE], 1		; tell the OS that the time has updated.
+	or byte [SYSTEM_TIME_UPDATE], TRUE		; tell the OS that the time has updated.
 	ret
 
 

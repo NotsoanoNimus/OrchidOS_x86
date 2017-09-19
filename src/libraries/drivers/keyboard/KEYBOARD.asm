@@ -6,11 +6,6 @@ KEYBOARD_COMMAND	equ 0x64
 
 ISR_keyboardHandler: ;AL = key return
 	xor eax, eax
-	xor ebx, ebx
-	mov edi, 0x000B8000
-	mov eax, [videoMemIndex]
-	add edi, eax
-	mov bx, [cursorOffset]
 
 	mov dl, 1				; IRQ#1
 	call PIC_sendEOI		; acknowledge the interrupt to PIC
@@ -23,13 +18,13 @@ ISR_keyboardHandler: ;AL = key return
 	cmp al, 0
 	jle ISR_keyboardHandler.noBuffer
 
-	call _keyboardMapping	; set al to the proper key
+	call KEYBOARD_keyboardMapping	; set al to the proper key
 	; KEY IS IN AL RIGHT HERE.
 	mov byte [KEYBOARD_BUFFER], al
 
 	cmp byte [currentMode], SHELL_MODE	; Shell mode?
 	jne ISR_keyboardHandler.notShellMode
-	cmp byte [KEYBOARD_DISABLE_OUTPUT], 0x01
+	cmp byte [KEYBOARD_DISABLE_OUTPUT], TRUE
 	je ISR_keyboardHandler.notShellMode
 	call SCREEN_PrintChar	; print it or handle accordingly
  .notShellMode:

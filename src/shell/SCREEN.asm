@@ -43,7 +43,7 @@ SCREEN_Scroll:
 ; This function will update both the cursor and the video memory index based on cursor position
 SCREEN_UpdateCursor:;BL = row, BH = column
 	pushad
-	mov word [cursorOffset], bx
+	mov word [SHELL_CURSOR_OFFSET], bx
 
 	push ebx
 
@@ -56,7 +56,7 @@ SCREEN_UpdateCursor:;BL = row, BH = column
 	mul dx			; ax = rows * row width
 	add ax, cx		; ax = rows*width + cols
 
-	mov word [videoMemIndex], ax
+	mov word [SHELL_VIDEO_INDEX], ax
 
 	pop ebx
 	xor eax, eax
@@ -97,16 +97,16 @@ SCREEN_Write:	; (ARG1)ESI = string index, (ARG2)BL = color attrib
 	pushad
 	xor edx, edx
 	mov edi, 0x0B8000
-	mov eax, [videoMemIndex]
-	mov edx, [cursorOffset]
+	mov eax, [SHELL_VIDEO_INDEX]
+	mov edx, [SHELL_CURSOR_OFFSET]
 	add edi, eax
 	xor eax, eax
 	mov ah, bl
-	;Check cursorOffset real quick
+	;Check SHELL_CURSOR_OFFSET real quick
 	cmp dl, 25
 	jl .continuePrint
 	call SCREEN_Scroll
-	mov edx, [cursorOffset]
+	mov edx, [SHELL_CURSOR_OFFSET]
  .continuePrint:
 	lodsb
 	or al, al
@@ -143,20 +143,19 @@ SCREEN_Write:	; (ARG1)ESI = string index, (ARG2)BL = color attrib
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; This is mainly for printing user input.
 ; USER BUFFER = inputBuffer (255 chars/bytes --> 32 QWORDS) <-- HAVING TROUBLE WRITING THIS IN
-; index = inputIndex
+; index = input index
 SCREEN_PrintChar:	; ah = color attrib, al = char
 	pushad
-	mov ah, [SHELL_MODE_TEXT_COLOR]			; text attrib
-	mov cx, [inputIndex]
-	and ecx, 0x0000FFFF		; keep only CX
+	mov ah, byte [SHELL_MODE_TEXT_COLOR]			; text attrib
+	movzx ecx, word [SHELL_INPUT_INDEX]
 
 	xor ebx, ebx
 	xor edx, edx
 
 	; set up video positioning
-	mov bx, [cursorOffset]
+	mov bx, word [SHELL_CURSOR_OFFSET]
 	mov edi, 0x000B8000
-	mov edx, [videoMemIndex]
+	movzx edx, word [SHELL_VIDEO_INDEX]
 	add edi, edx
 
 	; BACKSPACE is a priority request, as well as ENTER and ESCAPE.
@@ -176,18 +175,15 @@ SCREEN_PrintChar:	; ah = color attrib, al = char
 	; Special character check
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	;Disable arrowsfor now
+	cmp al, 0xA1
+	je .return
+	cmp al, 0xA2
+	je .return
+	cmp al, 0xA3
+	je .return
 	cmp al, 0xA4
 	je .return
 	;je .upArrow
-	cmp al, 0xA1
-	je .return
-	;je .downArrow
-	cmp al, 0xA2
-	je .return
-	;je .leftArrow
-	cmp al, 0xA3
-	je .return
-	;je .rightArrow
 
 	; Caps lock, or other special character below space??
 	; ---> Later on extract important ones, like TAB and ESCAPE, etc. when needed.
@@ -209,12 +205,12 @@ SCREEN_PrintChar:	; ah = color attrib, al = char
  .notCaps:
 
 	; Handle the input buffer.
-	mov byte [KERNEL_OFFSET+inputBuffer+ecx], al
+	mov byte [SHELL_INPUT_BUFFER+ecx], al
 
 	pop dword eax
 	stosw
 
-	inc cx	; add to inputIndex
+	inc cx	; add to input index
 	inc bh	; add to cursor xpos
 
 	cmp bh, 80
@@ -228,7 +224,7 @@ SCREEN_PrintChar:	; ah = color attrib, al = char
 	jmp .return
 
  .escapeHit:
-	; delete user input based on length of inputIndex
+	; delete user input based on length of input index
 	push ecx
 	push eax
 
@@ -264,7 +260,7 @@ SCREEN_PrintChar:	; ah = color attrib, al = char
 	loop .escCursorSet
  .escLoopEnd:
 	pop ecx
-	xor cx, cx	; clear inputIndex
+	xor cx, cx	; clear input index
 	call PARSER_ClearInput
 	jmp .return
 
@@ -282,46 +278,26 @@ SCREEN_PrintChar:	; ah = color attrib, al = char
 	dec bh
 	mov al, 0x20
 	mov word [edi-2], ax
-	dec cx		;decrease inputIndex
-	mov byte [INPUT_BUFFER+ecx], 0x00	;kill the previous input
+	dec cx		;decrease input index
+	mov byte [SHELL_INPUT_BUFFER+ecx], 0x00	;kill the previous input
 	jmp .return
 
  .nextLine:
 	inc bl			; next row
 	xor bh, bh		; cols = 0
-	xor cx, cx		; clear inputIndex
+	xor cx, cx		; clear input index
 	cmp bl, 25
 	jl .noScroll
 	mov bl, 24
 	call SCREEN_Scroll
  .noScroll:
-	mov byte [COMMAND_QUEUE], 00000001b		; tell the parser there's a command waiting.
+	mov byte [SHELL_COMMAND_IN_QUEUE], TRUE		; tell the parser there's a command waiting.
 	jmp .return
 
- .downArrow:
-	cmp bl, 25
-	jge .return
-	inc bl
-	jmp .return
  .upArrow:
-	cmp bl, 1
-	jle .return
-	dec bl
-	jmp .return
- .leftArrow:
-	cmp bh, 0
-	jz .return
-	dec bh		; decrement
-	dec cx		; and the inputIndex position; this won't work for now, with the ESCAPE method...
-	jmp .return
- .rightArrow:
-	cmp bh, 80
-	jge .return
-	inc bh
-	jmp .return
-
+	; Display shadow buffer and memcpy it to input buffer
  .return:
-	mov word [inputIndex], cx
+	mov word [SHELL_INPUT_INDEX], cx
 	call SCREEN_UpdateCursor
 	popad
 	ret

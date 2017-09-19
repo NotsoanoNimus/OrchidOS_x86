@@ -31,13 +31,12 @@ iPARSERsaveEIP	dd 0x0	; used so that the popad by dump doesn't pop the return EI
 PARSER_CheckQueue:
 	pushad
 	pushad		; doubled so that the DUMP command can have access to them without actually changing them.
-	mov bl, [COMMAND_QUEUE]
-	or bl, bl
-	jz .noCommand
+	cmp byte [SHELL_COMMAND_IN_QUEUE], TRUE
+	jne .noCommand
 
 	;This section will run every time ENTER is hit, so the buffer is always cleared after every entry.
 	call PARSER_parseCommand
-	mov byte [COMMAND_QUEUE], 0
+	mov byte [SHELL_COMMAND_IN_QUEUE], FALSE
 	call PARSER_ClearInput
  .noCommand:
 	popad
@@ -47,7 +46,7 @@ PARSER_CheckQueue:
 
 PARSER_parseCommand:
 	;FIRST READING, finds length of buffer
-	mov esi, INPUT_BUFFER	;get base addr of input
+	mov esi, SHELL_INPUT_BUFFER	;get base addr of input
 	mov edi, PARSER_COMMAND_NO_ARGS
 	xor ecx, ecx			;length counter
 	xor edx, edx			;prevents a second reading on cmds 4 chars or smaller
@@ -63,7 +62,7 @@ PARSER_parseCommand:
 					; KEEP IN MIND: This is reading chars left-to-right, NOT little-endian, due to the shifting.
 	;mov dl, al
 	cmp ecx, 8
-	jae .returnWMSG		; if any string in the INPUT_BUFFER exceeds 8 chars before a space,
+	jae .returnWMSG		; if any string in the SHELL_INPUT_BUFFER exceeds 8 chars before a space,
 						; automatically assume invalid input.
 
 	; Set EDI = current byte in buffer and move it in.
@@ -180,7 +179,7 @@ PARSER_parseCommand:
 ; Also clean the parser's argument buffers.
 PARSER_ClearInput:
 	pushad
-	mov edi, INPUT_BUFFER
+	mov edi, SHELL_INPUT_BUFFER
 	xor eax, eax
 	mov ecx, 100h
 	rep stosb
