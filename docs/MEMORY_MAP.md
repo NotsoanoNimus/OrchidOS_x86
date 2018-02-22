@@ -16,7 +16,7 @@ If you would like more information about System Calls regarding allocations and 
 - 00000C00 to 00000DFF: VESA_INFO --> Information about VESA and the requested mode (typically 0x118).
 - 00000E00 to 00000EFF: ACPI_RSDP/RSDT & ACPI_INFO --> Pointers to ACPI information tables.
 - **00000F00 to 00000FFB**: FREE.
-- 00000FFC to 00000FFF: BOOT_ERROR_FLAGS. Important flags that tell the system which devices/protocols failed on start.
+- 00000FFC to 00000FFF: _BOOT_ERROR_FLAGS_. Important flags that tell the system which devices/protocols failed on start.
 - 00001000 to 000013FF: Extended Boot Sector, also referenced in src as ST2 (2 sectors).
 - 00001400 to 000014FF: SHELL_MODE user input buffer for command parsing.
 - 00001500 to 000015FF: SHELL_MODE shadow buffer, used to retrieve the last command used.

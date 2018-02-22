@@ -1,32 +1,33 @@
 # SHELL_MODE Commands, Parser, & Environment
-Orchid's SHELL_MODE feature is used as a fall-back on computers that are not compatible with the video mode that the OS requests.
-It is loaded by default until the more basic features of the operating system are handled.
+Orchid's _SHELL_MODE_ feature is used as a fall-back on computers that are not compatible with the video mode that the OS requests.
+
+It is loaded by default until the more basic features of the graphical operating system are handled. This is likely to be the case for the foreseeable future.
 
 ## Environment
 ### Video Mode / Graphics
-By default, orchid is set to load into SHELL_MODE, VGA BIOS mode 03h (80*25 text), if it cannot obtain a proper VESA signature, or find a supported video mode.
+By default, orchid is set to load into _SHELL_MODE_, VGA BIOS mode 03h (80*25 text), if it cannot obtain a proper VESA signature, or find a supported video mode.
 ### Graphical Mode
-Orchid <i>tentatively</i> chooses a graphical mode from a selection of standards, mainly seeking support for video mode <strong>0x118</strong>, which is a widely-supported <strong>1024x768</strong> mode, with 24bpp/32bpp support.
+Orchid _tentatively_ chooses a graphical mode from a selection of standards, mainly seeking support for video mode **0x118**, which is a widely-supported **1024x768** mode, with 24bpp/32bpp support.
 
 ## Parser
 ### Arguments
-Arguments are held to a rather strict standard by the kernel. They are stored in memory at PARSER_ARG(N), where N = 1 to 3.
-Their lengths are measured as well and stored into PARSER_ARGN_LENGTH for further checks by the called command.
+Arguments are held to a rather strict standard by the kernel. They are stored in memory at _PARSER_ARG(N)_, where _N = 1 to 3_.
+Their lengths are measured as well and stored into _PARSER_ARGN_LENGTH_ for further checks by the called command.
 
 Argument Restrictions:
-- No more than 3 arguments are allowed through the parser.
-- No more than 64 characters each, including those in double-quotes.
+- No more than **3 arguments** are allowed through the parser.
+- No more than **64 characters each**, including those in double-quotes.
 - No more than one space between arguments. This has to do with ASCII processing in the arguments themselves.
 
 Upon error, the parser will let the user know that there was an error, and to check the documentation here.
 
 ## Commands
-All commands are case-<em>insensitive</em>, because all capitalized characters the user enters are automatically taken to lowercase behind-the-scenes, although the proper case will always display.
+All commands are _case-insensitive_, because all capitalized characters the user enters are automatically taken to lowercase behind-the-scenes, although the proper case will always display.
 A quick syntax reference:
-- %N implies the N-th argument in the command sequence.
-- Arguments are separated by one space.
+- **%N** implies the **N-th argument** in the command sequence.
+- Arguments are separated by **one** space.
 - Arguments in double-quotes are treated as one argument from quote to quote, regardless of spacing.
-- [] around an argument implies that the argument is optional. <i>Note</i>: If the brackets fall around multiple arguments without breaking (i.e. [%1 %2]), then those arguments are contingent upon each other and will require both to be present.
+- _[]_ around an argument implies that the argument is optional. _Note_: If the brackets fall around multiple arguments without breaking (i.e. [%1 %2]), then those arguments are contingent upon each other and will require both to be present.
 
 ### CLS
 Clears the console screen.
@@ -44,12 +45,12 @@ Dump the states of all general-purpose registers, stack pointer, segments, and i
 Mostly a debugging tool, that can be inserted anywhere in the source code (past the kernel) to show register states at a certain time.
 
 ### MEMD %1 %2
-Perform a hexdump of memory at the specified location, for the specified length.
-Arg1 is the physical address to start the hexdump from.
+Perform a hex-dump of memory at the specified location, for the specified length.
+Arg1 is the physical address to start the hex-dump from.
 Arg2 is the length of the dump in hex. This is always 16-byte-aligned (meaning rounded to the nearest 0x10).
 
 ### REBOOT
-Reboot the system by forcing a null IDT and calling a software interruption. This command is safeguarded by the parser, which only forces a reboot after the command is entered twice, <em>consecutively</em>.
+Reboot the system by forcing a null IDT and calling a software interruption. This command is safeguarded by the parser, which only forces a reboot after the command is entered twice, _consecutively_.
 
 ### SHUTDOWN
 Shutdown the system by using ACPI. Error-checks to make sure ACPI is enabled before trying a port output to PM1a.

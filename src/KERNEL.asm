@@ -8,7 +8,7 @@ nop
 %include "misc/MACROS.asm"			; NASM Macros and Pre-Processor definitions for global implementation.
 %include "GLOBAL_definitions.asm"	; Global, pervasive variables and predefined constants for orchid.
 
-%include "libraries/MEMOPS.asm"		; Heap setup and memory operations.
+%include "libraries/memops/OPS.asm"	; Heap setup and memory operations.
 %include "misc/IDT.asm"				; Interrupt Descriptor Table and ISRs.
 %include "shell/PARSER.asm"			; Parser in the case of SHELL_MODE.
 %include "shell/SCREEN.asm"			; SHELL_MODE basic screen wrapper functions.
@@ -17,7 +17,7 @@ nop
 %include "libraries/drivers/DRIVERS.asm"	; SYSTEM DRIVERS (mouse, HDD, USB, and all other PCI devices not used in SHELL_MODE)
 ;%include "LIBRARIES.asm"					; SYSTEM LIBRARIES. Placeholder for its later implementation.
 
-; UTILITY HAS A BITS 16 IN IT, BE CAREFUL TO PLACE IT ACCORDINGLY.
+; UTILITY HAS A 'BITS 16' DIRECTIVE IN IT, BE CAREFUL TO PLACE IT ACCORDINGLY.
 %include "misc/UTILITY.asm"		; Miscellaneous utility functions used across the system & kernel, such as numeric conversions or ASCII outputs.
 
 
