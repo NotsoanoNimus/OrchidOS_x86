@@ -17,6 +17,10 @@ See the /docs/ folder for more specific information about each command, the pars
 
 
 ## How do I run it?
+It's as easy as compiling it with the `/src/__compile32.bat` file. If it throws errors, try running it with Administrator privileges. The compiler script itself offers a way to emulate the system with QEMU.
+
+To use the image **without having to compile it again**, run the `/src/__run32.bat` file for an instantly-running emulation of the operating system! In fact, I keep this one as a shortcut on my desktop for quick access to show friends and family alike! :)
+
 For those who would like to help test and debug the OS on **real hardware**, head on over to [this document](https://github.com/ZacharyPuhl/OrchidOS_x86/blob/master/docs/BUILD_AND_RUN.md) to learn how you can run it!
 
 

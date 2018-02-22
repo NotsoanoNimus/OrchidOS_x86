@@ -64,7 +64,6 @@ GOTO EXIT_COMPILER
 
 :MISSING_DEP
 FOR /F "usebackq tokens=1,2* delims= " %%a IN (`ECHO %NEEDED_DEPENDENCIES%`) DO (
-    ECHO VARS: %%a // %%b // %%c
     IF x%%a==x0 (SET NASM_FOUND=found) ELSE (SET NASM_FOUND=--MISSING--)
     IF x%%b==x0 (SET DD_FOUND=found) ELSE (SET DD_FOUND=--MISSING--)
     IF x%%c==x0 (SET QEMU_FOUND=found) ELSE (SET QEMU_FOUND=--MISSING--)

@@ -1,11 +1,11 @@
 # Build and Run OrchidOS on Real Hardware
 In this document, I outline the necessary dependencies and steps to build and install orchid onto a USB mass-storage device to boot off of on compatible legacy systems. **NOTE**: Orchid cannot run on CDs, and has not been tested on floppy disks. Try at your own peril!
 
-**THIS IS A WINDOWS INSTALLATION METHOD ONLY, AND IS CURRENTLY THE ONLY WAY I HAVE CONFIGURED THE BUILD PROCESS.
+**THIS IS A WINDOWS INSTALLATION METHOD ONLY, AND IS CURRENTLY THE ONLY WAY I HAVE CONFIGURED THE BUILD PROCESS.**
 
-THIS WILL CHANGE LATER TO BECOME MORE VERSATILE AND CROSS-PLATFORM COMPATIBLE.**
+**THIS WILL CHANGE LATER TO BECOME MORE VERSATILE AND CROSS-PLATFORM COMPATIBLE.**
 
-
+---
 
 ## Build Dependencies
 - QEMU Emulator (_system-i386_) for Windows.
@@ -32,7 +32,7 @@ This is the hard part and is by FAR the most time-consuming. Eventually, this wi
 
 In this section, I will reference the compiling system and the testing system as the _build_ computer and the _test_ computer, respectively.
 
-**DO NOT PROCEED WITH THIS UNLESS YOU ARE OKAY LOSING ALL DATA ON YOUR USB DRIVE!**
+**DO NOT PROCEED WITH THIS UNLESS YOU ARE COMFORTABLE WITH LOSING ALL DATA ON YOUR USB DRIVE!**
 
 1. Plug in your USB drive to your _build_ computer. Obvious, I know. :)
 2. Open up a command prompt with Administrative permissions.
