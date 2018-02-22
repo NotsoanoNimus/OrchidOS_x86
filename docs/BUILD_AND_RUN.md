@@ -8,10 +8,9 @@ In this document, I outline the necessary dependencies and steps to build and in
 ---
 
 ## Build Dependencies
-- QEMU Emulator (_system-i386_) for Windows.
-- NASM v2.14+.
-- DD for Windows, found [here](http://www.chrysocome.net/dd).
-
+- [QEMU Emulator](https://qemu.weilnetz.de/w64/) for Windows.
+- [NASM v2.14+](http://www.nasm.us/pub/nasm/releasebuilds/2.14rc0/), under the Windows directories.
+- [DD for Windows](http://www.chrysocome.net/dd).
 **NOTE**: The NASM, QEMU, and DD directories need to be added onto the Windows PATH environment variable. If you don't do this, the compiler won't be happy! :O
 
 ### Other Requirements
@@ -20,14 +19,14 @@ In this document, I outline the necessary dependencies and steps to build and in
 
 ---
 
-## How To Compile It
+## How to Compile it
 Simply double-click the `/src/__compile32.bat` file to compile the binary image, granted you have installed and configured the dependencies for the project. You might need to run it as an Administrator, depending on your current user privileges.
 
 This is a **one-script solution** for building the OS and then running it with the emulator. After that, use the `/src/__run32.bat` file to emulate it directly, without having to build it again.
 
-***
+---
 
-## Installing it Onto a USB Drive
+## Installing it onto a USB Drive
 This is the hard part and is by FAR the most time-consuming. Eventually, this will be pared down to simply creating a new disk partition to boot from, but the way I built the OS uses absolute memory references that, _for now_, require a custom MBR solution.
 
 In this section, I will reference the compiling system and the testing system as the _build_ computer and the _test_ computer, respectively.

@@ -4,7 +4,23 @@ Programmed entirely in Intel-x86 Assembly using _NASM_ (compiler) and _Atom_ (ID
 
 See the /docs/ folder for more specific information about each command, the parser, memory maps, etc.
 
+---
 
+## How do I run it?
+#### Build Dependencies
+- [QEMU Emulator](https://qemu.weilnetz.de/w64/) for Windows.
+- [NASM v2.14+](http://www.nasm.us/pub/nasm/releasebuilds/2.14rc0/), under the Windows directories.
+- [DD for Windows](http://www.chrysocome.net/dd).
+**NOTE**: The NASM, QEMU, and DD directories need to be added onto the Windows PATH environment variable. If you don't do this, the compiler won't be happy! :O
+
+#### After Installing the Dependencies
+It's as easy as compiling it with the `/src/__compile32.bat` file. If it throws errors, try running it with Administrator privileges. The compiler script itself offers a way to emulate the system with QEMU.
+
+To use the image **without having to compile it again**, run the `/src/__run32.bat` file for an instantly-running emulation of the operating system! In fact, I keep this one as a shortcut on my desktop for quick access to show friends and family alike! :)
+
+For those who would like to help test and debug the OS on **real hardware**, head on over to [this document](https://github.com/ZacharyPuhl/OrchidOS_x86/blob/master/docs/BUILD_AND_RUN.md) to learn how you can run it!
+
+---
 
 ## TO-DO
 - ~~Optimize old commands by centralizing some utility functions.~~
@@ -13,15 +29,6 @@ See the /docs/ folder for more specific information about each command, the pars
 - USB 2.0 support (EHCI).
 - Read USB mass-storage devices (since that's orchid's intended boot device).
 - ~~Clean up the deprecated, inefficient screen wrapper functions (one of the first files drafted at this project's inception).~~
-
-
-
-## How do I run it?
-It's as easy as compiling it with the `/src/__compile32.bat` file. If it throws errors, try running it with Administrator privileges. The compiler script itself offers a way to emulate the system with QEMU.
-
-To use the image **without having to compile it again**, run the `/src/__run32.bat` file for an instantly-running emulation of the operating system! In fact, I keep this one as a shortcut on my desktop for quick access to show friends and family alike! :)
-
-For those who would like to help test and debug the OS on **real hardware**, head on over to [this document](https://github.com/ZacharyPuhl/OrchidOS_x86/blob/master/docs/BUILD_AND_RUN.md) to learn how you can run it!
 
 
 
@@ -48,7 +55,7 @@ For those who would like to help test and debug the OS on **real hardware**, hea
 - Generic Intel Celeron/Pentium
 - QEMU/Bochs Emulator
 
-
+---
 
 ## Why Reinvent the Wheel? (Anecdotal Commentary)
 Most people would consider the concept of designing an operating system from the ground-up a masochistic venture at best.
