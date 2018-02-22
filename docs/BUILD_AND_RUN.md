@@ -11,6 +11,7 @@ In this document, I outline the necessary dependencies and steps to build and in
 - [QEMU Emulator](https://qemu.weilnetz.de/w64/) for Windows.
 - [NASM v2.14+](http://www.nasm.us/pub/nasm/releasebuilds/2.14rc0/), under the Windows directories.
 - [DD for Windows](http://www.chrysocome.net/dd).
+
 **NOTE**: The NASM, QEMU, and DD directories need to be added onto the Windows PATH environment variable. If you don't do this, the compiler won't be happy! :O
 
 ### Other Requirements
