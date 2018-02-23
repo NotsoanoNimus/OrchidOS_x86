@@ -23,6 +23,7 @@ IF "%DEPENDENCY_MISSING%"=="TRUE" GOTO MISSING_DEP
 :: Compile OS source into raw binaries with NASM.
 ECHO ======================================
 ECHO Compiling Operating System binaries...
+::nasm "BOOT_TEST.asm" -f bin -o "..\bin\boot_test.bin"
 nasm "BOOT.asm" -f bin -o "..\bin\boot.bin"
 nasm "BOOT_ST2.asm" -f bin -o "..\bin\boot2.bin"
 nasm "KERNEL.asm" -f bin -o "..\bin\kernel.bin"
@@ -33,6 +34,7 @@ ECHO.
 ECHO ======================================
 ECHO Creating MBR boot image...
 DEL /f /q "..\bin\image.img"
+::dd if="..\bin\boot_test.bin" of="..\bin\image_test.img" bs=512
 dd if="..\bin\boot.bin" of="..\bin\image.img" bs=512
 ECHO ======================================
 ECHO.

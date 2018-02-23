@@ -21,7 +21,7 @@ bpbSectPerFAT	dw 0x0400			; 1024 sectors per FAT
 bpbSectPerTrack dw 0x0020			; 32 sectors/track (??)
 bpbHeadsOrSides dw 0x0001			; Number of heads/sides on storage media.
 bpbHiddenSects	dd 0x00000000		; No hidden sectors.
-bpbActualSects	dd 0x001E05C0		; 1,967,552 sectors on this specific USB.
+bpbActualSects	dd 0x00040000		; 128MB FAT system by default... TEMPORARY UNTIL ORCHID BECOMES FS-CAPABLE AND SELF-AWARE.
 ; Extended BPB for FAT16
 bpbDriveNumber	db 0x80				; Drive number can be filled in later. For now, set it as HDD.
 bpbReserved		db 0x00
