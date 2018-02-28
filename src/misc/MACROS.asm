@@ -31,9 +31,12 @@
 ; PRINT functions (2 args = stringPtr,color // 1 arg = stringPtr)
 %macro PrintString 2
 	push esi
+	;push ebx
+	;EBX SHOULD NOT BE SAVED/RESTORED BECAUSE THE INTENT IS TO ONLY CALL THIS FUNCTION ONCE PER OUTPUT OF CERTAIN COLOR.
 	mov bl, %2
 	mov esi, %1
 	call SCREEN_Write
+	;pop ebx
 	pop esi
 %endmacro
 %macro PrintString 1

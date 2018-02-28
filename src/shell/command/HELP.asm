@@ -17,6 +17,8 @@ COMMAND_HELP:
 	PrintString szHelp7
 	PrintString szHelp8
 	PrintString szHelp9
+	PrintString szHelp10
+	PrintString szHelp11
 
 	;call _screenPause		; keep for screen pauses once the help list exceed a certain length.
 
@@ -37,3 +39,5 @@ szHelpAddin5	db " SHUTDOWN - Power off the system. Just like reboot, will ask fo
 szHelp7			db "    START - Starts an ELF binary application within the kernel Heap.", 0
 szHelp8			db "            ([%1] = Quoted File Name and Directory).", 0
 szHelp9			db "      SYS - Information about Orchid and the system status.", 0
+szHelp10		db "      USB - Displays and configures USB ports/devices on the system.", 0
+szHelp11		db "            ([%1]) = DRIVE_ID // ([%2]) = COMMAND (see docs, more later)", 0

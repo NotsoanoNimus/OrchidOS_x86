@@ -3,7 +3,7 @@
 
 
 ; Misc information.
-%define ORCHID_VERSION "0.3.12"
+%define ORCHID_VERSION "0.3.15"
 
 KERNEL_OFFSET			equ 0x10000
 KERNEL_SIZE_SECTORS		equ 0x0040			; Change this in every other file based on the growth of the kernel.
@@ -96,8 +96,3 @@ SHELL_SHADOW_INDEX		dw 0x0000
 NULL_IDT:		; USED FOR REBOOTING ONLY.
 	dw 0x0000
 	dd 0x00000000
-
-; These two variables are completely uselses and need to be axed, but that can't
-;  be done until the IRQ handlers are completed...
-szIRQCall				db "Interrupt Called:", 0
-iTermLine				db 0

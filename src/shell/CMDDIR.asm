@@ -13,3 +13,4 @@
 %include "shell/command/COLOR.asm"
 %include "shell/command/REBOOT.asm"
 %include "shell/command/SHUTDOWN.asm"
+%include "shell/command/USB.asm"

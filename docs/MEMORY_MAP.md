@@ -24,7 +24,7 @@ If you would like more information about System Calls regarding allocations and 
 - 00007C00 to 00007DFF: OS Boot Sector. Can be overwritten after booting.
 - **00007E00 to 00010000**: FREE.
 - 00010000 to 0006FFF0: **SYSTEM KERNEL.**
-- 0006FFF0 to 0006FFFF: HEAP_INFO. Stored information about the heap status and health. See the MEMOPS.asm: HEAP_INFO section for more.
+- 0006FFF0 to 0006FFFF: HEAP_INFO. Stored information about the heap status and health. See the file `/src/libraries/memops/OPS.asm`: _HEAP_INFO_ section for more.
 - 00070000 to 00070FFF: Running Process Information (strings for filenames, PIDs, permissions, etc).
 - 00071000 to 000713FF: PCI Bus Devices
 - **00071400 to 0007FFFF**: FREE.

@@ -112,6 +112,7 @@ PARSER_parseCommand:
 	CheckL4CMD CLS,"cls"
 	CheckL4CMD SYS,"sys"
 	CheckL4CMD USR,"usr"
+	CheckL4CMD USB,"usb"
 	jmp .returnWMSG
  .not3:
 	cmp ecx, 4

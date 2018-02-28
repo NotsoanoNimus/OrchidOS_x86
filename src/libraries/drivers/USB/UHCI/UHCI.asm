@@ -9,6 +9,7 @@ UHCI_PCI_CONFIG_BAR4                equ 0x20
 
 ; Since there are 8 max supported USB devices of one type,
 ;  the driver needs to account for the fact that there may be 8 controllers.
+UHCI_BARIO_ARRAY:   ; use this accessor for queries to a drive/controller id. Ex: BARIO_N = [UHCI_BARIO_ARRAY+((N-1)*2)]
 UHCI_BARIO_1    dw 0x0000
 UHCI_BARIO_2    dw 0x0000
 UHCI_BARIO_3    dw 0x0000
@@ -40,50 +41,9 @@ UHCI_PORTSC2    equ 12h
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;DEBUGGING FUNCTIONS. To be deleted later when code is 100% bulletproof.
+;DEBUGGING FUNCTIONS. To be deleted later when code is 100% bulletproof (never going to happen (; ).
 
-;debugging variable.
-szUSBDeviceConn db "XXXXXXXX", 0
-; INPUTS:
-;   ARG1: Which port? Accepts BARIO 1-8.
-;   ARG2: Offset into port. UHCI_USBCMD to UHCI_PORTSC2.
-;   ARG3: 0x00 = word // 0x01 = dword
-; *--*--* Input as a ROO.
-; OUTPUTS:
-;   * Print value received from port to the screen.
-; -- Debugging function to output a read-back on a port.
-USB_UHCI_DEBUG_outputPortVariable:
-    pushad
-    mov ebp, esp
 
-    xor eax, eax
-    xor edx, edx
-    xor ecx, ecx
-    xor ebx, ebx
-    mov strict word dx, [ebp+36]        ;arg1 - word
-    mov strict byte cl, [ebp+38]        ;arg2 - byte
-    mov strict byte bl, [ebp+39]        ;arg3 - byte
-    add dx, cx      ; combine offset with base.
-    cmp bl, DWORD_OPERATION
-    je .dword_in
-    in ax, dx       ; read into ax
-    jmp .printout
- .dword_in:
-    in eax, dx      ; read into eax
- .printout:
-    mov esi, szUSBDeviceConn+8
-    call UTILITY_DWORD_HEXtoASCII
-    PrintString szUSBDeviceConn,0x06
-    
-    ; clean buffer.
-    mov cl, 8   ; 8 bytes in szUSBDeviceConn
-    xor eax, eax
-    mov al, '0'
-    mov edi, szUSBDeviceConn
-    rep stosb
-
-    popad
-    ret
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -124,10 +84,11 @@ USB_UHCI_readFromBARIO:
     xor ebx, ebx
     xor ecx, ecx
 
-    mov strict word dx, [ebp+10]    ;arg3
-    mov strict byte cl, [ebp+9]
-    add dl, cl                      ;arg2 - adding offset
-    mov strict byte bl, [ebp+8]     ;arg1
+    mov strict word dx, [ebp+10]    ;arg3 - USB BARIO address
+    mov strict byte cl, [ebp+9]     ;arg2 - added offset to read address
+    add dl, cl
+    mov strict byte bl, [ebp+8]     ;arg1 - size of operation
+
     cmp byte bl, BYTE_OPERATION
     je .readByte
     cmp byte bl, WORD_OPERATION

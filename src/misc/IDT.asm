@@ -124,7 +124,11 @@ isr2:
 ISR_NOERRORCODE 3
 ISR_NOERRORCODE 4
 ISR_NOERRORCODE 5
-ISR_NOERRORCODE 6
+;ISR_NOERRORCODE 6		; invalid opcode discovered, crash for now. Learn how to deal later.
+isr6:
+	cli
+	push dword 0x00000006
+	jmp SYSTEM_BSOD
 ISR_NOERRORCODE 7
 ;ISR_NOERRORCODE 8		; irrecoverable software failure. For now it crashes the system.
 isr8:
@@ -351,6 +355,10 @@ isr_common:
 	ret
 
 
+; These two variables are completely uselses and need to be axed, but that can't
+;  be done until the IRQ handlers are completed...
+szIRQCall				db "Interrupt Called:", 0
+iTermLine				db 0
 ; Deprecated as well, no longer using this but it will still show
 ; ... on debug/Divby0 errors until they get their own dedicated ISR hooks.
 isr_handler:
@@ -363,13 +371,13 @@ isr_handler:
 	and eax, 0x0000FFFF
 	add eax, 0x000B8000
 	mov edi, eax
- .repe:
+ .repeat:
 	lodsb
 	or al, al
-	jz isr_handler.done
+	jz .done
 	mov ah, 0x0F
 	stosw
-	jmp isr_handler.repe
+	jmp .repeat
 	;mov dx, 0x0707
 	;mov bl, 0x0F
 	;call _screenWrite

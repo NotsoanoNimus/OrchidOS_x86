@@ -90,7 +90,15 @@ MEMOPS_initHeap:
  .heapInitFailure:
  	PrintString szHeapInitFailed,0x0C
 	cli
-	jmp $
+ .repHalt:	; Put in a halt loop.
+	hlt
+	jmp .repHalt
+	; Failure to instantiate the Heap should kill the system immediately but for some reason this isn't working...
+	; -- Enters the blue screen but, oddly, has no status code displayed.
+	; TODO: fix this.
+	;cli
+	;push dword 0x00000005
+	;jmp SYSTEM_BSOD
 
 
 ; INPUTS:
