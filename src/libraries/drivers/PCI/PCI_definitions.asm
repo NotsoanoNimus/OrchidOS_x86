@@ -8,6 +8,7 @@ PCI_CONFIG_DATA			equ 0xCFC		; 32-bit register.
 ; Register Number = Offset into the 256-byte config space.
 PCI_GET_HIGH_WORD		equ 0x00000002	; Flag to get higher WORD from 32-bit CONFIG_DATA output.
 PCI_INFO_INDEX			 dd 0x00071000	; Pointer the the end of the PCI_INFO table @0x71000. Each entry is 20 bytes.
+PCI_INFO_NUM_ENTRIES     db 0x00        ; Number of PCI devices found on the motherboard.
 PCI_NEXT_BUS			 db 0x00		; Next bus to check in a multi-controller environment.
 
 ; Header Types.

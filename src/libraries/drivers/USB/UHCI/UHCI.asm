@@ -4,8 +4,7 @@
 UHCI_PCI_CONTROLLER_CLASS_ID        equ 0x0C
 UHCI_PCI_CONTROLLER_SUBCLASS_ID     equ 0x03
 UHCI_PCI_CONTROLLER_INTERFACE_ID    equ 0x00
-; The UHCI IO port is contained in BAR4 (offset 20h).
-UHCI_PCI_CONFIG_BAR4                equ 0x20
+; The UHCI IO port is contained in BAR4 (offset 20h), see below for implementation
 
 ; Since there are 8 max supported USB devices of one type,
 ;  the driver needs to account for the fact that there may be 8 controllers.
@@ -185,16 +184,16 @@ USB_INTERNAL_findMatchingUHCI:
 USB_INTERNAL_iterateUHCIBARs:
     pushad
     mov esi, PCI_MATCHED_DEVICE1
-    mov edi, UHCI_BARIO_1           ; start at MD1 & BAR1
+    mov edi, UHCI_BARIO_1   ; start at MATCHED_DEVICE1 & BARIO1
     xor ecx, ecx   ;set counter to 0
  .iterateBAR:
     xor eax, eax    ; returns for readConfigWord
     xor ebx, ebx    ; register access
     xor edx, edx    ; holds BAR
-    cmp dword [esi], 0x00000000
+    cmp dword [esi], 0x00000000     ; check for empty PCI_MATCHED_DEVICE
     je .leaveCall  ; this line is the origin of a known possible bug. See top of this file.
     mov dword ebx, [esi]    ; ebx = (Bus<<24|Device<<16|Function<<8|00h)
-    mov bl, UHCI_PCI_CONFIG_BAR4    ; get IO-port addr
+    mov bl, PCI_BAR4    ; get IO-port addr (UHCI i/o addy is located on the PCI bus addr @BAR4)
 
     push dword ebx
     call PCI_configReadWord
@@ -207,7 +206,7 @@ USB_INTERNAL_iterateUHCIBARs:
     and dx, 0xFFFC
     mov word [edi], dx
 
-    add edi, 2
+    add edi, 2      ; next BARIO.
     add esi, 4      ; next MATCHED_DEVICE
     inc cl
     cmp byte cl, 8  ; were 8 devices filled? If so, leave before overflow!

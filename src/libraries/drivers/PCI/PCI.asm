@@ -10,11 +10,27 @@
 ; ---- Each device/function entry found is put into memory from PCI_INFO.
 PCI_getDevicesInfo:
 	push edi
+	push eax
+	push ebx
+	xor eax, eax
+	xor ebx, ebx
 	call PCI_checkAllBuses
 	mov dword edi, [PCI_INFO_INDEX]
 	mov dword [edi], 0xFFFFFFFF		; end of block signature.
 	add edi, 4
 	mov dword [PCI_INFO_INDEX], edi	; Set end ptr to true end to measure full size.
+
+	; Store the number of entries in the PCI_INFO section.
+	mov dword eax, [PCI_INFO_INDEX]
+	sub eax, PCI_INFO			; Get difference between end and start (size of block)
+	sub eax, 4					; Take off the DWORD signature placement.
+	mov ebx, 0x00000014			; Each entry is an array of 20 bytes (5 DWORDs).
+	div bl						; AX/BL --> AL = Quotient // AH = Remainder (unimportant). Should not be a remainder.
+
+	mov byte [PCI_INFO_NUM_ENTRIES], al		;store it.
+
+	pop ebx
+	pop eax
 	pop edi
 	ret
 
@@ -455,7 +471,6 @@ PCI_MATCHED_DEVICE6			dd 0x00000000
 PCI_MATCHED_DEVICE7			dd 0x00000000
 PCI_MATCHED_DEVICE8			dd 0x00000000
 PCI_NUM_MATCHED_DEVICES		db 0x00
-; INPUTS:
 ; INPUTS:
 ;	ARG1 = (CLASS<<24|SUBCLASS<<16|INTERFACE<<8|REVISION)
 ; OUTPUTS:

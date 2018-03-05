@@ -11,13 +11,16 @@ USB_CONNECTED_DEVICE_COUNT      db 0x00
 
 %include "libraries/drivers/USB/UHCI/UHCI.asm"
 ;%include "libraries/drivers/USB/OHCI/OHCI.asm"  ; OHCI = untested physically. Unsure if functional.
-;%include "libraries/drivers/USB/EHCI/EHCI.asm"
+%include "libraries/drivers/USB/EHCI/EHCI.asm"
 
 
 USB_initializeDriver:
     pushad
 
+    ; Get the supported USB PCI information and perform some initial setup.
+    ;call USB_DRIVER_setupOHCI
     call USB_DRIVER_setupUHCI
+    call USB_DRIVER_setupEHCI
 
     popad
     ret
@@ -40,7 +43,21 @@ USB_DRIVER_setupUHCI:
     ; Now use the matches to iterate through each UHCI device/function's BAR4 in the config space.
     call USB_INTERNAL_iterateUHCIBARs
 
-    ; UHCI is all set, clean the buffers to prepare for OHCI...
+    ; UHCI is all set, clean the buffers to prepare for EHCI...
+    call PCI_INTERNAL_cleanMatchedBuffers
+
+    ret
+
+
+USB_DRIVER_setupEHCI:
+    ; Find all PCI bus devices with the matching EHCI config: 0x0C, 0x03, 0x20, 0xNN.
+    ; Matching devices come through with the same PCI address config as UHCI above.
+    call USB_INTERNAL_findMatchingEHCI
+
+    ; Get information about the EHCI ports/devices and their base I/O addrs.
+    call USB_INTERNAL_iterateEHCIBARs
+
+    ;EHCI is ready, clean the internal PCI buffers.
     call PCI_INTERNAL_cleanMatchedBuffers
 
     ret

@@ -38,7 +38,19 @@ The two digits of the 4-bit colors cannot be the same.
 
 ### CONN [%1]
 Show an enumerated list of PCI devices. No support for PCIe (but those should be backwards-compatible).
-The arguments are an option that is pending implementation: to allow detailed information on a specific device number (device numbers are listed when calling CONN itself). More info will be provided upon implementation.
+The argument is an _optional argument_ to allow detailed information on a specific device number (device numbers are listed when calling CONN itself).
+
+**Information offered when calling CONN (no args)**
+- Device & Vendor IDs
+- Location on the PCI bus (Bus#, Slot#, & Function)
+- Description with revision
+
+**Extra information listed with specific device:**
+- All regular CONN info
+- Status & Command register states
+- BIST (Built-In Self Test) capability
+- Header, Latency, Cache-capable
+- Specific hardware codes (Class->Subclass->Programming Interface)
 
 ### DUMP
 Dump the states of all general-purpose registers, stack pointer, segments, and indices.

@@ -2,26 +2,32 @@
 ; -- Lists available USB devices and debug information. Used for drive or device configuration.
 ; ---- Will later be used to configure USB devices based on specific device types (hosts/buses, SCSI, mouse, keyboard, etc.)
 
-szUSBCMDDevDebug db "[DEBUG] USB Devices DWORD(SC1<<16|SC2):", 0
+szUSBCMDDevDebug db "[DEBUG] USB Device Information:", 0
+szUSBCMDDevUHCI db "UHCI devices/ports DWORD(SC1<<16|SC2):", 0
+szUSBCMDDevEHCI db "EHCI devices/ports:", 0
 szUSBDeviceConn db "XXXXXXXX", 0
+szUSBCMDFunctionNotAvail db "Function is not available yet.", 0
 
 COMMAND_USB:
     pushad
     mov edi, PARSER_ARG1
     cmp strict byte [edi], 0x00
     jne .hasArg1
-    call USBCMD_outputPortInfos
+    PrintString szUSBCMDDevDebug,0x0A
+    call USBCMD_outputUHCIPortInfos
+    call USBCMD_outputEHCIPortInfos
+    jmp .leaveCall
  .hasArg1:
-
+    PrintString szUSBCMDFunctionNotAvail,0x03
  .leaveCall:
     popad
     ret
 
 
 
-USBCMD_outputPortInfos: ;outputs ALL BARIO port SC1&2 INFO, and
+USBCMD_outputUHCIPortInfos: ;outputs ALL BARIO port SC1&2 INFO, and
     pushad
-    PrintString szUSBCMDDevDebug,0x0A
+    PrintString szUSBCMDDevUHCI,0x0C
 
     ;testing the readFromBARIO function.
     mov edi, UHCI_BARIO_1
@@ -66,5 +72,15 @@ USBCMD_outputPortInfos: ;outputs ALL BARIO port SC1&2 INFO, and
     add edi, 2
     jmp .testing
  .break_bariotest:
+    popad
+    ret
+
+
+
+USBCMD_outputEHCIPortInfos:
+    pushad
+
+    PrintString szUSBCMDDevEHCI,0x0C
+
     popad
     ret

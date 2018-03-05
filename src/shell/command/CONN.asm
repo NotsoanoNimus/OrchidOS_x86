@@ -1,7 +1,13 @@
 ; CONN.asm
 ; -- List enumerated PCI devices, from info in PCI_INFO (0x71000 to 0x72000).
-
-szPCITmpIntro	db "0xXX PCI devices attached to the Bus (may have duplicates):", 0
+szCONNErrArg1	db "ARG1 ERROR: Input value should be a hex value no greater than 0xFF & not 0.", 0
+szCONNErrArg2	db "That device number does not exist. Check all devices with CONN and try again.", 0
+szCONNDetail1	db "     SPECIFIC HARDWARE DEVICE CODES:", 0
+szCONNDetail2	db "       Class: 0xNN"
+szCONNDetail21	db "    Subclass: 0xNN"
+szCONNDetail22	db "    Interface: 0xNN"
+szCONNDetail2TermString db 0	; defined explicitly as a referenced label to edit szCONNDetail22 #s
+szPCITmpIntro	db "0xXX PCI devices active on this computer:", 0
 szPCITmp1		db "XX-> DeviceID: 0x0000"
 szPCITmp2		db "     VendorID: 0x0000", 0
 szPCITmp3		db "     Bus#: 0x00"
@@ -17,20 +23,89 @@ szPCITmpEnd		db 0
 
 ; -- Get connected devices from PCI_INFO. Display the DeviceID, VendorID, and a brief description based on a small included dictionary.
 COMMAND_CONN:
-	mov dword eax, [PCI_INFO_INDEX]
-	sub eax, PCI_INFO			; Get difference between end and start (size of block)
-	sub eax, 4					; Take off the DWORD signature placement.
-	mov ebx, 0x00000014			; Each entry is an array of 20 bytes (5 DWORDs).
-	div bl						; AX/BL --> AL = Quotient // AH = Remainder (unimportant). Should not be a remainder.
+	pushad
+	xor ebx, ebx
+	xor eax, eax
 
+	mov edi, PARSER_ARG1
+	cmp strict byte [edi], 0x00
+	jne .specificDevice
+	push dword 0x00000000
+	call CONN_listDevices
+	add esp, 4
+	jmp .leaveCall
+ .specificDevice:
+ 	;check the argument for validity.
+	; Equates to if(!isNaN(x) && String(x).length <= 8 && (x > 0 && x < 0xFF) && deviceExists(x)) {listDevice(x);} else {err1();}
+	mov byte bl, [PARSER_ARG1_LENGTH]
+	cmp bl, 8
+	ja .err1
+	mov esi, PARSER_ARG1
+	call UTILITY_HEX_STRINGtoINT	;EAX = value
+	jc .err1	;CF on error
+	or eax, eax
+	jz .err1
+	cmp eax, 0x100
+	jae .err1
+	cmp al, strict byte [PCI_INFO_NUM_ENTRIES]
+	ja .err2
+	; ready to go! Call the lookup function with arg dev# (0 is reserved for 'all')
+	push dword eax
+	call CONN_listDevices
+	add esp, 4
+	jmp .leaveCall
+
+ .err1:
+ 	PrintString szCONNErrArg1,0x0C
+	jmp .leaveCall
+ .err2:
+ 	PrintString szCONNErrArg2,0x0C
+ .leaveCall:
+ 	popad
+	ret
+
+
+CONN_listDevices:
+	push ebp
+	mov ebp, esp
 	xor ecx, ecx
-	mov cl, al					; CL = counter.
+	xor eax, eax
+	xor edx, edx
+	xor ebx, ebx	; EBX is only used in single-device requests to hold CLASS,SUBCLASS,INTERFACE vals
+
+	mov edi, PCI_INFO	; set EDI to base of PCI_INFO table.
+	mov dword edx, [ebp+8]	;EDX = device id to get details of
+	or edx, edx
+	jz .listAll		; if EDX == 0, list all devices.
+	mov al, dl
+	mov cl, dl
+	sub cl, 1		; set loop counter to DEVICE_INDEX-1
+	or cl, cl
+	jz .EDI_Remain	; If the first device is selected, don't move EDI
+	.placeEDItoDevice:
+		add edi, 20	; Iterate up to the DEVICE_INDEX (remember: each entry in PCI_INFO = 20 bytes)
+		loop .placeEDItoDevice
+	.EDI_Remain:
+	xor ecx, ecx		; set counter to 0 and jmp
+	jmp .getInfoSingleDevice
+
+ .listAll:
+	mov byte al, [PCI_INFO_NUM_ENTRIES]	; ECX = num_PCI_entries
+	mov cl, 1
 	mov edi, PCI_INFO			; EDI = 71000h, base of PCI_INFO area.
 
-	mov bl, 0x0A
+	; Enter intro string's device total count, display it, and jmp to display iteration.
 	mov esi, szPCITmpIntro+4
 	call UTILITY_BYTE_HEXtoASCII
-	PrintString szPCITmpIntro
+	PrintString szPCITmpIntro,0x0A
+	jmp .getInfo
+
+ .getInfoSingleDevice:	;only for single-device requests
+	; set device_index number in display
+	mov esi, szPCITmp1+2
+	call UTILITY_BYTE_HEXtoASCII
+	; (NOT NECESSARY) Clean detailed info-specific string buffers here before JMPing...
+	jmp .beginDisplaySingleDevice
 
 	; [edi]    = Physical location on MB
 	; [edi+4]  = DeviceID | VendorID
@@ -38,6 +113,12 @@ COMMAND_CONN:
 	; [edi+12] = Class | Subclass | ProgIF | Revision
 	; [edi+16] = BIST | Header-Type | Latency Timer | Cache Line Size
  .getInfo:
+	; set device_index number in display
+	mov esi, szPCITmp1+2
+	mov al, cl
+	call UTILITY_BYTE_HEXtoASCII
+ .beginDisplaySingleDevice:		; used only as a label for single-device requests.
+
 	; Quickly reset Description field to all spaces.
 	mov esi, szPCITmp6
    .cleanupDesc:
@@ -48,21 +129,17 @@ COMMAND_CONN:
 	jmp .cleanupDesc
    .exitCleaning:
 
-	mov esi, szPCITmp1+2
-	mov al, cl
-	call UTILITY_BYTE_HEXtoASCII
-
 	mov esi, szPCITmp2		; End of buffer for szPCITmp1
-	mov dword eax, [edi+4]
+	mov dword eax, [edi+4]	; EAX = DeviceID | VendorID
 	push eax
 	shr eax, 16
-	call UTILITY_WORD_HEXtoASCII
+	call UTILITY_WORD_HEXtoASCII	; write VendorID into buffer
 	pop eax
 	mov esi, szPCITmp3-1
-	call UTILITY_WORD_HEXtoASCII
+	call UTILITY_WORD_HEXtoASCII	; write DeviceID into buffer
 
 	mov esi, szPCITmpAddin1
-	mov dword eax, [edi]
+	mov dword eax, [edi]			; Get PCI bus device location
 	push eax
 	shr eax, 16
 	call UTILITY_BYTE_HEXtoASCII
@@ -75,7 +152,7 @@ COMMAND_CONN:
 	call UTILITY_BYTE_HEXtoASCII
 
 	push edi
-	mov dword eax, [edi+12]
+	mov dword eax, [edi+12]		; Get the device type
 	mov edi, szPCITmp6		; Get in position to write in the spaces.
 	call CONN_INTERNAL_dictionaryLookup
 	pop edi
@@ -83,8 +160,38 @@ COMMAND_CONN:
 	mov esi, szPCITmp8-1
 	call UTILITY_BYTE_HEXtoASCII	;EAX = [edi+12] still here. Last byte is revision. Write it out.
 
+	PrintString szPCITmp1,0x0B
+	PrintString szPCITmp3,0x0E
+	PrintString szPCITmp5,0x05
+ .skip:
+ 	add edi, 20		; next entry
+	inc cl			; increment counter
+	cmp cl, 1		;if cl = 1 (specific-device requests), show detailed information
+	je .singleDeviceMoreInfo
+	push dword eax
+	mov byte al, [PCI_INFO_NUM_ENTRIES]
+	inc al
+	cmp byte cl, al		;if cl = num_entries(+1) on listall requests, leave
+	pop dword eax
+	je .breakLoop
+	call SCREEN_Pause	; pause the screen before the next device is listed.
+	jmp .getInfo
+
+ .singleDeviceMoreInfo:	; here is where a verbose information sheet regarding EVERY PCI variable is output.
+ 	sub edi, 20	; cancel 'next entry' operation above (@label 'skip')
+ 	mov dword eax, [edi+12]	;EAX = CLASS|SUBCLASS|INTERFACE|REVISION
+	shr eax, 8	; shift out REVISION, unimportant & unnecessary
+	mov esi, szCONNDetail2TermString
+	call UTILITY_BYTE_HEXtoASCII
+	shr eax, 8	; AL = SUBCLASS
+	mov esi, szCONNDetail22
+	call UTILITY_BYTE_HEXtoASCII
+	shr eax, 8	; AL = CLASS
+	mov esi, szCONNDetail21
+	call UTILITY_BYTE_HEXtoASCII
+
 	mov esi, szPCITmp9
-	mov dword eax, [edi+8]
+	mov dword eax, [edi+8]		; EAX = Status/Command register infos
 	push eax
 	shr eax, 16
 	call UTILITY_WORD_HEXtoASCII
@@ -113,20 +220,12 @@ COMMAND_CONN:
 	mov esi, szPCITmpEnd-37
 	call UTILITY_BYTE_HEXtoASCII
 
-	PrintString szPCITmp1,0x0B
-	PrintString szPCITmp3,0x0E
-	PrintString szPCITmp5,0x05
 	PrintString szPCITmp8,0x04
 	PrintString szPCITmp10,0x02
- .skip:
-	add edi, 20
-	dec cl
-	or cl, cl
-	jz .breakLoop
-	call SCREEN_Pause
-	jmp .getInfo
-
+	PrintString szCONNDetail1,0x03
+	PrintString szCONNDetail2
  .breakLoop:
+ 	pop ebp
 	ret
 
 
