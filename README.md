@@ -25,6 +25,7 @@ For those who would like to help test and debug the OS on **real hardware**, hea
 
 ## TO-DO
 - ~~Optimize old commands by centralizing some utility functions.~~
+- Add some basic crypto functions for data hashing, and to use later.
 - Finish exception-handling and basic IDT hooks.
 - USB 1.0 support (UHCI & OHCI).
 - USB 2.0 support (EHCI).
