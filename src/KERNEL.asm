@@ -8,7 +8,7 @@ nop
 %include "misc/MACROS.asm"			; NASM Macros and Pre-Processor definitions for global implementation.
 %include "GLOBAL_definitions.asm"	; Global, pervasive variables and predefined constants for orchid.
 
-%include "libraries/memops/OPS.asm"	; Heap setup and memory operations.
+%include "libraries/memops/MEMORY.asm"	; Memory operations on data held in RAM.
 %include "misc/IDT.asm"				; Interrupt Descriptor Table and ISRs.
 %include "shell/PARSER.asm"			; Parser in the case of SHELL_MODE.
 %include "shell/SCREEN.asm"			; SHELL_MODE basic screen wrapper functions.

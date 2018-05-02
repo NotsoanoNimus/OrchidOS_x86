@@ -40,6 +40,7 @@ HEAP_FOOTER_SIZE				equ 8				; Footers do not have a hole identifier.
 ;		Magic		DWORD	'0xDEADBEEF' --signature
 ;		Header Ptr	DWORD	-- Physical address of section header.
 szHeapInitFailed		db "Heap initialization failure. Cause unknown.", 0
+; TODO: ADD A HEAP_SHRINK & HEAP_GROW function to make it DYNAMIC.
 MEMOPS_initHeap:
 	pushad
 
@@ -57,8 +58,8 @@ MEMOPS_initHeap:
 	rep stosd
 
 	; Draw up the inital header and footer.
-	pop edi
-	push edi
+	pop edi				; return to heap start
+	push edi			; save state
 	mov eax, edi					; save header address
 	mov dword [edi], HEAP_HEADER_MAGIC
 	add edi, 4
@@ -66,8 +67,8 @@ MEMOPS_initHeap:
 	add edi, 4
 	mov byte [edi], HEAP_BLOCK_CLEAN
 
-	pop edi
-	add edi, HEAP_INIT_SIZE			; Step forward to 0x0110000	(16MiB heap)
+	pop edi				; restore state
+	add edi, HEAP_INIT_SIZE			; Step forward to 0x01100000 (16MiB heap)
 	sub edi, HEAP_FOOTER_SIZE		; prepare to write the footer. Should be put EDI at 0x010FFFF8
 
 	mov dword [edi], HEAP_FOOTER_MAGIC
@@ -80,7 +81,10 @@ MEMOPS_initHeap:
 	mov dword [HEAP_CURRENT_SIZE], 0x01000000	; 16MiB initialization.
 
 	mov dword edx, [iMemoryFree]				; Get total free memory.
+	push edx
+	and edx, 0x7FFFFFFF		; When bit 31 of EDX is set, it registers as a JS and outputs error. Hotfix for supporting >2G RAM.
 	sub edx, 0x00100000							; Subtract the kernel space.
+	pop edx
 	js .heapInitFailure							; If there's no space for the heap, the system cannot run.
 	mov dword [HEAP_MAX_SIZE], edx				; Max heap size is now based on available memory!!
 

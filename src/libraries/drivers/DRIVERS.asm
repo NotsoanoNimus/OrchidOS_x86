@@ -7,3 +7,4 @@
 %include "libraries/drivers/timer/PIT.asm"
 %include "libraries/drivers/ACPI/ACPI.asm"
 %include "libraries/drivers/PCI/PCI.asm"
+%include "libraries/drivers/ethernet/ETHERNET.asm"

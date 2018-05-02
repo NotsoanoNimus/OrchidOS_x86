@@ -8,6 +8,10 @@ SET NEEDED_DEPENDENCIES=
 :: This batch file assumes the compilation is happening on a Windows platform, with a DD for Windows utility.
 :: ---> DD for Windows: http://www.chrysocome.net/dd
 
+:: Check whether or not the 'bin' directory exists.
+:: ---> If not, create it.
+IF NOT EXIST "..\bin" (MKDIR "..\bin")
+
 :: A quick test of dependencies before doing anything.
 2>nul nasm --h
 IF ERRORLEVEL 9009 (SET DEPENDENCY_MISSING=TRUE&SET NEEDED_DEPENDENCIES=1
