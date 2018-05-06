@@ -14,8 +14,9 @@ nop
 %include "shell/SCREEN.asm"			; SHELL_MODE basic screen wrapper functions.
 %include "misc/INIT.asm"			; For setting global variables/device Initialization.
 
-%include "libraries/drivers/DRIVERS.asm"	; SYSTEM DRIVERS (mouse, HDD, USB, and all other PCI devices not used in SHELL_MODE)
-;%include "LIBRARIES.asm"					; SYSTEM LIBRARIES. Placeholder for its later implementation.
+%include "libraries/drivers/DRIVERS.asm"	; SYSTEM DRIVERS (mouse, HDD, USB, and all other PCI devices)
+
+; Include BLOOM utilities here, so it can rely on the other libraries...
 
 ; UTILITY HAS A 'BITS 16' DIRECTIVE IN IT, BE CAREFUL TO PLACE IT ACCORDINGLY.
 %include "misc/UTILITY.asm"		; Miscellaneous utility functions used across the system & kernel, such as numeric conversions or ASCII outputs.
@@ -31,6 +32,10 @@ kernel_main:
 	call INIT_getSystemInfo ; "INIT.asm" - Get information about the system: RAM, CPU, CMOS time/date, running disk. Sets up globals as well.
 	call MEMOPS_initHeap	; "MEMOPS.asm" - Initialize the Heap at 0x100000 to 0x1100000 (16 MiB wide). Flat memory model.
 	call PIT_initialize		; "PIT.asm" - Initialize the Programmable Interval Timer.
+
+	; ENTER 'blooming' MODE HERE.
+
+	; ENTER 'bloomed' MODE HERE.
 
 	; Before interacting with the shell: check BOOT_ERROR_FLAGS for bit 1 to see whether shell or gui mode.
 	; This is GUI_MODE space.

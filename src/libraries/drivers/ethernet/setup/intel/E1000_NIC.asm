@@ -338,6 +338,23 @@ E1000_READ_EEPROM:
     jmp .leaveCall
 
  .no_eeprom:
+    shl edx, 2
+    or edx, 0x00000001
+    push edx
+    push E1000_REG_EEPROM
+    call E1000_WRITE_COMMAND    ; write [(1)|(EDX<<2)] to the EEPROM register
+    add esp, 8
+    ; while(!((EAX = readCommand(REG_EEPROM)) & (1<<1)))
+   .no_eeprom_wait_read:
+    xor ebx, ebx
+    push E1000_REG_EEPROM
+    call E1000_READ_COMMAND     ; read the EEPROM into EAX
+    add esp, 4
+    mov ebx, eax    ; copy read into EBX to use for local operations
+    and ebx, 0x00000001
+    or ebx, ebx
+    jz .no_eeprom_wait_read
+    jmp .leaveCall
 
  .leaveCall:
     shr eax, 16
@@ -355,8 +372,15 @@ E1000_READ_EEPROM:
 ; Gets the MAC address of the ethernet device and places it into the E1000_MAC_ADDRESS field.
 E1000_GET_MAC_ADDRESS:
     push edi
+    push ebx
+    push ecx
     mov edi, E1000_MAC_ADDRESS
 
+    mov bl, byte [E1000_EEPROM_EXISTS]
+    cmp bl, TRUE
+    jne .no_eeprom
+    ;bleed if EEPROM exists
+ .eeprom_exists:
     push 0x0
     call E1000_READ_EEPROM
     add esp, 4
@@ -373,13 +397,37 @@ E1000_GET_MAC_ADDRESS:
     call .subRoutine
 
     jmp .leaveCall
-
  .subRoutine:
     stosb
     shr eax, 8
     stosb
     ret
 
+ .no_eeprom:
+    xor ebx, ebx
+    xor ecx, ecx
+    mov ebx, dword [E1000_MMIO_BASE_ADDR]
+    add ebx, 0x5400 ; add 5400h to the MMIO base to find the start of the MAC address.
+
+    cmp strict byte [ebx], 0    ; value @ EBX = 0?
+    je .noMAC
+
+    mov cl, 0x02    ;6-byte MAC (3 WORDs)
+   .getMAC_no_eeprom:   ; should probably use ESI for this instead and just MOVSW
+    mov ax, strict word [ebx]   ;AX =  get WORD @ address in EBX
+    stosw   ; store into EDI, EDI+=2
+    add ebx, 2  ;Increment EBX
+    loop .getMAC_no_eeprom
+
+    jmp .leaveCall
+
+ .noMAC: ; called when the no_eeprom fallback can't find a MAC. MAC will = 0f.0f.0f.0f.0f.0f
+    mov al, 0x0F
+    mov cl, 0x06
+    rep stosb
+    ;bleed
  .leaveCall:
+    pop ecx
+    pop ebx
     pop edi
     ret

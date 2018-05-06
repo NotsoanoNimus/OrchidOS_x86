@@ -1,6 +1,8 @@
 ; DRIVERS.asm
 ; --- Include file for all the basic drivers.
 
+%include "libraries/drivers/vfs/VFS.asm"
+
 %include "libraries/drivers/VIDEO/VIDEO.asm"
 
 %include "libraries/drivers/USB/USB.asm"

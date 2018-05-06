@@ -134,7 +134,6 @@ PARSER_parseCommand:
  .not4:
 	cmp ecx, 5
 	jg .not5
-	CheckG4CMD START,"star","t"
 	CheckG4CMD COLOR,"colo","r"
 	jmp .returnWMSG
  .not5:

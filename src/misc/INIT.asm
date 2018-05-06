@@ -214,6 +214,7 @@ INIT_getSystemInfo:
 	call PCI_getDevicesInfo		; Get information about attached PCI devices to 0x71000. (DONE, INTERPRETER WILL IGNORE DUPLICATES)
 	call ACPI_initialize		; Initialize ACPI controller.
 	;call KEYBOARD_initialize	; Initialize the keyboard to the proper scan code set.
+	call VFS_initialize			; Initialize the VFS in RAM.
 	call USB_initializeDriver	; Initialize the USB devices found on the PCI bus.
 		call PCI_INTERNAL_cleanMatchedBuffers	; required before handling other device inits. Indented for visibility.
 
