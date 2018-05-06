@@ -21,5 +21,6 @@ echo "=============================="
 echo "Starting OrchidOS with QEMU..."
 echo "=============================="
 # Emulate an x86_64 system with 128MB of RAM.
-qemu-system-x86_64 -m 8G -usb -device usb-ehci,id=ehci -device isa-debug-exit,iobase=0xF4,iosize=0x04 -drive format=raw,index=0,file="../bin/image.img"
+qemu-system-x86_64 -m 8G -usb -device usb-ehci,id=ehci -device isa-debug-exit,iobase=0xF4,iosize=0x04 \
+-netdev user,id=u1 -device e1000,netdev=u1,mac=11:22:33:44:55:66 -drive format=raw,index=0,file="../bin/image.img"
 exit 0

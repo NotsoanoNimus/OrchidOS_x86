@@ -1,9 +1,18 @@
 # Build and Run OrchidOS on Real Hardware
-In this document, I outline the necessary dependencies and steps to build and install orchid onto a USB mass-storage device to boot off of on compatible legacy systems. **NOTE**: Orchid cannot run on CDs, and has not been tested on floppy disks. Try at your own peril!
+In this document, I outline the necessary dependencies and steps to build and install orchid onto a USB mass-storage device to boot off of on compatible systems. **NOTE**: Orchid cannot run on CDs, and has not been tested on floppy disks. Try at your own peril!
 
 **THIS IS A WINDOWS INSTALLATION METHOD ONLY, AND IS CURRENTLY THE ONLY WAY I HAVE CONFIGURED THE BUILD PROCESS.**
 
 **THIS WILL CHANGE LATER TO BECOME MORE VERSATILE AND CROSS-PLATFORM COMPATIBLE.**
+
+---
+
+## A note for Linux users...
+You could always use the Bash scripts I've now written to test the OS in QEMU/KVM on Linux.
+
+Linux users are likely to be the most interested parties, so I'm slowly transitioning the project to mostly support Linux development. I now use Arch Linux daily (_pls no bully_) to compile and test the system.
+
+I'm sure a simple compilation and DD of the image using the instructions below wouldn't be a challenge whatsoever to a Linux-savvy user, but I will eventually expand on this when I get more interest/time.
 
 ---
 
@@ -16,7 +25,7 @@ In this document, I outline the necessary dependencies and steps to build and in
 
 ### Other Requirements
 - A USB drive, _preferably the smallest storage capacity you can find_, because every time you load the IMG onto the drive you'll have to format it with DISKPART. This takes significantly less time with a smaller storage capacity.
-- Test hardware -- that is, the computer you want to run Orchid on. It must be a BIOS-enabled system with _non-UEFI_ firmware. These are typically older systems that were manufactured before some time circa 2010.
+- Test hardware -- that is, the computer you want to run Orchid on. It must be a BIOS-enabled system with _non-UEFI_ firmware, **or** a BIOS/CPU with legacy compatibility.
 
 ---
 

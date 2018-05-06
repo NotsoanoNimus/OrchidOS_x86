@@ -14,8 +14,6 @@ COMMAND_HELP:
 	PrintString szHelp6
 	PrintString szHelpAddin4
 	PrintString szHelpAddin5
-	PrintString szHelp7
-	PrintString szHelp8
 	PrintString szHelp9
 	PrintString szHelp10
 	PrintString szHelp11
@@ -36,8 +34,6 @@ szHelp5			db "     MEMD - Arranged 16-byte-aligned hex dump of memory.", 0
 szHelp6			db "            (%1 = Memory Location | %2 = Length of memdump (Max 0x100)).", 0
 szHelpAddin4	db "   REBOOT - Reboot the system. Calling it once will prompt for surety.", 0
 szHelpAddin5	db " SHUTDOWN - Power off the system. Just like reboot, will ask for surety.", 0
-szHelp7			db "    START - Starts an ELF binary application within the kernel Heap.", 0
-szHelp8			db "            ([%1] = Quoted File Name and Directory).", 0
 szHelp9			db "      SYS - Information about Orchid and the system status.", 0
 szHelp10		db "      USB - Displays and configures USB ports/devices on the system.", 0
 szHelp11		db "            ([%1]) = DRIVE_ID // ([%2]) = COMMAND (see docs, more later)", 0

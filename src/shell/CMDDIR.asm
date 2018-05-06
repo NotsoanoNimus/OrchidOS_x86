@@ -8,7 +8,6 @@
 %include "shell/command/SYS.asm"
 %include "shell/command/USR.asm"
 %include "shell/command/MEMD.asm"
-%include "shell/command/START.asm"
 %include "shell/command/CONN.asm"
 %include "shell/command/COLOR.asm"
 %include "shell/command/REBOOT.asm"

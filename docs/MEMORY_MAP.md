@@ -38,17 +38,15 @@ If you would like more information about System Calls regarding allocations and 
 ### About That Kernel...
 #### What do you plan on doing with it?
 
-Nothing too fancy. The kernel is intended to be a gateway to the system hardware via the syscall, as they usually are. I don't think I want a monolithic (though that's its current rendition), but something more along the lines of a micro-hybrid, if that's sensible. I want there to be an entire shell built into the system that the user can use if their VGA card fails an initialization.
-
-If it passes into video-mode, then I want the kernel to setup a USB & IDE (pretty much a VFS) environment solely for the purpose of retrieving files and loading them. I want those files to be individual system processes that control things like the display buffers, device drivers, and system security.
+My original plan (check this file's history) was to leave the monolithic model in the dust, but since I've repurposed the project, I've become much more interested in the kernel being the **beginning** and the **end** of the project's Alpha-stage development. I don't want to spread out and isolate system components, but rather centralize the entropy of the system. While I agree that this doesn't leave much room for failure, it is the easiest way for the kernel to achieve its main operating goal.
 
 #### What about higher-half systems? This violates a convention/must of systems development!
 
-As you know, the kernel has likely hundreds of internal flags that guarantee its smooth operation, error-checking processes, and safety. It can be relocated eventually with a changed load location and origin, but its origin in the source file must always be fixed.
+As you know, the kernel has hundreds of internal flags that guarantee its smooth operation, error-checking processes, and safety. It can be relocated eventually with a changed load location and origin, but its origin in the source file must always be fixed.
 
-Not to mention that my obsession with the system being on the lower half is also influenced by setting up a loading environment for other interactive programs I'll be writing to the disk and loading into the heap environment.
+Not to mention that my obsession with the system being on the lower half is also influenced by setting up a loading environment for other interactive programs I'll be ~~writing to the disk and~~ loading into the heap environment, _dynamically and on every initialization of the system_.
 
-Plus, I like the heap and kernel where they are (until the kernel grows too large and must relocate)!
+Plus, I like the heap and kernel where they are (until the kernel grows too large and must relocate)! This probably won't become an issue.
 
 
 ## Heap
@@ -70,4 +68,4 @@ When allocation occurs, memory is aligned to **256-byte "parcels"**. The entire 
     - DWORD: Pointer to block's header.
 3. **Dynamic Allocation**
     - Fragmentation: the heap is capable of dynamically freeing blocks and merging them into large holes to be used later.
-    - First-Come: any free blocks with space enough for a new allocation will be fragmented
+    - First-Come: any free blocks with space enough for a new allocation will be fragmented.

@@ -26,6 +26,7 @@ BOOT_ERROR_FLAGS		equ 0x0FFC		; Error flags for startup. DWORD of bit-flags. Rig
 ; Bit 1: Unable to load system memory information (1), All clear (0).
 ; Bit 6: Unable to load system shutdown variables.
 ; Bit 7: Unable to load ACPI information for power management.
+; Bit 8: Unable to initialize or find a compatible Ethernet device.
 
 ; More internal system state info.
 BOOT_MODE				equ 00000000b

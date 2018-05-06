@@ -7,7 +7,7 @@ It is loaded by default until the more basic features of the graphical operating
 ### Video Mode / Graphics
 By default, orchid is set to load into _SHELL_MODE_, VGA BIOS mode 03h (80*25 text), if it cannot obtain a proper VESA signature, or find a supported video mode.
 ### Graphical Mode
-Orchid _tentatively_ chooses a graphical mode from a selection of standards, mainly seeking support for video mode **0x118**, which is a widely-supported **1024x768** mode, with 24bpp/32bpp support.
+Orchid _tentatively_ chooses a graphical mode from a selection of standards, mainly seeking support for video mode **0x118**, which is a widely-supported **1024x768** mode, with 24bpp/32bpp support. This works on 90% of tested systems for drawing primitive shapes. If you're intersted in testing it, check out the **BOOT_ST2.asm** file and search for the single line to _uncomment_ to access the VESA mode on your PC.
 
 ## Parser
 ### Arguments
@@ -19,7 +19,7 @@ Argument Restrictions:
 - No more than **64 characters each**, including those in double-quotes.
 - No more than one space between arguments. This has to do with ASCII processing in the arguments themselves.
 
-Upon error, the parser will let the user know that there was an error, and to check the documentation here.
+Upon error, the parser will let the user know that there was an error, and to check the documentation here. **The parser will allow more arguments in the future.**
 
 ## Commands
 All commands are _case-insensitive_, because all capitalized characters the user enters are automatically taken to lowercase behind-the-scenes, although the proper case will always display.

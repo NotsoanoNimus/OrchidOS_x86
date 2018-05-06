@@ -45,7 +45,10 @@ kernel_main:
 
 	; SHELL_MODE debugging/snippet code typically goes below, before idling.
 
-
+	; SUCCESSFULLY LISTS THE INFO BELOW @0x72000. Use `MEMD 72000 20` to check it out.
+	MEMCPY ETHERNET_MAC_ADDRESS,0x72000,0x06
+	MEMCPY ETHERNET_VENDOR_ID,0x72010,0x02
+	MEMCPY ETHERNET_DEVICE_ID,0x72012,0x02
 
 
 	; Hang and wait for some ISRs.

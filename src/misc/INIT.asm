@@ -41,6 +41,7 @@ szVESAFailureMsg		db "*Due to an incompatibility with VGA hardware, orchid has s
 szACPIFailureMsg		db "*Could not start the Advanced Configuration and Power Interface (ACPI) manager.", 0
 szACPINoShutdown		db "*ACPI: Shutdown variables could not be found! Only manual shutdown is possible!", 0
 szSYSNoInfoError		db "*Orchid Could failed to load information about the system properly.", 0
+szETHERNETNotFoundError db "*No compatible Ethernet device was found on this machine.", 0
 szRunningFromEmulator	db "***Orchid is running on an emulator (QEMU/BOCHS).", 0
 SYSTEM_tellErrors:
 	pushad
@@ -49,6 +50,7 @@ SYSTEM_tellErrors:
 	CONSOLETellError 0x00000080,szACPIFailureMsg,.noACPIError
 	CONSOLETellError 0x00000040,szACPINoShutdown,.noShutdownError
 	CONSOLETellError 0x00000002,szSYSNoInfoError,.noSYSINFOError
+	CONSOLETellError 0x00000100,szETHERNETNotFoundError,.noETHERNETError
 
 	cmp byte [IS_ON_EMULATOR], TRUE
 	jne .leaveCall

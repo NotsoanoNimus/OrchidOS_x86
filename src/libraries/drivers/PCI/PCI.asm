@@ -41,6 +41,7 @@ PCI_getDevicesInfo:
 ;	CL = Function Number
 ;	CH = Register Number (LOWEST 2 BITS = offset --> If offset=2, use high word.)
 ; 	*Args are pushed as a whole DWORD, with CH (reg#) being at the least significant side
+;	ARG1 = (Bus<<24|Device<<16|Func<<8|Register)
 ; OUTPUTS:
 ;	AX = WORD read from CONFIG_DATA
 ; -- Reads from the configuration port on the PCI bus. A return WORD of FFFFh means the device does not exist.
@@ -566,6 +567,73 @@ PCI_changeValue:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Configuration & BAR operations.
+
+; INPUTS:
+;	ARG1 = (Bus<<24|Device<<16|Func<<8|BAR#) -> Bar# = 0 to 5
+; OUTPUTS:
+;	EAX = Address
+;	EBX => BL = Access Type (MMIO = 0, IO = 1).
+PCI_BAR_getAddressesAndType_header00:
+	push ebp
+	mov ebp, esp
+	push ecx
+
+	mov ebx, dword [ebp+8]	;EBX = arg1
+	add bl, 0x10	; add the starting offset of BARs into a 00h header PCI table.
+	or bl, 2		; get the high word of the BAR register.
+
+
+	push ebx
+	call PCI_configReadWord	; ax = High word
+	pop ebx		; restore the arg1
+	shl eax, 16		; put high word up top.
+	mov ecx, eax	; copy into ecx
+	xor eax, eax	; now clear eax
+	xor bl, 0x02	; clear bit 1 (not bit 0) to get the low word
+	push ebx
+	call PCI_configReadWord	; ax = Low word
+	add esp, 4
+	or eax, ecx		; combine the values. EAX should now contain the specified BAR from the PCI information table.
+
+	xor ebx, ebx	; clear EBX
+	push eax
+	and eax, 1	; check bit0
+	or eax, eax
+	jz .MemMapped	; if bit0 is not set, it's a mem=mapped addr so keep EBX 0
+	;bleed if EAX!=0
+ .IOaddress:
+ 	mov ebx, 0x00000001		; EBX = I/O addr access type
+	pop eax
+	and eax, 0xFFFFFFFC		; Keep all bits but the lowest 2 (EAX = 4-byte-aligned I/O address)
+	jmp .leaveCall
+ .MemMapped:
+ 	pop eax
+	; save state and ckeck mem-mapped addr type.
+	; 0 = 32-bit, 1 = 16-bit, 2 = 64-bit
+	push eax
+	and eax, 0x00000006	; keep only bits 2&1
+	cmp al, 0x01
+	je .bits16
+	cmp al, 0x02
+	je .bits64
+	;bleed if neither
+ .bits32: ; default option
+	pop eax
+	and eax, 0xFFFFFFF0	; Get final 16-byte-aligned 32-bit address.
+	jmp .leaveCall
+ .bits64:
+ 	pop eax
+	xor eax, eax	; 64-bit addresses unsupported. EAX = 0
+	jmp .leaveCall
+ .bits16:
+ 	pop eax
+	and eax, 0x0000FFF0	; Get final 16-byte-aligned 16-bit address.
+	; bleed
+ .leaveCall:
+ 	pop ecx
+	pop ebp
+	ret
+
 
 ; INPUTS:
 ;	EAX = (Bus|Device|Function|BAR register).
