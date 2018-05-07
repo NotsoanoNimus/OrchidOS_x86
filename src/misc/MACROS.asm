@@ -104,6 +104,14 @@
 	add esp, 16
 %endmacro
 
+%macro STRSCAN 3
+	push dword %3
+	push dword %2
+	push dword %1
+	call strscan
+	add esp, 12
+%endmacro
+
 %macro SLEEP 1
 	push eax
 	mov eax, %1

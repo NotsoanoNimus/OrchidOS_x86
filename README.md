@@ -70,6 +70,7 @@ For those who would like to help test and debug the OS on **real hardware**, hea
 ---
 
 ## TO-DO
+- Finally add a command history ledger and a screen history buffer to browse through with PAGE-UP/PAGE-DOWN.
 - Build up the network stack to include simple adapters and protocols for mainly-private usage (meaning HTTP/S is **NOT** intended as an included protocol at this time).
 - Add some basic crypto functions for data hashing, and to use later with the Network Stack.
 - Finish exception-handling and basic IDT hooks.

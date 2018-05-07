@@ -22,7 +22,7 @@ HEAP_CURRENT_SIZE				equ 0x0006FFF8		;Ptr to dword at 0x6FFF0: keeps track of th
 HEAP_END						equ 0x0006FFF4		; Contains a pointer to the end of the heap. This variable changes as the heap size changes.
 HEAP_MAX_SIZE					equ 0x0006FFF0		;Pointer to heap max size. Scalable within the program.
 
-HEAP_START						equ 0x00100000		; Heap starting point. Static variable.
+HEAP_START						equ 0x01100000		; Heap starting point. Static variable.
 HEAP_INIT_SIZE					equ 0x01000000		; 16 MiB.
 ;HEAP_MAX_SIZE					equ 0x80000000		; 2GiB Heap Max. UNSURE ABOUT THIS.
 
@@ -370,6 +370,80 @@ kmemcmp:
 	pop ecx
 	pop esi
 	pop ebp
+	ret
+
+
+; INPUTS:
+;	ARG1 = Start point in RAM.
+;	ARG2 = End point in RAM.
+;	ARG3 = Base of string to find.
+; OUTPUTS:
+;	EAX = 0 if failure; pointer to base of string on success.
+; Search for an exact string in between two given locations in memory.
+; -- Strings follow until a null-termination (or a maximum of 256 bytes in this function to prevent infinite loops).
+strscan:
+	push ebp
+	mov ebp, esp
+	push edi
+	push esi
+	push ebx
+	push ecx
+	push edx
+
+	; zero registers
+	xor eax, eax
+	xor ebx, ebx
+	xor ecx, ecx
+	xor edx, edx
+
+	; get arguments moved in
+	mov ebx, dword [ebp+8]	;EBX = arg1 = start
+ .newStartingPoint:
+	mov edx, dword [ebp+12]	;EDX = arg2 = end
+	mov esi, dword [ebp+16]	;ESI = arg3 = base ptr of string.
+
+	; check the end vs start point for a negative difference.
+	sub edx, ebx	; EDX = end - start (length of search)
+	js .leaveCall	; If the result is negative, exit with EAX = 0 to show error/nothing found.
+	mov cl, strict byte [esi] 	; ECX = 0x000000[ASCII char code]
+
+	MEMCMP BYTE_OPERATION,ebx,edx,ecx
+	; if EAX != 0, it's a ptr to a matching ASCII character. Set EDI to it, inc esi, and compare.
+	; If there's a mismatch, take the last ESI value, add 1 and start a new MEMCMP to prevent infinite searches
+	; over the same spot.
+	or eax, eax
+	je .leaveCall	; failure.
+	;else: bleed
+ 	mov edi, eax	; Matched ASCII char @EAX
+	push eax		; save inital spot in case it's a match
+ .keepSearching:
+	inc edi			; check the next char up
+	inc esi			; on each string
+	mov al, strict byte [esi]
+	mov ah, strict byte [edi]
+	cmp al, ah
+	;cmp al, strict byte [edi]
+	jne .continueInitialScan
+	or al, al	; was AL the null-terminator?
+	jz .stringFound
+	jmp .keepSearching	; everything is matching, keep going.
+
+ .continueInitialScan:
+ 	mov ebx, edi	; start at previously-matched address+1 to prevent looping
+	pop eax			; delete inital-point save
+	xor eax, eax	; EAX = 0 in case of error.
+	jmp .newStartingPoint
+
+ .stringFound:
+ 	pop eax		; restore saved point
+	;bleed to end
+ .leaveCall:
+ 	pop edx
+ 	pop ecx
+	pop ebx
+	pop esi
+	pop edi
+ 	pop ebp
 	ret
 
 

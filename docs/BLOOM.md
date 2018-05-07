@@ -10,3 +10,19 @@ Think of what happens in **blooming** mode as the equivalent of the **AUTOEXEC.b
 The system is said to have **bloomed** when the process is complete.
 
 ## How to make a BLOOM script
+BLOOM files are made with a very, _very_ simple structure in mind.
+
+The first two DWORDs (8 bytes) of a BLOOM program's raw binary translation represent:
+1. The _size of the file_, which orchid will be **certain** to verify and enforce with a terminating signature at load-time. There will be a strict maximum size limit once this module is developed more.
+2. The flags of the file. I will provide a more detailed analysis on this subject when I better know what flags to sense in the BLOOM kernel module.
+
+Everything after the first two DWORDs is raw assembled binary that Orchid will point the EIP to when it's ready to begin the **blooming** process.
+
+More will be provided on this as I develop the module. Firstly, I need to add useful commands to automate, and SFTP connectivity. It will be some time.
+
+## More plans with BLOOM
+I want **blooming** to involve more than a startup-script. I want users to write their own custom modules, and even potentially share them with each other.
+
+Here's a list of things I want to add to the BLOOM module as it develops:
+- Startup installation of custom user modules that can safely plug into the kernel (think primitive Linux package manager). These could be run with a command like `BLOOM [package-name] [options]`.
+- Automation of commands and features that the OS already provides to the user, such as net connectivity and device setup (DHCP and such).

@@ -412,7 +412,7 @@ E1000_GET_MAC_ADDRESS:
     cmp strict byte [ebx], 0    ; value @ EBX = 0?
     je .noMAC
 
-    mov cl, 0x02    ;6-byte MAC (3 WORDs)
+    mov cl, 0x03    ;6-byte MAC (3 WORDs)
    .getMAC_no_eeprom:   ; should probably use ESI for this instead and just MOVSW
     mov ax, strict word [ebx]   ;AX =  get WORD @ address in EBX
     stosw   ; store into EDI, EDI+=2

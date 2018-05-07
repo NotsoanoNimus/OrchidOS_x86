@@ -20,7 +20,9 @@ If you would like more information about System Calls regarding allocations and 
 - 00001000 to 000013FF: Extended Boot Sector, also referenced in src as ST2 (2 sectors).
 - 00001400 to 000014FF: SHELL_MODE user input buffer for command parsing.
 - 00001500 to 000015FF: SHELL_MODE shadow buffer, used to retrieve the last command used.
-- **00001600 to 00007BFF**: FREE.
+- **00001600 to 00007BFF**: FREE. Should be used for shell buffering of some sort.
+- 00002000 to 00003FFF: VFS_TABLE_ENTRY --> Map of current files mounted on the VFS.
+- **00004000 to 00007BFF**: FREE.
 - 00007C00 to 00007DFF: OS Boot Sector. Can be overwritten after booting.
 - **00007E00 to 00010000**: FREE.
 - 00010000 to 0006FFF0: **SYSTEM KERNEL.**
@@ -32,7 +34,8 @@ If you would like more information about System Calls regarding allocations and 
 - **00090000 to 0009FDFF**: FREE.
 - *0009FC00 to 0009FFFF: Extended BDA. Reserved.*
 - *000A0000 to 000FFFFF: Video/VGA memory & ROM area. Reserved.*
-- 00100000 to FFFFFFFF: Memory Heap / Free for Allocation. Replace FFFFFFFF with max available RAM on target system.
+- 00100000 to 01100000: VFS_BUFFER --> Virtual File System where temporary user files are created/stored, entries described by the entries in the VFS_TABLE at 0x00002000.
+- 01100000 to FFFFFFFF: Memory Heap / Free for Allocation. Replace FFFFFFFF with max available RAM on target system.
 
 
 ### About That Kernel...
