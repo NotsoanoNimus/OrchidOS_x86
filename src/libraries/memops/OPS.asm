@@ -1,6 +1,6 @@
 ; MEMOPS.asm
-; --- Contains memory operations for the kernel, such as kmalloc, kfree, memcpy, etc.
-; ----- HEAP SETUP IS GOING TO BE DONE HERE.
+; -- Contains memory operations for the kernel, such as kmalloc, kfree, memcpy, etc.
+; ---- Also contains system process control.
 ;
 ;
 ; MEM_INFO = 0x500, signature 0x1234xxxx, 24-byte entries.
@@ -30,6 +30,15 @@ HEAP_HEADER_MAGIC				equ 0xBEABEA57		; "MAGIC" (header)
 HEAP_FOOTER_MAGIC				equ 0xDEADBEEF		; "MAGIC" (footer)
 HEAP_HEADER_SIZE				equ 12				; Headers are 9-byte objects. Round them to 12, so it's DWORD-aligned.
 HEAP_FOOTER_SIZE				equ 8				; Footers do not have a hole identifier.
+
+RUNNING_PROCESS_NEXT_GIVEN_ID	db 0x01				; Verbose name. Lists the next ID to be delegated.
+RUNNING_PROCESS_ENTRY_SIZE		equ 32				; 32 bytes per entry
+RUNNING_PROCESS_ENTRY:
+	.entry:		dd 0x00000000	; entry point in RAM of the process' data
+	.size:		dd 0x00000000	; size of the process' allocation
+	.name:		times 22 db 0x00; ASCII name representation of the process. For informational purposes only.
+	.nameTerm:	db 0x00			; forced null-terminator of the string.
+	.pid:		db 0x00			; process ID, used in all manipulations of the process instead of the name.
 
 ; HEAP SIGNATURES:
 ;	Header...
@@ -105,6 +114,182 @@ MEMOPS_initHeap:
 	;jmp SYSTEM_BSOD
 
 
+
+; INPUTS:
+;	ARG1 = Size of allocation.
+;	ARG2 = String base ptr of process name.
+; OUTPUTS:
+;	EAX = Starting address of allocated space. If 0, failure.
+;	EBX = Process ID (BL).
+; Call kmalloc to allocate heap space, but also register the process.
+; -- !!! RUNNING_PROCESSES_TABLE is located @0x70000.
+; ---- See top of this file (definitions) for the structure of a RUNNING_PROCESS_ENTRY.
+MEMOPS_KMALLOC_REGISTER_PROCESS:
+	push ebp
+	mov ebp, esp
+	push edx
+	push esi
+
+	xor edx, edx
+	xor ebx, ebx
+	mov edx, dword [ebp+8]	; EDX = arg1 = kmalloc size
+	mov esi, dword [ebp+12] ; ESI = arg2 = base ptr of name str
+
+	; Check the length of the passed string.
+	push esi
+	call strlen		; EAX = length of string, 0 on error/empty string.
+	add esp, 4
+	or eax, eax
+	jz .error		; EAX = 0 = error!
+	cmp eax, 22		; Is EAX gtr 22?
+	ja .error		; If so, leave with error.
+	mov ebx, eax	; EBX = strlen
+
+	KMALLOC edx		; allocate required space and return the pointer to the allocated block. EAX = ptr
+	jc .error		; On CF, error.
+	or eax, eax		; On EAX = 0, error.
+	jz .error
+
+	push eax		; save process entry point
+	; Create the process entry, enter it into memory.
+	push ebx		; arg4 - strlen of description string
+	push esi		; arg3 - base string ptr to copy
+	push eax		; arg2 - base ptr to new process allocation
+	push edx		; arg1 - sizeof process in RAM
+	call MEMOPS_PROCESS_TABLE_CREATE_ENTRY
+	add esp, 16
+
+	xor ebx, ebx
+	mov bl, al		; save returned PID to EBX
+	pop eax			; return the entry point to EAX
+	jmp .leaveCall
+
+ .error:
+ 	xor eax, eax
+ .leaveCall:
+ 	pop esi
+	pop edx
+ 	pop ebp
+	ret
+
+
+
+; INPUTS:
+;	ARG1 = Size of Process in RAM.
+;	ARG2 = Base of new Process in RAM (header of Heap entry).
+;	ARG3 = Base of name string (pre-checked length). Will only copy a max of 22 bytes anyway.
+; 	ARG4 = String length.
+; OUTPUTS:
+;	EAX = Process ID.
+; Create a process table entry and copy it into memory in the appropriate location.
+MEMOPS_PROCESS_TABLE_CREATE_ENTRY:
+	push ebp
+	mov ebp, esp
+	pushad
+
+	xor eax, eax
+	xor ecx, ecx
+	xor edx, edx
+
+	call MEMOPS_CLEAN_RUNNING_PROCESS_ENTRY_BUFFER	; ready the buffer for new information.
+
+	; Prepare the RUNNING_PROCESS_ENTRY fields after they were cleaned.
+	mov edi, RUNNING_PROCESS_ENTRY
+	mov eax, dword [ebp+12]	;arg2 - base
+	stosd
+	mov eax, dword [ebp+8]	;arg1 - sizeof process
+	stosd
+
+	mov esi, dword [ebp+16]	;arg3 - str ptr
+	mov ecx, dword [ebp+20]	;arg4 - strlen
+	push edi	; save edi location
+
+	rep movsb
+
+	pop edi		; return to the front of the string...
+	add edi, 23	; and add the sizeof the whole string field (+null-term)
+
+	mov al, strict byte [RUNNING_PROCESS_NEXT_GIVEN_ID]	; get next PID
+	stosb	; store it
+
+	push eax	; save before increment
+	inc al	; increment it
+	cmp al, SYSTEM_MAX_RUNNING_PROCESSES	; AL (next PID delegation) > 128?
+	ja .maxPIDs
+	mov strict byte [RUNNING_PROCESS_NEXT_GIVEN_ID], al	; put it back in
+
+	; Point EDI to the proper place to prepare the memcpy
+	mov edi, RUNNING_PROCESSES_TABLE			; EDI = base of running process table.
+
+	xor eax, eax
+	xor ecx, ecx
+	pop ecx		; restore saved pre-incremented PID into CL
+	mov al, RUNNING_PROCESS_ENTRY_SIZE			; sizeof entry (32 bytes)
+	;mov cl, byte [RUNNING_PROCESS_NEXT_GIVEN_ID]; x next delegated PID
+	mul cl										; = table offset
+
+	add edi, eax		; add on the offset, EDI now points to where the data goes
+	jmp .enterIntoRAM
+
+ .maxPIDs:	; called if the maximum process count is reached.
+ 	; find which processes have ended and are available in the RUNNING_PROCESSES_TABLE.
+	; search for gaps. If none are found, notify the system.
+	;call MEMOPS_PROCESS_MAX_PIDS	; EAX should = new PID. If EAX = 0xFF, no more available PIDs.
+	jmp .maxPIDsExit
+
+ .enterIntoRAM:
+	MEMCPY RUNNING_PROCESS_ENTRY,edi,RUNNING_PROCESS_ENTRY_SIZE	; copy it into RAM.
+ .incrementPID:
+ 	popad
+	xor eax, eax
+	mov al, byte [RUNNING_PROCESS_NEXT_GIVEN_ID]
+	dec al	; AL has to equal the running PID that was actually assigned to the process.
+	jmp .leaveCall
+
+ .maxPIDsExit:	; EAX already set to PID here.
+ 	popad
+ .leaveCall:
+ 	pop ebp
+	ret
+
+
+
+; INPUTS:
+;	ARG1 = PID (byte)
+; OUTPUTS:
+;	EAX = Ptr to base of 32-byte table entry.
+; Get the location of a process' table entry with the ID of the process.
+MEMOPS_PROCESS_GET_TABLE_ENTRY_BY_PID:
+	push ebp
+	mov ebp, esp
+
+
+ .leaveCall:
+ 	pop ebp
+	ret
+
+
+
+; A nice, descriptive function name. Clean out the buffer.
+MEMOPS_CLEAN_RUNNING_PROCESS_ENTRY_BUFFER:
+	push edi
+	push ecx
+	push eax
+	xor eax, eax
+	xor ecx, ecx
+	mov edi, RUNNING_PROCESS_ENTRY
+
+	mov cl, (RUNNING_PROCESS_ENTRY_SIZE/4)	; 32 bytes / DWORD operation (4) = 8
+	rep stosd		; Zero it all out.
+
+ .leaveCall:
+ 	pop eax
+ 	pop ecx
+ 	pop edi
+ 	ret
+
+
+
 ; INPUTS:
 ;	EBX = size of allocation in bytes.
 ; OUTPUTS:
@@ -136,7 +321,7 @@ kmalloc:
 	je .headerFound
 	add edi, 256			; this area should technically never run, as HEAP_START should always have a header and subseq calcs should be accurate.
 	cmp dword edi, [HEAP_END]	;Did the heap run out of space?
-	jge .noSpaceLeft
+	jae .noSpaceLeft
 	jmp .searchHeap		; it's a very slow alloc method, so here's to hoping it never runs!
 
  .headerFound:
@@ -445,6 +630,44 @@ strscan:
 	pop edi
  	pop ebp
 	ret
+
+
+; INPUTS:
+;	ARG1 = base ptr to string.
+; OUTPUTS:
+;	EAX = Length. 0 on error/null.
+; Return the length of a string (not including the null terminator).
+; -- HARD STRLEN LIMIT OF 65535.
+strlen:
+	push ebp
+	mov ebp, esp
+	push esi
+	push ecx
+
+	xor ecx, ecx
+	xor eax, eax
+	mov esi, dword [ebp+8]	; ESI = arg1 = base ptr
+ .checkLength:
+ 	lodsb
+	or al, al	; AL = 0 (null-term)?
+	jz .done
+	inc ecx		; increment counter.
+	cmp ecx, 0x00010000		; 65535 byte string maximum.
+	jae .error
+	jmp .checkLength
+
+ .error:	; called if the passed string is extremely long and exceeds hard strlen limit.
+ 	xor eax, eax	; Set error condition
+	jmp .leaveCall	; leave
+ .done:
+ 	mov eax, ecx	; put counter into EAX.
+	;bleed
+ .leaveCall:
+ 	pop ecx
+ 	pop esi
+ 	pop ebp
+ 	ret
+
 
 
 ; NO INPUTS OR OUTPUTS.

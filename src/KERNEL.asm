@@ -21,7 +21,7 @@ nop
 ; UTILITY HAS A 'BITS 16' DIRECTIVE IN IT, BE CAREFUL TO PLACE IT ACCORDINGLY.
 %include "misc/UTILITY.asm"		; Miscellaneous utility functions used across the system & kernel, such as numeric conversions or ASCII outputs.
 
-szTESTME db "Find me!", 0
+
 
 [BITS 32]
 kernel_main:
@@ -32,7 +32,7 @@ kernel_main:
 	call INIT_getSystemInfo ; "INIT.asm" - Get information about the system: RAM, CPU, CMOS time/date, running disk. Sets up globals as well.
 	call MEMOPS_initHeap	; "MEMOPS.asm" - Initialize the Heap at 0x100000 to 0x1100000 (16 MiB wide). Flat memory model.
 	call PIT_initialize		; "PIT.asm" - Initialize the Programmable Interval Timer.
-
+	call INIT_START_SYSTEM_DRIVERS	; "INIT.asm" - Start the system drivers that must be run after everything else is initialized.
 	; ENTER 'blooming' MODE HERE.
 
 	; ENTER 'bloomed' MODE HERE.

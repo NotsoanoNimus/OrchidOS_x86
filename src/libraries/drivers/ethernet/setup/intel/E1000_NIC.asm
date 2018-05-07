@@ -431,3 +431,10 @@ E1000_GET_MAC_ADDRESS:
     pop ebx
     pop edi
     ret
+
+
+; Enable RX on the device.
+E1000_RX_ENABLE:
+
+ .leaveCall:
+    ret

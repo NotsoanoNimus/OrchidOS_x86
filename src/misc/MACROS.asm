@@ -71,13 +71,14 @@
 
 ; MEMOPS macros.
 %macro KMALLOC 1
-	push ebx
-	xor ebx, ebx
-	mov ebx, %1
-	push dword ebx
+	;push ebx
+	;xor ebx, ebx
+	;mov ebx, %1
+	;push dword ebx
+	push dword %1
 	call kmalloc
 	add esp, 4
-	pop ebx
+	;pop ebx
 %endmacro
 %macro KFREE 1
 	push ebx

@@ -57,8 +57,8 @@ MEM_INFO				equ 0x500		; Storage starting location for memory map.
 
 ; Some heap info.
 HEAP_INFO				equ 0x6FFF0		; 16 bytes of heap info. Of main interest to the kernel is the PID count field. See MEMOPS for format.
-RUNNING_PROCESSES		equ 0x70000		; Base ptr to an array of running processes. Max size of 1000h (4KiB). See memops for more.
-
+RUNNING_PROCESSES_TABLE equ 0x70000		; Base ptr to an array of running processes. Max size of 1000h (4KiB). See memops for more.
+SYSTEM_MAX_RUNNING_PROCESSES equ 128	; A maximum of 128 PIDs can be assigned at any given time.
 ; Connected device info.
 PCI_INFO				equ 0x71000		; Base ptr to filled info about PCI Devices. 1KiB of space (up to 71400h)
 

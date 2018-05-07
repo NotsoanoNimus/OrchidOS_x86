@@ -118,7 +118,7 @@ PARSER_parseCommand:
 	cmp ecx, 4
 	jg .not4
 	;CheckCMD DUMP,0x64756D70	;"dump" -- This one has to be different because of the pushad/popad.
-	cmp edx, 0x64756D70
+	cmp dword [PARSER_COMMAND_NO_ARGS], "dump"
 	jne .NotDUMP
 	pop dword [iPARSERsaveEIP]	; save the EIP return pointer pushed due to the CALL opcode.
 	popad						; restore everything.

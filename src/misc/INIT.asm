@@ -212,6 +212,13 @@ INIT_getSystemInfo:
 	call SYSTEM_getCPUInfo		; do CPUID and get info.
 	call SYSTEM_getMEMInfo		; get memory information on the system.
 	call PCI_getDevicesInfo		; Get information about attached PCI devices to 0x71000. (DONE, INTERPRETER WILL IGNORE DUPLICATES)
+
+ .leaveCall:
+	popad
+	ret
+
+
+INIT_START_SYSTEM_DRIVERS:
 	call ACPI_initialize		; Initialize ACPI controller.
 	;call KEYBOARD_initialize	; Initialize the keyboard to the proper scan code set.
 	call VFS_initialize			; Initialize the VFS in RAM.
@@ -221,8 +228,7 @@ INIT_getSystemInfo:
 	call ETHERNET_initialize	; Initialize the ethernet controller and set up appropriate memory spaces/configurations.
 
 	; Sleep for a moment so user can digest info.
-	SLEEP_noINT 0x00000005
+	SLEEP_noINT 5
 
  .leaveCall:
-	popad
-	ret
+ 	ret
