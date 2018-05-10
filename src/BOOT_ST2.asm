@@ -216,7 +216,7 @@ BOOT_videoInfo:
 	; |
 	; |
 	; V
-	;jmp BOOT_protectedMode
+	jmp BOOT_protectedMode
 
  .errorVESA:
 	; Something went wrong initiating the GUI video mode. Go to shell mode.
@@ -277,7 +277,7 @@ CODE_SELECTOR			equ 16			; (2 shl 3) 32-bit code selector (ring 0)
 
 KERNEL_OFFSET			equ 0x10000
 KERNEL_SEGMENT_OFFSET	equ 0x1000
-KERNEL_SIZE_SECTORS		equ 0x0040
+KERNEL_SIZE_SECTORS		equ 0x0080
 
 MEM_INFO_START			equ 0x500
 ; Each table of MEM_INFO contains 24 bytes.

@@ -2,6 +2,7 @@
 ; --- Very basic graphics driver for VBE/VESA modes.
 ; TODO: Implement layered buffering support for DWM hooks later on.
 
+%include "libraries/drivers/VIDEO/FONT.asm"
 
 ; NO INPUTS.
 ; NO OUTPUTS. CF on error.

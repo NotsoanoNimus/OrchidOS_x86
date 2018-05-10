@@ -125,11 +125,25 @@ KERNEL_modeGUI:
 	call VIDEO_drawRectangle
 	add esp, 12
 
-	push dword 0x00FFFFFF	; color =
+	push dword 0x00FFFFFF	; color = white
 	push dword 0x02040304	; final(y,x)
 	push dword 0x02000300	; start(y,x)
 	call VIDEO_drawRectangle
 	add esp, 12
+
+	push dword 0x00000000	; bgcolor = black
+	push dword 0x00FF00FF	; fgcolor = purple
+	push dword 0x0000005e	; Char 'D' (index 3)
+	push dword 0x01300230	; start(y<<16|x)
+	call VIDEO_OUTPUT_CHAR
+	add esp, 16
+
+	push dword 0x0000F000	; bgColor =
+	push dword 0x00FFFF00	; fgColor =
+	push dword szTESTINGME	; string base
+	push dword 0x00550055	; (x,y) = (55,55)
+	call VIDEO_WRITE_STRING
+	add esp, 16
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -141,5 +155,5 @@ KERNEL_modeGUI:
 	hlt
 	jmp .repHalt
 
-
+szTESTINGME db "Print me!", 0
 times  (KERNEL_SIZE_SECTORS*512)-($-$$) db 0			; Pad out the kernel to an even multiple of 512

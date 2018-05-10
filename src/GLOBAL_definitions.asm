@@ -3,10 +3,10 @@
 
 
 ; Misc information.
-%define ORCHID_VERSION "0.4.1"
+%define ORCHID_VERSION "0.4.3"
 
 KERNEL_OFFSET			equ 0x10000
-KERNEL_SIZE_SECTORS		equ 0x0040			; Change this in every other file based on the growth of the kernel.
+KERNEL_SIZE_SECTORS		equ 0x0080			; Change this in every other file based on the growth of the kernel.
 
 DEFAULT_COLOR			equ 0x0F		; Default color to use for all graphical/screen ops
 SYSTIME_VIDEO_LOCATION	equ 0x000B808C
