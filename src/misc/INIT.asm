@@ -222,15 +222,14 @@ INIT_getSystemInfo:
 szSYSTEM_KERNEL_PROCESS_DESC db "System Kernel", 0
 INIT_REGISTER_SYSTEM_KERNEL:
 	push dword szSYSTEM_KERNEL_PROCESS_DESC
-	push dword 0; KERNEL_PROCESS_VOLATILE_DATA_SIZE
+	push dword KERNEL_PROCESS_VOLATILE_DATA_SIZE
 	call MEMOPS_KMALLOC_REGISTER_PROCESS
 	add esp, 8
-
-	or al, al	; error?
+	or eax, eax	; error?
 	jnz .leaveCall
 	; bleed into error condition if 0
 	; error condition hangs the system.
-	sti
+	cli
  .error:
  	hlt
 	jmp .error
@@ -248,8 +247,14 @@ INIT_START_SYSTEM_DRIVERS:
 
 	call ETHERNET_initialize	; Initialize the ethernet controller and set up appropriate memory spaces/configurations.
 
-	; Sleep for a moment so user can digest info.
-	SLEEP_noINT 5
+ .leaveCall:
+ 	ret
 
+
+INIT_START_SYSTEM_PROCESSES:
+	call CRYPTO_REGISTER_PROCESS	; Start the 'crypto' process.
+
+	; Sleep for a moment so user can digest info.
+	SLEEP_noINT 10	;10*200ms = 2sec
  .leaveCall:
  	ret

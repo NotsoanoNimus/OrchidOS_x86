@@ -56,10 +56,11 @@ The argument is an _optional argument_ to allow detailed information on a specif
 Dump the states of all general-purpose registers, stack pointer, segments, and indices.
 Mostly a debugging tool, that can be inserted anywhere in the source code (past the kernel) to show register states at a certain time.
 
-### MEMD %1 %2
+### MEMD %1 %2 [%3]
 Perform a hex-dump of memory at the specified location, for the specified length.
-Arg1 is the physical address to start the hex-dump from.
-Arg2 is the length of the dump in hex. This is always 16-byte-aligned (meaning rounded to the nearest 0x10).
+- **%1** is the physical address to start the hex-dump from.
+- **%2** is the length of the dump in hex. This is always _16-byte-aligned_ (meaning rounded to the nearest 0x10).
+- **%3** is an optional flag. Set this to _1_ to output the hex data in ASCII instead. Setting it to _0_ will explicitly tell it _not_ to output in ASCII mode.
 
 ### REBOOT
 Reboot the system by forcing a null IDT and calling a software interruption. This command is safeguarded by the parser, which only forces a reboot after the command is entered twice, _consecutively_.

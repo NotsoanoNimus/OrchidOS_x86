@@ -35,6 +35,7 @@ kernel_main:
 	call MEMOPS_initHeap	; "MEMOPS.asm" - Initialize the Heap at 0x100000 to 0x1100000 (16 MiB wide). Flat memory model.
 	call PIT_initialize		; "PIT.asm" - Initialize the Programmable Interval Timer.
 	call INIT_START_SYSTEM_DRIVERS	; "INIT.asm" - Start the system drivers that must be run after everything else is initialized.
+	call INIT_START_SYSTEM_PROCESSES ; "INIT.asm" - Start system services/processes.
 	; ENTER 'blooming' MODE HERE.
 
 	; ENTER 'bloomed' MODE HERE.
@@ -53,7 +54,7 @@ kernel_main:
 	; SHELL_MODE debugging/snippet code typically goes below, before idling.
 
 
-	
+
 
 	; Hang and wait for some ISRs.
 	sti

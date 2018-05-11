@@ -1,5 +1,6 @@
 ; MEMD.asm
-; --- Dump memory to the command shell in SHELL_MODE only.
+; -- Dump memory to the command shell in SHELL_MODE only.
+; ---- SYNTAX: MEMD start-physical-address length-of-read [ascii-dump]
 
 szMEMDInfo		db "Dumping memory at physical address 0x00000000"
 szMEMDAddr		db ", with offset 0x0000"
@@ -9,12 +10,14 @@ szMEMDOutput	times 79 db 0x20	; Actual output area.
 szMEMDSyntax	db "MEMD SYNTAX -> ARG1: 32-bit physical Address (hex) // ARG2: Length (max 0x100)", 0
 szMEMDError		db "ARG2 ERROR: Input value is invalid (should be 1-100 in hex)!", 0
 szMEMDError2	db "ARG1 ERROR: Number must be 32-bit hex; do not precede address by '0x'.", 0
+szMEMDError3	db "ARG3 ERROR: Argument (if included) should be a number (0 or 1).", 0
 
 
 COMMAND_MEMD:
 	pushad
 	xor ebx, ebx
 
+	; guarantee required arguments.
 	mov edi, PARSER_ARG1
 	push edi
 	cmp byte [edi], 0x00
@@ -22,9 +25,10 @@ COMMAND_MEMD:
 	mov edi, PARSER_ARG2
 	cmp byte [edi], 0x00
 	je .syntax
-	mov edi, PARSER_ARG3
-	cmp byte [edi], 0x00
-	jne .syntax
+	; Arg3 does not matter (it's optional).
+	;mov edi, PARSER_ARG3
+	;cmp byte [edi], 0x00
+	;je .syntax
 	pop edi
 
 	; Check arg1
@@ -47,6 +51,23 @@ COMMAND_MEMD:
 	ja .err2
 	mov ecx, eax						; Store into ECX
 
+	; Check arg3
+	mov byte bl, [PARSER_ARG3_LENGTH]
+	cmp bl, 0	; no arg3? Skip these checks.
+	je .arg3CheckOver
+	mov esi, PARSER_ARG3
+	call UTILITY_HEX_STRINGtoINT
+	jc .err3
+	cmp eax, 1
+	jne .noASCIIOutput
+	mov ebx, 0x00000001	 ; if arg3 = '1', set ASCII-DUMP flag to true
+	jmp .arg3CheckOver
+   .noASCIIOutput:
+    xor ebx, ebx	; make sure EBX is 0.
+	cmp eax, 0		; anything else but 0 is error.
+	jne .err3
+   .arg3CheckOver:
+
 	; Round ECX to the nearest 16 bytes.
 	or ecx, ecx		; first check if the user entered a zero...
 	je .err2		;   if so, GTFO.
@@ -68,8 +89,11 @@ COMMAND_MEMD:
 	mov esi, PARSER_ARG2
 	rep movsb
 	pop ecx
+
+	push ebx
 	; Output the information string.
 	PrintString szMEMDInfo,0x02
+	pop ebx
 
 	; Get to work.
 	mov esi, edx		; Set ESI = base addr.
@@ -79,14 +103,16 @@ COMMAND_MEMD:
 	jle .leaveCall
 	jmp .doOutput
 
-	;jmp .leaveCall
-
  .err1:
 	mov esi, szMEMDError2
 	mov bl, 0x0C
 	jmp .writeMSG
  .err2:
 	mov esi, szMEMDError
+	mov bl, 0x0C
+	jmp .writeMSG
+ .err3:
+ 	mov esi, szMEMDError3
 	mov bl, 0x0C
 	jmp .writeMSG
  .syntax:
@@ -117,20 +143,44 @@ COMMAND_MEMD:
 ; INPUTS:
 ;	ECX = len
 ;	EDX = Base address.
+;   EBX = 0x1 if ASCII dump.
 MEMD_generateOutput:
 	push ecx
+	push ebx
 	xor ecx, ecx
 	xor eax, eax
 	mov edi, szMEMDOutput+10 ; +2 = end of first grouping's first byte. +8 for initial spacing
 
 	mov cl, 16
  .genOut:
+	cmp ebx, 0x00000001	; If EBX = 1 (ASCII-DUMP)
+	je .ASCIIDUMP		; goto ASCIIDUMP, else bleed & proceed normally.
+
+   .notASCIIDUMP:
  	lodsb
 	push esi
 	mov esi, edi
 	call UTILITY_BYTE_HEXtoASCII
-	mov byte [edi+1], 0x20		; Insert separator space.
 	pop esi
+	jmp .continue
+
+   .ASCIIDUMP:	; As of now, supports any ASCII but 0 because 0 is indication of a null-termination.
+	lodsb
+	cmp al, 0
+	je .ASCIIUnknown
+	;cmp al, 32
+	;jb .ASCIIUnknown
+	jmp .ASCIIInsert
+	.ASCIIUnknown:
+	mov byte [edi], '.'
+	jmp .continue
+	.ASCIIInsert:
+	mov byte [edi], al
+	;bleed
+
+ .continue:  ; this part of process works for both output types.
+	mov byte [edi+1], 0x20		; Insert separator space.
+	;pop esi
 
 	mov al, cl
 	dec al
@@ -153,6 +203,7 @@ MEMD_generateOutput:
 
  .leaveCall:
 	PrintString szMEMDOutput,0x07
+	pop ebx
 	pop ecx
 	sub ecx, 16
 	ret
