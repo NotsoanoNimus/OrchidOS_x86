@@ -8,6 +8,10 @@
 KERNEL_OFFSET			equ 0x10000
 KERNEL_SIZE_SECTORS		equ 0x0080			; Change this in every other file based on the growth of the kernel.
 
+; Don't know what I'll use this for yet, but reserving its space.
+KERNEL_PROCESS_VOLATILE_DATA_SIZE	equ 0x00010000	; 64KiB
+KERNEL_PROCESS_VOLATILE_DATA_BASE	 dd 0x00000000	; Holds a pointer to the kernel volatile memory base (usually HEAP_START).
+
 DEFAULT_COLOR			equ 0x0F		; Default color to use for all graphical/screen ops
 SYSTIME_VIDEO_LOCATION	equ 0x000B808C
 SYSDATE_VIDEO_LOCATION	equ 0x000B8060

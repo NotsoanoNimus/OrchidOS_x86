@@ -8,7 +8,9 @@ nop
 %include "misc/MACROS.asm"			; NASM Macros and Pre-Processor definitions for global implementation.
 %include "GLOBAL_definitions.asm"	; Global, pervasive variables and predefined constants for orchid.
 
-%include "libraries/memops/MEMORY.asm"	; Memory operations on data held in RAM.
+%include "libraries/LIBRARIES.asm"	; Include all libraries and functions necessary to run the system.
+
+;%include "libraries/memops/MEMORY.asm"	; Memory operations on data held in RAM.
 %include "misc/IDT.asm"				; Interrupt Descriptor Table and ISRs.
 %include "shell/PARSER.asm"			; Parser in the case of SHELL_MODE.
 %include "shell/SCREEN.asm"			; SHELL_MODE basic screen wrapper functions.
@@ -22,7 +24,7 @@ nop
 %include "misc/UTILITY.asm"		; Miscellaneous utility functions used across the system & kernel, such as numeric conversions or ASCII outputs.
 
 
-
+szTESTINGME db "Print me!", 0	; test string for GUI_MODE.
 [BITS 32]
 kernel_main:
 	cld
@@ -51,7 +53,7 @@ kernel_main:
 	; SHELL_MODE debugging/snippet code typically goes below, before idling.
 
 
-
+	
 
 	; Hang and wait for some ISRs.
 	sti
@@ -138,8 +140,8 @@ KERNEL_modeGUI:
 	call VIDEO_OUTPUT_CHAR
 	add esp, 16
 
-	push dword 0x0000F000	; bgColor =
-	push dword 0x00FFFF00	; fgColor =
+	push dword 0x00000000	; bgColor =
+	push dword 0x00FFFFFF	; fgColor =
 	push dword szTESTINGME	; string base
 	push dword 0x00550055	; (x,y) = (55,55)
 	call VIDEO_WRITE_STRING
@@ -155,5 +157,5 @@ KERNEL_modeGUI:
 	hlt
 	jmp .repHalt
 
-szTESTINGME db "Print me!", 0
+
 times  (KERNEL_SIZE_SECTORS*512)-($-$$) db 0			; Pad out the kernel to an even multiple of 512

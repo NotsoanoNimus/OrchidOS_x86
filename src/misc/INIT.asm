@@ -218,7 +218,28 @@ INIT_getSystemInfo:
 	ret
 
 
+; Register the kernel/sys process. This area of the heap holds volatile/random data for system use. Somewhat small.
+szSYSTEM_KERNEL_PROCESS_DESC db "System Kernel", 0
+INIT_REGISTER_SYSTEM_KERNEL:
+	push dword szSYSTEM_KERNEL_PROCESS_DESC
+	push dword 0; KERNEL_PROCESS_VOLATILE_DATA_SIZE
+	call MEMOPS_KMALLOC_REGISTER_PROCESS
+	add esp, 8
+
+	or al, al	; error?
+	jnz .leaveCall
+	; bleed into error condition if 0
+	; error condition hangs the system.
+	sti
+ .error:
+ 	hlt
+	jmp .error
+ .leaveCall:
+	ret
+
+
 INIT_START_SYSTEM_DRIVERS:
+	call INIT_REGISTER_SYSTEM_KERNEL	; Register the system/kernel process.
 	call ACPI_initialize		; Initialize ACPI controller.
 	;call KEYBOARD_initialize	; Initialize the keyboard to the proper scan code set.
 	call VFS_initialize			; Initialize the VFS in RAM.

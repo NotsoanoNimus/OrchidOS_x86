@@ -31,7 +31,8 @@ HEAP_FOOTER_MAGIC				equ 0xDEADBEEF		; "MAGIC" (footer)
 HEAP_HEADER_SIZE				equ 12				; Headers are 9-byte objects. Round them to 12, so it's DWORD-aligned.
 HEAP_FOOTER_SIZE				equ 8				; Footers do not have a hole identifier.
 
-RUNNING_PROCESS_NEXT_GIVEN_ID	db 0x01				; Verbose name. Lists the next ID to be delegated.
+RUNNING_PROCESS_NEXT_GIVEN_ID	db 0x00				; Verbose name. Lists the next ID to be delegated.
+; Next PID is always 1 initially because SYS is PID 0.
 RUNNING_PROCESS_ENTRY_SIZE		equ 32				; 32 bytes per entry
 RUNNING_PROCESS_ENTRY:
 	.entry:		dd 0x00000000	; entry point in RAM of the process' data
@@ -124,6 +125,9 @@ MEMOPS_initHeap:
 ; Call kmalloc to allocate heap space, but also register the process.
 ; -- !!! RUNNING_PROCESSES_TABLE is located @0x70000.
 ; ---- See top of this file (definitions) for the structure of a RUNNING_PROCESS_ENTRY.
+szMEMOPS_PROCESS_REGISTRATION_ERROR db "Unable to register process with name: "
+szMEMOPS_PROCESS_REGISTRATION_ERROR_STRING times 22 db 0x00
+db 0x00 ; null-term.
 MEMOPS_KMALLOC_REGISTER_PROCESS:
 	push ebp
 	mov ebp, esp
@@ -164,8 +168,34 @@ MEMOPS_KMALLOC_REGISTER_PROCESS:
 	pop eax			; return the entry point to EAX
 	jmp .leaveCall
 
+	; issued when there's an error registering the process.
  .error:
- 	xor eax, eax
+ 	xor eax, eax	; EAX = 0 return value = error encountered.
+	push edi
+	push ecx
+	push eax	; save 0
+
+	; clean old process desc string from error buffer.
+	mov edi, szMEMOPS_PROCESS_REGISTRATION_ERROR_STRING
+	mov ecx, 22	; 22 chars to clear
+	rep stosb	; clear the 22 characters
+
+	push dword [ebp+12]	; process desc string base address
+	call strlen			; get its length
+	add esp, 4
+
+	cmp eax, 22		; length > 22 chars?
+	jbe .errorStrNoShorten	; if <= 22 chars, good to go, else bleed to shorten func
+	mov eax, 22		; hard length cap of 22 chars
+   .errorStrNoShorten:
+    ; perform a memcpy operation, from desc string pointer -> process error, w/ length '[strlen]'
+	MEMCPY [ebp+12],szMEMOPS_PROCESS_REGISTRATION_ERROR_STRING,eax
+
+	pop eax	; restore 0
+	pop ecx ; restore
+	pop edi	; restore
+	PrintString szMEMOPS_PROCESS_REGISTRATION_ERROR,0x04
+	;bleed
  .leaveCall:
  	pop esi
 	pop edx
@@ -291,9 +321,9 @@ MEMOPS_CLEAN_RUNNING_PROCESS_ENTRY_BUFFER:
 
 
 ; INPUTS:
-;	EBX = size of allocation in bytes.
+;	ARG1 = size of allocation in bytes (into EBX).
 ; OUTPUTS:
-;	EAX = starting address of allocated space.
+;	EAX = starting address of allocated space. 0 on error.
 ;	CF on error.
 ; -- Allocate memory to be used by an application. Return the starting address of the HEAP_HEADER_MAGIC signature.
 ;		Follows a complex algorithm to accomplish its task. Reads headers and footers and determines the proper mem placement based on size.
@@ -306,7 +336,9 @@ kmalloc:
 	push ebp
 	mov ebp, esp
 
-	mov ebx, [ebp + 16]		;arg1
+	mov ebx, dword [ebp + 16]		;arg1
+	or ebx, ebx		; arg1 = 0?
+	jz .error		; if so, don't alloc anything, set error state.
 	add ebx, HEAP_HEADER_SIZE
 	add ebx, HEAP_FOOTER_SIZE	; add on the baggage that comes with creating new spaces.
 	add ebx, 0x100				; align the space to a minimum of 256 bytes.

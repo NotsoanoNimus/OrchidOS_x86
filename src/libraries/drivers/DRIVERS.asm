@@ -14,6 +14,4 @@
 
 %include "libraries/drivers/PCI/PCI.asm"
 
-; ETHERNET & NETWORK STACK
-%include "libraries/network/NETWORK_STACK.asm"
 %include "libraries/drivers/ethernet/ETHERNET.asm"

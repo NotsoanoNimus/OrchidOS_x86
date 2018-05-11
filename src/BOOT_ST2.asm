@@ -216,7 +216,7 @@ BOOT_videoInfo:
 	; |
 	; |
 	; V
-	jmp BOOT_protectedMode
+	;jmp BOOT_protectedMode
 
  .errorVESA:
 	; Something went wrong initiating the GUI video mode. Go to shell mode.
