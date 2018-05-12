@@ -64,8 +64,14 @@ ECHO.
 ECHO.
 CHOICE /C YN /M "Would you like to test the bootable image with QEMU?"
 IF ERRORLEVEL 2 GOTO EXIT_COMPILER
-:: Emulate an i386 system with 128MB of RAM.
-qemu-system-x86_64 -m 8G -usb -device usb-ehci,id=ehci -device isa-debug-exit,iobase=0xF4,iosize=0x04 -netdev user,id=u1 -device e1000,netdev=u1,mac=11:22:33:44:55:66 -drive format=raw,index=0,file="../bin/image.img"
+:: Emulate an i386 system with 8GB of RAM (feel free to change this).
+qemu-system-x86_64 ^
+    -m 8G -usb -device usb-ehci,id=ehci ^
+    -device isa-debug-exit,iobase=0xF4,iosize=0x04 ^
+    -netdev user,id=eth0,net=10.0.2.0/24,dhcpstart=10.0.2.5,hostfwd=tcp::5555-:22 ^
+    -device e1000,netdev=eth0,mac=11:22:33:44:55:66 ^
+    -drive format=raw,index=0,file="../bin/image.img" ^
+    -object filter-dump,id=eth0,netdev=eth0,file="%USERPROFILE%/Documents/QEMUDUMP.txt"
 GOTO EXIT_COMPILER
 
 :MISSING_DEP

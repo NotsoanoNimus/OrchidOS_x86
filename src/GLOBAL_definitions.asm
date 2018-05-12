@@ -65,6 +65,12 @@ RUNNING_PROCESSES_TABLE equ 0x70000		; Base ptr to an array of running processes
 SYSTEM_MAX_RUNNING_PROCESSES equ 128	; A maximum of 128 PIDs can be assigned at any given time.
 ; Connected device info.
 PCI_INFO				equ 0x71000		; Base ptr to filled info about PCI Devices. 1KiB of space (up to 71400h)
+; Structure of PCI_INFO entries = 5DWORDs.
+;  #1 = [esi]    = Bus<<24|Dev<<16|Func<<8|00
+;  #2 = [esi+4]  = DeviceID<<16 | VendorID
+;  #3 = [esi+8]  = Status<<16|Command
+;  #4 = [esi+12] = CLASS<<24|SUBCLASS<<16|INTERFACE<<8|REVISION (or 00)
+;  #5 = [esi+16] = BIST<<24|Header<<16|Latency<<8|Cache
 
 ; Processor info.
 CPU_INFO				equ 0x700		; Store CPU info starting at 0x700. Assume MEM_INFO won't be larger than 0x200 (>20 entries)

@@ -130,6 +130,7 @@ ETHERNET_INTEL_E1000_NIC_START:
     call E1000_GET_PCI_PROPERTIES   ; fill in the BAR type, Base IO port, and/or MMIO base addr.
     call E1000_DETECT_EEPROM        ; detect whether or not the device has an EEPROM.
     call E1000_GET_MAC_ADDRESS      ; get the MAC address of the ethernet device.
+    call E1000_IRQ_ENABLE           ; Enable the Hardware IRQ for RX.
  .leaveCall:
     ret
 
@@ -436,5 +437,24 @@ E1000_GET_MAC_ADDRESS:
 ; Enable RX on the device.
 E1000_RX_ENABLE:
 
+ .leaveCall:
+    ret
+
+
+; Enable the E1000 hardware IRQ.
+E1000_IRQ_ENABLE:
+    push dword 0x0001F6DC
+    push dword E1000_REG_IMASK
+    call E1000_WRITE_COMMAND
+    add esp, 8
+
+    push dword 0x000000FB    ;(0x000000ff & ~4) -> ~4 = 0xFFFFFFFB -> 11111011 & 11111111
+    push dword E1000_REG_IMASK
+    call E1000_WRITE_COMMAND
+    add esp, 8
+
+    push dword 0x000000C0
+    call E1000_READ_COMMAND
+    add esp, 4
  .leaveCall:
     ret

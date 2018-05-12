@@ -31,6 +31,10 @@ HEAP_FOOTER_MAGIC				equ 0xDEADBEEF		; "MAGIC" (footer)
 HEAP_HEADER_SIZE				equ 12				; Headers are 9-byte objects. Round them to 12, so it's DWORD-aligned.
 HEAP_FOOTER_SIZE				equ 8				; Footers do not have a hole identifier.
 
+HEAP_TAGGING_SIZE				equ 32				; '32' bytes worth of total Heap accounting bytes in a process' RAM.
+HEAP_HEADER_SIZE_RAM			equ 0x10			; 16 bytes leaves room for Header...
+HEAP_FOOTER_SIZE_RAM			equ 0x10			;  and the Footer to possibly expand in the future.
+
 RUNNING_PROCESS_NEXT_GIVEN_ID	db 0x00				; Verbose name. Lists the next ID to be delegated.
 ; Next PID is always 1 initially because SYS is PID 0.
 RUNNING_PROCESS_ENTRY_SIZE		equ 32				; 32 bytes per entry
@@ -339,8 +343,8 @@ kmalloc:
 	mov ebx, dword [ebp + 16]		;arg1
 	or ebx, ebx		; arg1 = 0?
 	jz .error		; if so, don't alloc anything, set error state.
-	add ebx, HEAP_HEADER_SIZE
-	add ebx, HEAP_FOOTER_SIZE	; add on the baggage that comes with creating new spaces.
+	add ebx, HEAP_HEADER_SIZE_RAM
+	add ebx, HEAP_FOOTER_SIZE_RAM	; add on the baggage that comes with creating new spaces.
 	add ebx, 0x100				; align the space to a minimum of 256 bytes.
 	and ebx, 0xFFFFFF00
 
@@ -377,6 +381,9 @@ kmalloc:
 	;  then finally change the original space's footer to point back at the new hole header that was made.
 	xor eax, eax
 	mov dword eax, edi			; EAX = address of allocated memory.
+	; Have to add the header's size to the returned base allocation handle/pointer,
+	;  or else system processes that use this handle will overwrite a heap header.
+	add eax, HEAP_HEADER_SIZE_RAM
 
 	push edx
 	push ecx

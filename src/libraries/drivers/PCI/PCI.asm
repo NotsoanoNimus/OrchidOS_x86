@@ -58,7 +58,7 @@ PCI_configReadWord:
 
 	mov dword edx, [ebp+20]		;edx = pushed arg
 	push edx
-	mov eax, edx				; eax = edx
+	;mov eax, edx				; eax = edx
 	call PCI_INTERNAL_translateConfigAddr	; EAX = IDSEL signal.
 
 	; EAX now = address to send to PCI_CONFIG_DATA
@@ -87,78 +87,45 @@ PCI_configReadWord:
 	ret
 
 
-; STILL LEARNING PCI CONFIGURATIONS. I DON'T BELIEVE THIS FUNCTION ACTUALLY DOES ANYTHING. WILL DO MORE RESEARCH VERY SOON.
+
 ; INPUTS:
-;	ARG1: (Bus|Device|Function|4-byte-aligned Offset)
-;	ARG2: DWORD of bit-flags to AND the config with.
-;	ARG3: 01h = Set mask. 02h = Clear mask. 03h = toggle mask.
-; OUTPUTS: CF on error.
-; -- Writes to the config space of a device on the PCI Bus.
-; ---- If the kernel wants to only change a bit-flag, it will read the whole DWORD first and change the value by pushing the masked bits.
-PCI_configWriteDataMask:
-	push ebx
-	push ecx
-	push edx
+; 	ARG1 = PCI device address (Bus<<24|Dev<<16|Func<<8|Offset)
+;	ARG2 = (DWORD value to write).
+PCI_WRITE_WORD_TO_PORT:
 	push ebp
 	mov ebp, esp
+	pushad
 
 	xor eax, eax
 	xor ebx, ebx
 	xor ecx, ecx
 
-	mov dword edx, [ebp+20]		;arg1
-	mov eax, edx
-	call PCI_INTERNAL_translateConfigAddr
-	mov ebx, eax	; save IDSEL value.
+	mov edx, dword [ebp+8]	; EDX = PCI device address.
+	call PCI_INTERNAL_translateConfigAddr	; EAX = IDSEL
 
-	; EAX now = address to send to PCI_CONFIG_DATA
 	mov dx, PCI_CONFIG_ADDRESS
-	out dx, eax		; IDSEL.
+	out dx, eax		; Write IDSEL to start configuration cycle.
+
+	mov eax, dword [ebp+12] ; EAX = DWORD value to write.
 	mov dx, PCI_CONFIG_DATA
-	in eax, dx		; read config space DWORD
+	out dx, eax	; write it out.
 
-	mov dword edx, [ebp+24]		;arg2: 32-bit mask.
-	mov dword ecx, [ebp+28]		;arg3: operation
-	cmp dword ecx, 0x00000001	; set mask (OR)
-	je .setMask
-	cmp dword ecx, 0x00000002	; clear mask (~ and &)
-	je .clearMask
-	cmp dword ecx, 0x00000003	; toggle mask (XOR)
-	je .toggleMask
-	jmp .leaveCall				; do nothing if arg3 invalid.
-
- .setMask:
-	or eax, edx	; config space info @offset & passed mask.
-	jmp .writeData
- .clearMask:
- 	not edx			;negate mask
-	and eax, edx	;apply what's left
-	jmp .writeData
- .toggleMask:
- 	xor eax, edx
-	jmp .writeData	; no bleed JIC
-
- .writeData:
- 	mov dx, PCI_CONFIG_ADDRESS
-	mov eax, ebx
-	out dx, eax			; write stored IDSEL.
-	mov dx, PCI_CONFIG_DATA
-	out dx, eax
  .leaveCall:
-	pop ebp
-	pop edx
-	pop ecx
-	pop ebx
+ 	popad
+ 	pop ebp
 	ret
 
 
+
 ; INPUTS:
-;	EAX = (Bus|Device|Function|Offset)
+;	EDX = (Bus|Device|Function|Offset)
 ; OUTPUTS:
 ; 	EAX = Converted for proper "chip select"
 ; -- Converts an input such as the above (EAX) into a proper ISDEL signal for the PCI_CONFIG_ADDRESS port.
-; ---- Don't worry about trashed registers: this is internal and is called inside of preserved areas.
 PCI_INTERNAL_translateConfigAddr:
+	push ebx
+	push ecx
+	push edx
 	mov ch, dl					; CH = Register Number
 	shr edx, 8
 	mov cl, dl					; CL = Function Number
@@ -176,10 +143,13 @@ PCI_INTERNAL_translateConfigAddr:
 	shl eax, 8
 	mov al, bl					; bits 23-16 (Bus Number)
 	shl eax, 8
-	mov al, bh 					; bits 15-8 (Device Number | Function Number)
+	mov al, bh 					; bits 15-8 (Device Number (15 to 11) | Function Number (10 to 8))
 	shl eax, 8
 	mov al, ch					; bits 7-0	(Register Number & 11111100b)
 	; EAX is now in the proper IDSEL format.
+	pop edx
+	pop ecx
+	pop ebx
 	ret
 
 
@@ -194,7 +164,7 @@ PCI_getHeaderType:
 	mov ebp, esp
 
 	mov dword edx, [ebp+12]		;arg1
-	mov dl, (0x0E)				; change offset into config block. We're getting the higher WORD from offset 0x0C. 0x0E = (0x0C|PCI_GET_HIGH_WORD)
+	mov dl, 0x0E				; change offset into config block. We're getting the higher WORD from offset 0x0C. 0x0E = (0x0C|PCI_GET_HIGH_WORD)
 
 	push dword edx
 	call PCI_configReadWord		; AX = WORD from 0x0C. High byte is BIST, low is Header Type.

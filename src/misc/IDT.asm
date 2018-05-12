@@ -93,7 +93,7 @@ IDT:
  IDTENTRY 40	; CMOS real-time clock (if enabled)
  IDTENTRY 41	; Free for peripherals / Legacy SCSI / NIC <-- often used by ACPI to detect power events.
  IDTENTRY 42	; Free for peripherals / SCSI / NIC
- IDTENTRY 43	; Free for peripherals / SCSI / NIC
+ IDTENTRY 43	; Free for peripherals / SCSI / NIC <-- Appears to be used by the Ethernet Controller...
  IDTENTRY 44	; PS/2 Mouse Controller (not going to be supported by orchid)
  IDTENTRY 45	; FPU / Coprocessor / Inter-processor
  IDTENTRY 46	; Primary ATA Hard Disk
@@ -184,7 +184,9 @@ isr38:	; LPT1 / Spurious IRQ7
 ISR_NOERRORCODE 39
 ISR_NOERRORCODE 40
 ISR_NOERRORCODE 41
-ISR_NOERRORCODE 42
+;ISR_NOERRORCODE 42
+isr42:
+	HARDWARE_IRQ ISR_PHYSICAL_NIC
 ISR_NOERRORCODE 43
 ISR_NOERRORCODE 44		; Mouse controller.
 ISR_NOERRORCODE 45
@@ -446,3 +448,9 @@ ISR_LPTSpurHandler:
 	call PIC_sendEOI
  .leaveFunc:
 	ret
+
+
+ISR_PHYSICAL_NIC:
+	call ETHERNET_IRQ_FIRED
+ .leaveCall:
+ 	ret

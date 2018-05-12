@@ -53,8 +53,11 @@ kernel_main:
 
 	; SHELL_MODE debugging/snippet code typically goes below, before idling.
 
-
-
+	xor eax, eax
+	push dword 0x0004003C	; low WORD of access space
+	call PCI_configReadWord
+	add esp, 4
+	call COMMAND_DUMP
 
 	; Hang and wait for some ISRs.
 	sti

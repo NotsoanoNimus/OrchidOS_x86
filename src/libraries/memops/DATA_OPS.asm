@@ -3,13 +3,11 @@
 
 ; INPUTS:
 ;   ARG1 = Starting physical location of the WORD(s) to change Endianness.
-;   ARG2 = Number of iterations (DWORD).
+;   ARG2 = Number of iterations (WORD).
 DATA_WORD_switch_endian:
     push ebp
     mov ebp, esp
-    push edi
-    push ecx
-    push eax
+    pushad
 
     mov edi, dword [ebp + 8]    ;arg1 - address
     mov ecx, dword [ebp + 12]   ;arg2 - count
@@ -28,9 +26,7 @@ DATA_WORD_switch_endian:
     jnz .repeat
     ;bleed
  .leaveCall:
-    pop eax
-    pop ecx
-    pop edi
+    popad
     pop ebp
     ret
 

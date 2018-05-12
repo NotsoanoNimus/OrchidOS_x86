@@ -50,6 +50,14 @@ ETHERNET_SETUP_begin:
 
  .Intel_E100:
     push eax    ; save vendor/device ID info
+    push edi
+    call ETHERNET_REGISTER_IRQ
+    ;call ETHERNET_INTEL_E1000_initialize
+    ;pop eax
+
+    ; Set/Get ETHERNET_CONTROLLER_IRQ
+
+    pop edi
     call ETHERNET_INTEL_E1000_initialize
     pop eax
     jmp .leaveCall
@@ -60,9 +68,36 @@ ETHERNET_SETUP_begin:
     ret
 
 
+
+; Register the Ethernet Hardware IRQ# (INT 42d).
+; -- THIS FUNCTION MUST ALWAYS BE CALLED BEFORE AN ETHERNET DRIVER INITIALIZATION!
+ETHERNET_IRQ_OFFSET equ 0x0A    ; IRQ 10 (IRQ0+10) = INT 42 as a direct Ethernet INT.
+ETHERNET_REGISTER_IRQ:
+    ; SINCE EDI = ETHERNET_ENTRY+4, subtract 4 to get the PCI device ID (Bus, Slot/Dev, func)
+    push ecx
+    sub edi, 4
+    mov ecx, dword [edi]    ; ECX = PCI device
+    mov cl, 0x3C ;read Interrupt PIN & LINE from PCI device.
+
+    push dword ecx  ; PCI device address
+    call PCI_configReadWord ; EAX = WORD at 0x3C PCI for Ethernet device (INT_PIN<<8|INT_LINE)
+    pop dword ecx   ; restore arg in case trashed.
+    mov al, ETHERNET_IRQ_OFFSET    ; IRQ 10 (IRQ0+10)
+
+    push dword eax  ; AX = value to write.
+    push dword ecx  ; ECX = PCI dev addr
+    call PCI_WRITE_WORD_TO_PORT
+    add esp, 8
+    pop ecx
+ .leaveCall:
+    ret
+
+
+
 ; INPUTS:
 ;   EAX = DeviceID<<16|VendorID
 ; OUTPUTS: NONE
+; -- A small, light function to save the PCI Ethernet device's VID & DID
 ETHERNET_SETUP_SAVE_IDS:
     mov strict word [ETHERNET_VENDOR_ID], ax
     shr eax, 16
@@ -71,8 +106,19 @@ ETHERNET_SETUP_SAVE_IDS:
     ret
 
 
-szETHERNET_PROCESS_NAME db "Ethernet Controller", 0     ; 19 chars long, we are safe.
+
+
+; -- Called from the IDT as a primary ISR function when the Ethernet hardware forces a PIC interrupt.
+ETHERNET_IRQ_FIRED:
+
+ .leaveCall:
+    ret
+
+
+
+
 ; Registers the system Ethernet process, allocates TX/RX buffer space in the Heap.
+szETHERNET_PROCESS_NAME db "Ethernet Controller", 0     ; 19 chars long, we are safe.
 ETHERNET_REGISTER_PROCESS:
     push szETHERNET_PROCESS_NAME    ; arg2 - String name of process
     push ETHERNET_REQUIRED_RAM      ; arg1 - How much space is needed.
@@ -90,10 +136,15 @@ ETHERNET_REGISTER_PROCESS:
     ret
 
 
+
+
+; Initialize the KVM/QEMU E1000 Generic Intel Ethernet driver.
 szETHERNETIntel_E1000_found db "Discovered compatible Intel Gigabit Ethernet Controller.", 0
 ETHERNET_INTEL_E1000_initialize:
+    pushad
     PrintString szETHERNETIntel_E1000_found,0x0A
     call ETHERNET_INTEL_E1000_NIC_START
     call ETHERNET_INTEL_E1000_NIC_SET_GLOBALS
  .leaveCall:
+    popad
     ret
