@@ -27,10 +27,9 @@ IF "%DEPENDENCY_MISSING%"=="TRUE" GOTO MISSING_DEP
 :: Compile OS source into raw binaries with NASM.
 ECHO ======================================
 ECHO Compiling Operating System binaries...
-::nasm "BOOT_TEST.asm" -f bin -o "..\bin\boot_test.bin"
-nasm "BOOT.asm" -f bin -o "..\bin\boot.bin"
-nasm "BOOT_ST2.asm" -f bin -o "..\bin\boot2.bin"
-nasm "KERNEL.asm" -f bin -o "..\bin\kernel.bin"
+nasm ".\core\BOOT.asm" -f bin -o "..\bin\boot.bin"
+nasm ".\core\BOOT_ST2.asm" -f bin -o "..\bin\boot2.bin"
+nasm ".\core\KERNEL.asm" -f bin -o "..\bin\kernel.bin"
 ECHO ======================================
 ECHO.
 
@@ -38,7 +37,6 @@ ECHO.
 ECHO ======================================
 ECHO Creating MBR boot image...
 DEL /f /q "..\bin\image.img"
-::dd if="..\bin\boot_test.bin" of="..\bin\image_test.img" bs=512
 dd if="..\bin\boot.bin" of="..\bin\image.img" bs=512
 ECHO ======================================
 ECHO.
@@ -64,14 +62,14 @@ ECHO.
 ECHO.
 CHOICE /C YN /M "Would you like to test the bootable image with QEMU?"
 IF ERRORLEVEL 2 GOTO EXIT_COMPILER
-:: Emulate an i386 system with 8GB of RAM (feel free to change this).
-REM -netdev user,id=eth0,net=10.0.2.0/24,dhcpstart=10.0.2.6,hostfwd=tcp::5555-:22 ^
-REM -device e1000,netdev=eth0,mac=11:22:33:44:55:66 ^
-REM -object filter-dump,id=eth0,netdev=eth0,file="%USERPROFILE%/Documents/QEMUDUMP.txt" ^
-REM -device isa-debug-exit,iobase=0xF4,iosize=0x04 ^
+:: Emulate an x86_64 system with 8GB of RAM (feel free to change this).
 qemu-system-x86_64 ^
-    -m 2G -usb -device usb-ehci,id=ehci ^
-    -drive format=raw,index=0,file="../bin/image.img"
+    -m 8G -usb -device usb-ehci,id=ehci ^
+    -device isa-debug-exit,iobase=0xF4,iosize=0x04 ^
+    -netdev user,id=eth0,net=10.0.2.0/24,dhcpstart=10.0.2.6,hostfwd=tcp::5555-:22 ^
+    -device e1000,netdev=eth0,mac=11:22:33:44:55:66 ^
+    -drive format=raw,index=0,file="../bin/image.img" ^
+    -object filter-dump,id=eth0,netdev=eth0,file="%USERPROFILE%/Documents/QEMUDUMP.txt"
 GOTO EXIT_COMPILER
 
 :MISSING_DEP

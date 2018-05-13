@@ -31,6 +31,7 @@ endstruc
 
 E1000_RX_CURSOR db 0x00
 E1000_TX_CURSOR db 0x00
+E1000_TX_CURSOR_OLD db 0x00
 
 E1000_NUM_RX_DESC       equ 32
 E1000_NUM_TX_DESC       equ 8
@@ -49,11 +50,11 @@ E1000_REG_CTRL_EXT      equ 0x0018
 E1000_REG_IMASK         equ 0x00D0
 
 E1000_REG_RCTRL         equ 0x0100
-E1000_REG_RXDESCLO      equ 0x2800
-E1000_REG_RXDESCHI      equ 0x2804
-E1000_REG_RXDESCLEN     equ 0x2808
-E1000_REG_RXDESCHEAD    equ 0x2810
-E1000_REG_RXDESCTAIL    equ 0x2818
+E1000_REG_RXDESCLO      equ 0x2800 ; RX Desc Base Addr Low DWORD (lower DWORD of the 64-bit RXdesc buffer base)
+E1000_REG_RXDESCHI      equ 0x2804 ; RX Desc Base Addr High DWORD (upper DWORD of a 64-bit address, so 0)
+E1000_REG_RXDESCLEN     equ 0x2808 ; Sets bytes alloc for descs in the circ RX desc buffer (must be 128B-aligned)
+E1000_REG_RXDESCHEAD    equ 0x2810 ; RX desc buffer Head Ptr. (31:16 - Reserved, 15:0 - RX Desc Head)
+E1000_REG_RXDESCTAIL    equ 0x2818 ; RX desc buffer Tail Ptr. (31:16 - Reserved, 15:0 - RX Desc Tail)
 
 E1000_REG_TCTRL         equ 0x0400
 E1000_REG_TXDESCLO      equ 0x3800
@@ -142,6 +143,7 @@ ETHERNET_INTEL_E1000_NIC_START:
     call E1000_GET_PCI_PROPERTIES   ; fill in the BAR type, Base IO port, and/or MMIO base addr.
     call E1000_DETECT_EEPROM        ; detect whether or not the device has an EEPROM.
     call E1000_GET_MAC_ADDRESS      ; get the MAC address of the ethernet device.
+    call E1000_CLEAR_MULTICAST_TABLE
     call E1000_IRQ_ENABLE           ; Enable the Hardware IRQ for RX.
     call E1000_RX_ENABLE            ; Enable the RX device function.
     call E1000_TX_ENABLE            ; Enable the TX device function.
@@ -153,6 +155,8 @@ ETHERNET_INTEL_E1000_NIC_START:
 ;  such as the MAC address, IRQ, and more.
 ETHERNET_INTEL_E1000_NIC_SET_GLOBALS:
     MEMCPY E1000_MAC_ADDRESS,ETHERNET_MAC_ADDRESS,0x06
+    mov dword [ETHERNET_DRIVER_SPECIFIC_SEND_FUNC], E1000_SEND_PACKET
+    mov dword [ETHERNET_DRIVER_SPECIFIC_INTERRUPT_FUNC], E1000_DRIVER_ISR
  .leaveCall:
     ret
 
@@ -456,7 +460,7 @@ E1000_IRQ_ENABLE:
     call E1000_WRITE_COMMAND
     add esp, 8
 
-    push dword (0xFF & ~4)
+    push dword (0x000000FF & ~4)
     push dword E1000_REG_IMASK
     call E1000_WRITE_COMMAND
     add esp, 8
@@ -464,8 +468,6 @@ E1000_IRQ_ENABLE:
     push dword 0x000000C0
     call E1000_READ_COMMAND
     add esp, 4
-
-    mov dword [ETHERNET_DRIVER_SPECIFIC_INTERRUPT_FUNC], E1000_DRIVER_ISR
  .leaveCall:
     ret
 
@@ -516,44 +518,47 @@ E1000_RX_ENABLE:
     loop .setDescAddrs
 
     ; Write information to the Ethernet device to initialize RX abilities.
-    push dword 0x00000000  ;value
-    push dword E1000_REG_TXDESCHI   ;port - try changing this to LO & next to HI if stops functioning? Not sure if wiki is wrong
-    call E1000_WRITE_COMMAND
-    add esp, 8
+    ;push dword 0x00000000  ;value
+    ;push dword E1000_REG_TXDESCHI   ;port - try changing this to LO & next to HI if stops functioning? Not sure if wiki is wrong
+    ;call E1000_WRITE_COMMAND
+    ;add esp, 8
 
-    push dword [ETHERNET_RX_DESC_BUFFER_BASE]   ;value
-    push dword E1000_REG_TXDESCLO   ; port
-    call E1000_WRITE_COMMAND
-    add esp, 8
+    ;push dword [ETHERNET_RX_DESC_BUFFER_BASE]   ;value
+    ;push dword E1000_REG_TXDESCLO   ; port
+    ;call E1000_WRITE_COMMAND
+    ;add esp, 8
 
+    ; Low Desc Base DWORD = addr of the RX desc buffer base
     push dword [ETHERNET_RX_DESC_BUFFER_BASE]
     push dword E1000_REG_RXDESCLO
     call E1000_WRITE_COMMAND
     add esp, 8
 
+    ; High Desc Base DWORD = 0x0 (not on an x64 machine)
     push dword 0x00000000
     push dword E1000_REG_RXDESCHI
     call E1000_WRITE_COMMAND
     add esp, 8
 
-    ;writeCommand(REG_RXDESCLEN, E1000_NUM_RX_DESC * 16);
+    ; Tell how large the RX descs buffer/table is.
     push dword (E1000_NUM_RX_DESC * E1000_RX_DESC_SIZE)
     push dword E1000_REG_RXDESCLEN
     call E1000_WRITE_COMMAND
     add esp, 8
 
-    ;writeCommand(REG_RXDESCHEAD, 0);
+    ; Tell to start @ RX_DESC[0]
     push dword 0x00000000
     push dword E1000_REG_RXDESCHEAD
     call E1000_WRITE_COMMAND
     add esp, 8
 
-    ;writeCommand(REG_RXDESCTAIL, E1000_NUM_RX_DESC-1);
+    ; ... And end at RX_DESC[15]
     push dword (E1000_NUM_RX_DESC-1)
     push dword E1000_REG_RXDESCTAIL
     call E1000_WRITE_COMMAND
     add esp, 8
 
+    ; Set the required RX Control Register values for basic operation.
     push dword (E1000_RCTL_EN|E1000_RCTL_SBP|E1000_RCTL_UPE|E1000_RCTL_MPE|E1000_RCTL_LBM_NONE|E1000_RTCL_RDMTS_HALF|E1000_RCTL_BAM|E1000_RCTL_SECRC|E1000_RCTL_BSIZE_8192);2048)
     push dword E1000_REG_RCTRL
     call E1000_WRITE_COMMAND
@@ -581,7 +586,7 @@ E1000_TX_ENABLE:    ;.status = tx_desc + 12
     ; Set the TX_DESC status fields to the Desc Done (DD) signal.
     add edi, 12 ; offset into TX_DESC #1 status field (see struct at top of this document)
     xor eax, eax    ; clear junk just in case
-    mov al, E1000_TSTA_DD  ; Desc Done signal
+    mov al, 0x01;E1000_TSTA_DD  ; Desc Done signal
     mov ecx, E1000_NUM_TX_DESC  ; Counter = # of TX_DESC entries
  .setDescStatuses:
     mov strict byte [edi], al
@@ -614,10 +619,10 @@ E1000_TX_ENABLE:    ;.status = tx_desc + 12
     call E1000_WRITE_COMMAND
     add esp, 8
 
-    push dword (E1000_TCTL_EN|E1000_TCTL_PSP|(15 << E1000_TCTL_CT_SHIFT)|(64 << E1000_TCTL_COLD_SHIFT)|E1000_TCTL_RTLC)
-    push dword E1000_REG_TCTRL
-    call E1000_WRITE_COMMAND
-    add esp, 8
+    ;push dword (E1000_TCTL_EN|E1000_TCTL_PSP|(15 << E1000_TCTL_CT_SHIFT)|(64 << E1000_TCTL_COLD_SHIFT)|E1000_TCTL_RTLC)
+    ;push dword E1000_REG_TCTRL
+    ;call E1000_WRITE_COMMAND
+    ;add esp, 8
 
     ; The below lines of code overrides the block before it (TCTRL) but both are here
     ;  to highlight that the previous one works with e1000 cards, but for the e1000e cards
@@ -625,18 +630,113 @@ E1000_TX_ENABLE:    ;.status = tx_desc + 12
     ;  please refer to the Intel Manual.
     ; In the case of I217 and 82577LM packets will not be sent if the TCTRL is not configured using the following bits.
     ;writeCommand(REG_TCTRL,  0b0110000000000111111000011111010);
-    ;push dword 0b0110000000000111111000011111010
-    ;push dword E1000_REG_TCTRL
-    ;call E1000_WRITE_COMMAND
-    ;add esp, 8
+    push dword 00110000000000111111000011111010b    ;0x3003F0FA
+    push dword E1000_REG_TCTRL
+    call E1000_WRITE_COMMAND
+    add esp, 8
 
     ;writeCommand(REG_TIPG,  0x0060200A);
-    ;push dword 0x0060200A
-    ;push dword E1000_REG_TIPG
-    ;call E1000_WRITE_COMMAND
-    ;add esp, 8
+    push dword 0x0060200A
+    push dword E1000_REG_TIPG
+    call E1000_WRITE_COMMAND
+    add esp, 8
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
  .leaveCall:
     popad
+    ret
+
+
+E1000_CLEAR_MULTICAST_TABLE:
+    pushad
+
+    mov ecx, 0x00000080 ; 0x80 iterations
+    mov edi, 0x00005200 ; multicast table array area (5200-527C)
+    sub edi, 4  ; set it down one to account for the starting counter of 0x80
+    ; `-- don't want to write to 0x5400!
+    xor eax, eax    ; set to 0
+ .repeat:
+    push ecx    ; save current counter
+    push edi    ; save base ptr (0x5200)
+    shl ecx, 2  ;x4
+    add edi, ecx    ; EDI = 0x5200 + ecx*4
+
+    push dword eax  ; - write value = 0
+    push dword edi  ; - port = EDI
+    call E1000_WRITE_COMMAND
+    add esp, 8
+
+    pop edi     ; return to base
+    pop ecx     ; return to current count
+    loop .repeat    ; decrement and repeat, bleed on finish.
+ .leaveCall:
+    popad
+    ret
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; INPUTS:
+;   ARG1 = Base ptr to packet data.
+;   ARG2 = Length of packet.
+; Device-specific packet sending function.
+E1000_SEND_PACKET:
+    push ebp
+    mov ebp, esp
+    pushad
+
+    movzx eax, byte [E1000_TX_CURSOR]   ; get current offset into the desc table
+    mov edi, dword [ETHERNET_TX_DESC_BUFFER_BASE] ; EDI = base of desc table
+    add edi, eax    ; EDI = addr of offset into desc table
+
+    ;struc e1000_tx_desc
+    ;    .addr: resq 1 (High<<32|Low)
+    ;    .length: resw 1
+    ;    .cso: resb 1
+    ;    .cmd: resb 1
+    ;    .status: resb 1
+    ;    .css: resb 1
+    ;    .special: resw 1
+    ;endstruc
+    push eax
+    mov dword [edi], 0x00000000 ; TX_DESC_TABLE[cursor]->addrHighDword = 0
+    mov eax, dword [ETHERNET_PACKET_SEND_BUFFER_BASE]
+    mov dword [edi+4], eax   ; TX_DESC_TABLE[curspr]->addrLowDword = Send buffer ptr
+    mov eax, dword [ebp+12]     ;packet length
+    mov dword [edi+8], eax
+    mov byte [edi+11], (E1000_CMD_EOP|E1000_CMD_IFCS|E1000_CMD_RS|E1000_CMD_RPS)    ; ->cmd = commands
+    mov byte [edi+12], 0x00 ;->status = 0
+    pop eax
+
+    mov byte [E1000_TX_CURSOR_OLD], al  ; Put prev cursor into old slot
+
+    ; TX_CURSOR = (TX_CURSOR + 1) % E1000_NUM_TX_DESC   <-- formula keeps cursor circular and in the descs table
+    inc al
+    xor ebx, ebx
+    mov bl, 8;mov bl, E1000_NUM_TX_DESC
+    div bl  ; AH = modulus result (remainder)
+    mov byte [E1000_TX_CURSOR], ah  ; store new cursor position.
+
+    ; Write out the TX_CURSOR position as the new TAIL.
+    movzx eax, byte [E1000_TX_CURSOR]   ; put new cursor back into EAX
+    ;func(E1000_WRITE_COMMAND,E1000_REG_TXDESCTAIL,eax)
+    push dword eax
+    push dword E1000_REG_TXDESCTAIL
+    call E1000_WRITE_COMMAND
+    add esp, 8
+
+    ;while( !(tx_descs[old_cur]->status & 0xff));
+    ; EDI is still pointing to the TX_DESC_TABLE[old_cursor] base.
+ .loopTX:
+    cmp byte [edi+12], 0x00 ; TX_DESC_TABLE[old_cursor]->status == 0?
+    je .exitLoopTX  ;should be JNE (see ! above), but hangs until TX is working...
+    jmp .loopTX
+ .exitLoopTX:
+
+    ;PrintString szETHERNET_DEVICE_FAILURE,0x02 ;TEST CODE - testing reachability...
+ .leaveCall:
+    popad
+    pop ebp
     ret

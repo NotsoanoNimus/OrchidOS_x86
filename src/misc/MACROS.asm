@@ -8,6 +8,71 @@
 %define WORD_OPERATION     01h
 %define DWORD_OPERATION    02h
 
+; Function macros to make calling a function look 100% more intuitive!
+; -- 'func' is a simple alias that expands into a macro, which further expands into a push,call,pop routine.
+; -- The alias to the macro automatically enters the args in backwards so they can be easily pushed onto
+; ---- the stack from a single, dynamic macro.
+; -- I decided to make func lower-case since many of my function defs in the source are capitalized.
+; Now function calls can actually look like: function(arg1,arg2,...,argN)
+; -- ALSO: Note that the argument will always be DWORD-aligned. This is important for automation.
+%define func(a) call a
+%define func(a,z) Function a,z
+%define func(a,z,y) Function a,y,z
+%define func(a,z,y,x) Function a,x,y,z
+
+; The Function macro's arg count is always %0-1, which is what is used for situations
+; -- that involve the arguments only, such as the push instruction or resetting the Stack Pointer.
+%macro Function 2-*
+	%rep (%0-1)
+		push dword %2
+		%rotate 1
+	%endrep
+	%rotate 1
+	call %1
+	add esp, (4*(%0-1))
+%endmacro
+
+
+; These two macros are always used in tandem to define an argument-receptive function's beginning & end.
+%macro FunctionSetup 0
+	push ebp
+	mov ebp, esp
+%endmacro
+%macro FunctionLeave 0
+	pop ebp
+	ret
+%endmacro
+
+
+; MultiPush & MultiPop are for those pesky 5-line state-saving executions that
+; -- get in the way of reading the source.
+; I could have used these further in the Function macro, but I'd prefer not to mix them at this time.
+; I'd like to thank the NASM macros documentation for these two:
+%macro MultiPush 1-*
+	%rep %0
+		push dword %1
+		%rotate 1
+	%endrep
+%endmacro
+%macro MultiPop 1-*
+	%rep %0
+		pop dword %1
+		%rotate 1
+	%endrep
+%endmacro
+
+
+; For those pesky multi-line XOR operations that annoy me to no end...
+;  Now they'll all drop into one line.
+%macro ZERO 1-*
+	%rep %0
+		xor %1, %1
+		%rotate 1
+	%endrep
+%endmacro
+
+
+
 ; PARSER-specific macros to check commands. {L4 means <=4 // G4 means >4}
 ; Arg1 = Command name in CAPS. Arg2 = command string.
 %macro CheckL4CMD 2
@@ -70,6 +135,7 @@
 
 
 ; MEMOPS macros.
+; TODO: Go back into the source and reassign these to 'func' from above.
 %macro KMALLOC 1
 	;push ebx
 	;xor ebx, ebx
@@ -81,13 +147,14 @@
 	;pop ebx
 %endmacro
 %macro KFREE 1
-	push ebx
-	xor ebx, ebx
-	mov ebx, %1
-	push dword ebx
+	;push ebx
+	;xor ebx, ebx
+	;mov ebx, %1
+	;push dword ebx
+	push dword %1
 	call kfree
 	add esp, 4
-	pop ebx
+	;pop ebx
 %endmacro
 %macro MEMCPY 3
 	push dword %3

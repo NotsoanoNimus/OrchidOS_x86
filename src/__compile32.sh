@@ -18,17 +18,15 @@ command -v qemu-system-x86_64 >/dev/null 2>&1 || (echo "You do not have QEMU (qe
 # Compile OS source into raw binaries with NASM.
 echo "======================================"
 echo "Compiling Operating System binaries..."
-#nasm "BOOT_TEST.asm" -f bin -o "../bin/boot_test.bin"
-nasm "BOOT.asm" -f bin -o "../bin/boot.bin"
-nasm "BOOT_ST2.asm" -f bin -o "../bin/boot2.bin"
-nasm "KERNEL.asm" -f bin -o "../bin/kernel.bin"
+nasm "./core/BOOT.asm" -f bin -o "../bin/boot.bin"
+nasm "./core/BOOT_ST2.asm" -f bin -o "../bin/boot2.bin"
+nasm "./core/KERNEL.asm" -f bin -o "../bin/kernel.bin"
 printf "======================================\n\n"
 
 # Create the image to use.
 echo "======================================"
 echo "Creating MBR boot image..."
 rm -f "../bin/image.img"
-#dd if="../bin/boot_test.bin" of="../bin/image_test.img" bs=512
 dd if="../bin/boot.bin" of="../bin/image.img" bs=512
 printf "======================================\n\n"
 
@@ -55,7 +53,7 @@ select CHOICE in Yes No; do
     fi
 done
 
-# Emulate an x86_64 system with 2G of RAM.
+# Emulate an x86_64 system with 8G of RAM.
 if [ $CHOICE = "Yes" ]; then
     qemu-system-x86_64 \
         -m 8G -usb -device usb-ehci,id=ehci \

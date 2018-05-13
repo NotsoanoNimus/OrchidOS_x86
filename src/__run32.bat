@@ -10,7 +10,7 @@ IF NOT EXIST "..\bin\image.img" GOTO MISSING_IMG
 ECHO ==============================
 ECHO Starting OrchidOS with QEMU...
 ECHO ==============================
-:: Emulate an i386 system with 128MB of RAM.
+:: Emulate an x86_64 system with 8G of RAM.
 qemu-system-x86_64 ^
     -m 8G -usb -device usb-ehci,id=ehci ^
     -device isa-debug-exit,iobase=0xF4,iosize=0x04 ^

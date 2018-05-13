@@ -5,8 +5,10 @@ GLOBAL kernel_main
 jmp kernel_main
 nop
 
+; The MACROS file is essential to the source of this project, and will
+;  describe many of the shorthand methods used henceforth.
 %include "misc/MACROS.asm"			; NASM Macros and Pre-Processor definitions for global implementation.
-%include "GLOBAL_definitions.asm"	; Global, pervasive variables and predefined constants for orchid.
+%include "core/GLOBAL_definitions.asm"	; Global, pervasive variables and predefined constants for orchid.
 
 %include "libraries/LIBRARIES.asm"	; Include all libraries and functions necessary to run the system.
 
@@ -56,16 +58,33 @@ kernel_main:
 	; SHELL_MODE debugging/snippet code typically goes below, before idling.
 
 
-	xor eax, eax
-    push dword 0x0003003C	; low WORD of access space
-    call PCI_configReadWord
-    add esp, 4
-    call COMMAND_DUMP
 
-	mov eax, ETHERNET_MAC_ADDRESS
+	; Build a fake ARP request.
+	mov [0x10000000], dword 0xFFFFFFFF
+	mov [0x10000004], word 0xFFFF
+	MEMCPY ETHERNET_MAC_ADDRESS,0x10000006,0x06
+	mov [0x1000000C], byte 0x08
+	mov [0x1000000D], byte 0x06
+	mov [0x1000000E], byte 0x00
+	mov [0x1000000F], byte 0x01
+	mov [0x10000010], byte 0x08
+	mov [0x10000011], byte 0x00
+	mov [0x10000012], byte 0x06
+	mov [0x10000013], byte 0x04
+	mov [0x10000014], byte 0x00
+	mov [0x10000015], byte 0x01
+	MEMCPY ETHERNET_MAC_ADDRESS,0x10000016,0x06
+	mov [0x1000001C], dword 0x0F02000A	; IP 10.0.2.15
+	mov [0x10000020], dword 0x00000000
+	mov [0x10000024], word 0x0000
+	mov [0x10000026], dword 0x0102000A	; Requesting MAC of IP 10.0.2.1
 
-	int 42
+	;func(E1000_READ_COMMAND,E1000_REG_STATUS)
+	;func(COMMAND_DUMP)
 
+	;01180110 = TX Data buffer, where the above ARP req will be copied for transmission.
+	; try ARP request
+	func(ETHERNET_SEND_PACKET,0x10000000,0x0000002A)
 
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -40,7 +40,8 @@ Version 0.4 brings with it a **wholly new purpose** to the Orchid platform, and 
 - [ ] A working, transmitting Ethernet adapter with RX IRQs being handled in the system. No need for protocol wrappers yet.
 - [ ] Basic cryptographic functions (md5, maybe SHA1; just hashes for now).
 - [ ] Linux compilation/run support, with supporting documentation.
-- [ ] More basic **video driver** features, cleaner functions, and better-separated source files (_splitting cousin functions into separate header libraries_).
+- [ ] More basic **video driver** features, cleaner functions, and better-separated source files --_see next point_-- (_splitting cousin functions into separate header libraries_).
+- [ ] Introduce **new macros** to clean up repetitive code, and split mega-files into smaller component files by an intelligent analysis of compatible sister functions/methods. Make incredible strides toward source readability & manageability so that any browsers of the repo can follow.
 
 ---
 

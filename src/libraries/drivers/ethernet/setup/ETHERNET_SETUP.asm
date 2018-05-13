@@ -89,6 +89,8 @@ ETHERNET_REGISTER_IRQ:
 
 
 
+
+
 ; INPUTS:
 ;   EAX = DeviceID<<16|VendorID
 ; OUTPUTS: NONE
@@ -99,6 +101,8 @@ ETHERNET_SETUP_SAVE_IDS:
     mov strict word [ETHERNET_DEVICE_ID], ax
  .leaveCall:
     ret
+
+
 
 
 
@@ -128,12 +132,16 @@ ETHERNET_REGISTER_PROCESS:
     or eax, eax     ; EAX = 0?
     jz .error       ; Tell the Ethernet driver & system about it.
     mov strict byte [ETHERNET_PROCESS_ID], bl
-    push eax
+    push eax    ; save base
     mov dword [ETHERNET_PROCESS_BASE], eax
     ; Both the RX & TX descriptor tables get 0x800 bytes each, so 0x1000 is reserved.
     mov dword [ETHERNET_RX_DESC_BUFFER_BASE], eax    ; RX buffer base = process base
     add eax, 0x800  ; the E1000 only needs 0x400(512bytes), but alloc 2x for other adapter needs.
     mov dword [ETHERNET_TX_DESC_BUFFER_BASE], eax    ; TX buffer base = process base + (sizeof RX buffer(0x800))
+    pop eax     ; restore base
+    push eax
+    add eax, ETHERNET_PACKET_SEND_BUFFER_OFFSET ; Point to the beginning of the TX buffer (0x70000 into process RAM)
+    mov dword [ETHERNET_PACKET_SEND_BUFFER_BASE], eax
     pop eax
     jmp .leaveCall
  .error:

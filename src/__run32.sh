@@ -20,7 +20,7 @@ command -v qemu-system-x86_64 >/dev/null 2>&1 || (echo "You do not have QEMU (qe
 echo "=============================="
 echo "Starting OrchidOS with QEMU..."
 echo "=============================="
-# Emulate an x86_64 system with 128MB of RAM.
+# Emulate an x86_64 system with 8G of RAM.
 qemu-system-x86_64 \
     -m 8G -usb -device usb-ehci,id=ehci \
     -device isa-debug-exit,iobase=0xF4,iosize=0x04 \
