@@ -50,14 +50,9 @@ ETHERNET_SETUP_begin:
 
  .Intel_E100:
     push eax    ; save vendor/device ID info
-    push edi
-    call ETHERNET_REGISTER_IRQ
-    ;call ETHERNET_INTEL_E1000_initialize
-    ;pop eax
-
-    ; Set/Get ETHERNET_CONTROLLER_IRQ
-
-    pop edi
+    push edi    ; save EDI ptr
+    call ETHERNET_REGISTER_IRQ  ;required call before all driver inits.
+    pop edi     ; restore it
     call ETHERNET_INTEL_E1000_initialize
     pop eax
     jmp .leaveCall
@@ -109,9 +104,15 @@ ETHERNET_SETUP_SAVE_IDS:
 
 
 ; -- Called from the IDT as a primary ISR function when the Ethernet hardware forces a PIC interrupt.
+; -- This function will look for the device-specific ISR to call.
 ETHERNET_IRQ_FIRED:
-
+    push eax
+    mov eax, dword [ETHERNET_DRIVER_SPECIFIC_INTERRUPT_FUNC]
+    or eax, eax     ; Check if the variable was ever set. Dangerous to call a dynamic location.
+    jz .leaveCall
+    call eax
  .leaveCall:
+    pop eax
     ret
 
 
@@ -127,7 +128,13 @@ ETHERNET_REGISTER_PROCESS:
     or eax, eax     ; EAX = 0?
     jz .error       ; Tell the Ethernet driver & system about it.
     mov strict byte [ETHERNET_PROCESS_ID], bl
+    push eax
     mov dword [ETHERNET_PROCESS_BASE], eax
+    ; Both the RX & TX descriptor tables get 0x800 bytes each, so 0x1000 is reserved.
+    mov dword [ETHERNET_RX_DESC_BUFFER_BASE], eax    ; RX buffer base = process base
+    add eax, 0x800  ; the E1000 only needs 0x400(512bytes), but alloc 2x for other adapter needs.
+    mov dword [ETHERNET_TX_DESC_BUFFER_BASE], eax    ; TX buffer base = process base + (sizeof RX buffer(0x800))
+    pop eax
     jmp .leaveCall
  .error:
     ; also have to deallocate memory, perform cleanup tasks.

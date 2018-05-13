@@ -9,14 +9,20 @@ ETHERNET_MAC_ADDRESS    times 6 db 0x00
 ETHERNET_PROCESS_ID     db 0x00
 ETHERNET_PROCESS_BASE   dd 0x00000000
 
-ETHERNET_REQUIRED_RAM   equ 0x00010000
+ETHERNET_REQUIRED_RAM   equ 0x00060000
 
-; RX & TX buffers in the Heap.
-ETHERNET_RX_BUFFER_BASE     dd 0x00000000
-ETHERNET_TX_BUFFER_BASE     dd 0x00000000
+; RX & TX buffers in the Heap. Desc buffers are tables that describe the packet access for the data buffer pieces.
+ETHERNET_RX_DESC_BUFFER_BASE     dd 0x00000000
+ETHERNET_RX_DATA_BUFFER_BASE     dd 0x00000000
+ETHERNET_TX_DESC_BUFFER_BASE     dd 0x00000000
+ETHERNET_TX_DATA_BUFFER_BASE     dd 0x00000000
 
 ETHERNET_INITIALIZED db FALSE
 ETHERNET_PROCESS_FAILURE db FALSE
+
+
+; Holds the address of a label to an ethernet device-specific interrupt service routine.
+ETHERNET_DRIVER_SPECIFIC_INTERRUPT_FUNC dd 0x00000000
 
 
 ; Device & Vendor IDs, checked against the PCI_INFO table.

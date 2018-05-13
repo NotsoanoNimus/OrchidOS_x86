@@ -254,6 +254,9 @@ INIT_START_SYSTEM_DRIVERS:
 INIT_START_SYSTEM_PROCESSES:
 	call CRYPTO_REGISTER_PROCESS	; Start the 'crypto' process.
 
+
+	call BLOOM_PLATFORM_INITIALIZE	; Lastly, ready Orchid's blooming process.
+
 	; Sleep for a moment so user can digest info.
 	SLEEP_noINT 10	;10*200ms = 2sec
  .leaveCall:

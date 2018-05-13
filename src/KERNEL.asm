@@ -36,13 +36,11 @@ kernel_main:
 	call PIT_initialize		; "PIT.asm" - Initialize the Programmable Interval Timer.
 	call INIT_START_SYSTEM_DRIVERS	; "INIT.asm" - Start the system drivers that must be run after everything else is initialized.
 	call INIT_START_SYSTEM_PROCESSES ; "INIT.asm" - Start system services/processes.
-	; ENTER 'blooming' MODE HERE.
 
-	; ENTER 'bloomed' MODE HERE.
 
 	; Before interacting with the shell: check BOOT_ERROR_FLAGS for bit 1 to see whether shell or gui mode.
 	; This is GUI_MODE space.
-	mov DWORD eax, [BOOT_ERROR_FLAGS]
+	mov dword eax, [BOOT_ERROR_FLAGS]
 	and eax, 0x00000001
 	cmp eax, 1
 	je KERNEL_modeGUI		; If GUI_MODE is flagged, go there.
@@ -51,13 +49,26 @@ kernel_main:
 	call INIT_kernelWelcomeDisplay
 	mov byte [SYSTEM_CURRENT_MODE], SHELL_MODE	;SHELL MODE
 
+	; SHELL_MODE 'blooming' phase.
+	call BLOOM_SHELL_MODE
+
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	; SHELL_MODE debugging/snippet code typically goes below, before idling.
 
+
 	xor eax, eax
-	push dword 0x0004003C	; low WORD of access space
-	call PCI_configReadWord
-	add esp, 4
-	call COMMAND_DUMP
+    push dword 0x0003003C	; low WORD of access space
+    call PCI_configReadWord
+    add esp, 4
+    call COMMAND_DUMP
+
+	mov eax, ETHERNET_MAC_ADDRESS
+
+	int 42
+
+
+
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 	; Hang and wait for some ISRs.
 	sti
@@ -92,6 +103,9 @@ kernel_main:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 KERNEL_modeGUI:
 	mov byte [SYSTEM_CURRENT_MODE], GUI_MODE
+
+	; GUI_MODE BLOOM here.
+	call BLOOM_GUI_MODE
 
 	; Test the GUI by creating a modernist masterpiece.
 	push dword 0x00009999					; cyan color.
@@ -162,4 +176,5 @@ KERNEL_modeGUI:
 	jmp .repHalt
 
 
-times  (KERNEL_SIZE_SECTORS*512)-($-$$) db 0			; Pad out the kernel to an even multiple of 512
+times  (KERNEL_SIZE_SECTORS*512)-($-$$)-15 db 0			; Pad out the kernel to an even multiple of 512
+db "ORCHID-CORE-END"

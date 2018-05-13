@@ -191,7 +191,7 @@ DiskAddrPkt:
 	dd 0x00000000
 
 STAGE_TWO_OFFSET	 	equ 0x1000		; PA for ST2.
-KERNEL_SIZE_SECTORS		equ 0x0040		; Used in BPB.
+KERNEL_SIZE_SECTORS		equ 0x0080		; Used in BPB.
 BOOT_ERROR_FLAGS		equ 0x0FFC		; Error flags for startup. DWORD of bit-flags. Right underneath the ST2L.
 szDiskReadError 		db "Disk read error", 0
 bDrive 					db 0
