@@ -82,6 +82,12 @@ kernel_main:
 	;func(E1000_READ_COMMAND,E1000_REG_STATUS)
 	;func(COMMAND_DUMP)
 
+	;mov eax, VIA_DEVICE_PCI_WORD
+	func(VT6103_READ_COMMAND,0x0001)
+	func(COMMAND_DUMP)
+
+	int 42
+
 	;01180110 = TX Data buffer, where the above ARP req will be copied for transmission.
 	; try ARP request
 	func(ETHERNET_SEND_PACKET,0x10000000,0x0000002A)

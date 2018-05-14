@@ -34,8 +34,14 @@ ETHERNET_DRIVER_SPECIFIC_INTERRUPT_FUNC dd 0x00000000
 ETHERNET_DRIVER_SPECIFIC_SEND_FUNC dd 0x00000000
 
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Device & Vendor IDs, checked against the PCI_INFO table.
 ; -- Supported devices are all listed here.
 ETHERNET_INTEL_E1000_DEVICE_ID      equ 0x100E8086
 ETHERNET_INTEL_I217_DEVICE_ID       equ 0x153A8086
 ETHERNET_INTEL_82577LM_DEVICE_ID    equ 0x10EA8086
+
+ETHERNET_VIA_VT6103_RHINE_II        equ 0x30651106

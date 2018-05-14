@@ -143,6 +143,7 @@ ETHERNET_INTEL_E1000_NIC_START:
     call E1000_GET_PCI_PROPERTIES   ; fill in the BAR type, Base IO port, and/or MMIO base addr.
     call E1000_DETECT_EEPROM        ; detect whether or not the device has an EEPROM.
     call E1000_GET_MAC_ADDRESS      ; get the MAC address of the ethernet device.
+    call E1000_SET_LINK_UP
     call E1000_CLEAR_MULTICAST_TABLE
     call E1000_IRQ_ENABLE           ; Enable the Hardware IRQ for RX.
     call E1000_RX_ENABLE            ; Enable the RX device function.
@@ -240,6 +241,7 @@ E1000_READ_COMMAND:
 
     push edx                ; port
     call PORT_IN_DWORD      ; read. EAX = value
+    add esp, 4
     ;bleed
  .leaveCall:
     pop edx
@@ -460,10 +462,10 @@ E1000_IRQ_ENABLE:
     call E1000_WRITE_COMMAND
     add esp, 8
 
-    push dword (0x000000FF & ~4)
-    push dword E1000_REG_IMASK
-    call E1000_WRITE_COMMAND
-    add esp, 8
+    ;push dword (0x000000FF & ~4)
+    ;push dword E1000_REG_IMASK
+    ;call E1000_WRITE_COMMAND
+    ;add esp, 8
 
     push dword 0x000000C0
     call E1000_READ_COMMAND
@@ -553,7 +555,7 @@ E1000_RX_ENABLE:
     add esp, 8
 
     ; ... And end at RX_DESC[15]
-    push dword (E1000_NUM_RX_DESC-1)
+    push dword (E1000_NUM_RX_DESC);-1)
     push dword E1000_REG_RXDESCTAIL
     call E1000_WRITE_COMMAND
     add esp, 8
@@ -614,15 +616,15 @@ E1000_TX_ENABLE:    ;.status = tx_desc + 12
     call E1000_WRITE_COMMAND
     add esp, 8
 
-    push dword 0x00000000
+    push dword (E1000_NUM_TX_DESC)
     push dword E1000_REG_TXDESCTAIL
     call E1000_WRITE_COMMAND
     add esp, 8
 
-    ;push dword (E1000_TCTL_EN|E1000_TCTL_PSP|(15 << E1000_TCTL_CT_SHIFT)|(64 << E1000_TCTL_COLD_SHIFT)|E1000_TCTL_RTLC)
-    ;push dword E1000_REG_TCTRL
-    ;call E1000_WRITE_COMMAND
-    ;add esp, 8
+    push dword (E1000_TCTL_EN|E1000_TCTL_PSP|(15 << E1000_TCTL_CT_SHIFT)|(64 << E1000_TCTL_COLD_SHIFT)|E1000_TCTL_RTLC)
+    push dword E1000_REG_TCTRL
+    call E1000_WRITE_COMMAND
+    add esp, 8
 
     ; The below lines of code overrides the block before it (TCTRL) but both are here
     ;  to highlight that the previous one works with e1000 cards, but for the e1000e cards
@@ -630,16 +632,16 @@ E1000_TX_ENABLE:    ;.status = tx_desc + 12
     ;  please refer to the Intel Manual.
     ; In the case of I217 and 82577LM packets will not be sent if the TCTRL is not configured using the following bits.
     ;writeCommand(REG_TCTRL,  0b0110000000000111111000011111010);
-    push dword 00110000000000111111000011111010b    ;0x3003F0FA
-    push dword E1000_REG_TCTRL
-    call E1000_WRITE_COMMAND
-    add esp, 8
+    ;push dword 00110000000000111111000011111010b    ;0x3003F0FA
+    ;push dword E1000_REG_TCTRL
+    ;call E1000_WRITE_COMMAND
+    ;add esp, 8
 
     ;writeCommand(REG_TIPG,  0x0060200A);
-    push dword 0x0060200A
-    push dword E1000_REG_TIPG
-    call E1000_WRITE_COMMAND
-    add esp, 8
+    ;push dword 0x0060200A
+    ;push dword E1000_REG_TIPG
+    ;call E1000_WRITE_COMMAND
+    ;add esp, 8
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
  .leaveCall:
@@ -673,6 +675,17 @@ E1000_CLEAR_MULTICAST_TABLE:
     popad
     ret
 
+
+
+; Set the Link State to UP in the CTRL register.
+E1000_SET_LINK_UP:
+    push eax
+    func(E1000_READ_COMMAND,E1000_REG_CTRL)
+    or eax, E1000_ECTRL_SLU
+    func(E1000_WRITE_COMMAND,E1000_REG_CTRL,eax)
+    pop eax
+ .leaveCall:
+    ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

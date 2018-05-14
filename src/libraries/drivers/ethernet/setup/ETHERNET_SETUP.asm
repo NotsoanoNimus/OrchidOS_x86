@@ -4,6 +4,7 @@
 ;      depending on the amount of vendors that become supported.
 
 %include "libraries/drivers/ethernet/setup/intel/E1000_NIC.asm"
+%include "libraries/drivers/ethernet/setup/via/VT6103_NIC.asm"
 
 ; Called by the primary Ethernet driver to delegate setup responsibility to this component file.
 ; -- Reads device ID stored from PCI_INFO earlier.
@@ -35,6 +36,10 @@ ETHERNET_SETUP_begin:
     cmp eax, ETHERNET_INTEL_82577LM_DEVICE_ID
     je .Intel_E100
 
+    ;VIA Technologies VT6103 Rhine II Ethernet Controller.
+    cmp eax, ETHERNET_VIA_VT6103_RHINE_II
+    je .VIA_VT6103
+
     ; Decrement counter, check if there are still more devices to iterate.
     add edi, 20     ; Each PCI entry is 20 bytes long (5 DWORDs).
     dec cl
@@ -55,6 +60,15 @@ ETHERNET_SETUP_begin:
     pop edi     ; restore it
     call ETHERNET_INTEL_E1000_initialize
     pop eax
+    jmp .leaveCall
+
+ .VIA_VT6103:
+    push eax    ; save vendor/device ID info
+    push edi    ; save EDI ptr
+    call ETHERNET_REGISTER_IRQ
+    pop edi     ; restore
+    call ETHERNET_VIA_VT6103_initalize
+    pop eax     ; restore
     jmp .leaveCall
 
  .leaveCall:
@@ -151,7 +165,12 @@ ETHERNET_REGISTER_PROCESS:
     ret
 
 
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Driver initalize super-functions.
 
 ; Initialize the KVM/QEMU E1000 Generic Intel Ethernet driver.
 szETHERNETIntel_E1000_found db "Discovered compatible Intel Gigabit Ethernet Controller.", 0
@@ -160,6 +179,19 @@ ETHERNET_INTEL_E1000_initialize:
     PrintString szETHERNETIntel_E1000_found,0x0A
     call ETHERNET_INTEL_E1000_NIC_START
     call ETHERNET_INTEL_E1000_NIC_SET_GLOBALS
+ .leaveCall:
+    popad
+    ret
+
+
+
+; Initialize the VIA ethernet driver.
+szETHERNETVIA_VT61013_found db "Discovered compatible VIA Rhine II Fast Ethernet Controller.", 0
+ETHERNET_VIA_VT6103_initalize:
+    pushad
+    PrintString szETHERNETVIA_VT61013_found,0x0A
+    call ETHERNET_VIA_VT6103_NIC_START
+    call ETHERNET_VIA_VT6103_NIC_SET_GLOBALS
  .leaveCall:
     popad
     ret
