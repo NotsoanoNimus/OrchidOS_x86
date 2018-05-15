@@ -58,7 +58,6 @@ kernel_main:
 	; SHELL_MODE debugging/snippet code typically goes below, before idling.
 
 
-
 	; Build a fake ARP request.
 	mov [0x10000000], dword 0xFFFFFFFF
 	mov [0x10000004], word 0xFFFF
@@ -79,18 +78,22 @@ kernel_main:
 	mov [0x10000024], word 0x0000
 	mov [0x10000026], dword 0x0102000A	; Requesting MAC of IP 10.0.2.1
 
-	;func(E1000_READ_COMMAND,E1000_REG_STATUS)
-	;func(COMMAND_DUMP)
-
-	;mov eax, VIA_DEVICE_PCI_WORD
-	func(VT6103_READ_COMMAND,0x0001)
+	func(E1000_READ_COMMAND,E1000_REG_TCTRL)
+	;func(E1000_READ_PHY,26)	;Read the PHY, Register 26.
 	func(COMMAND_DUMP)
 
-	int 42
+	func(E1000_WRITE_COMMAND,0x2C00,0x00000008)
+
+	;mov eax, VIA_DEVICE_PCI_WORD
+	;func(VT6103_READ_COMMAND,0x0001)
+	;func(COMMAND_DUMP)
 
 	;01180110 = TX Data buffer, where the above ARP req will be copied for transmission.
 	; try ARP request
-	func(ETHERNET_SEND_PACKET,0x10000000,0x0000002A)
+	func(ETHERNET_SEND_PACKET,0x10000000,0x00000100);02A)
+	;SLEEP 10
+	;func(ETHERNET_SEND_PACKET,0x10000000,0x0000002A)
+
 
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

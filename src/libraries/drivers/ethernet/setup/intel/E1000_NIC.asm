@@ -47,6 +47,7 @@ E1000_REG_CTRL          equ 0x0000
 E1000_REG_STATUS        equ 0x0008
 E1000_REG_EEPROM        equ 0x0014
 E1000_REG_CTRL_EXT      equ 0x0018
+E1000_REG_MDIC          equ 0x0020
 E1000_REG_IMASK         equ 0x00D0
 
 E1000_REG_RCTRL         equ 0x0100
@@ -69,7 +70,7 @@ E1000_REG_RADV          equ 0x282C ; RX Int. Absolute Delay Timer
 E1000_REG_RSRPD         equ 0x2C00 ; RX Small Packet Detect Interrupt
 
 E1000_REG_TIPG          equ 0x0410 ; Transmit Inter Packet Gap
-E1000_ECTRL_SLU         equ 0x40 ; Set link up
+E1000_ECTRL_SLU         equ 0x40 ; Set link up (1 << 6)
 
 E1000_RCTL_EN               equ (1 << 1)    ; Receiver Enable
 E1000_RCTL_SBP              equ (1 << 2)    ; Store Bad Packets
@@ -457,32 +458,109 @@ E1000_GET_MAC_ADDRESS:
 
 ; Enable the E1000 hardware IRQ.
 E1000_IRQ_ENABLE:
-    push dword 0x0001F6DC
-    push dword E1000_REG_IMASK
-    call E1000_WRITE_COMMAND
-    add esp, 8
-
-    ;push dword (0x000000FF & ~4)
-    ;push dword E1000_REG_IMASK
-    ;call E1000_WRITE_COMMAND
-    ;add esp, 8
-
-    push dword 0x000000C0
-    call E1000_READ_COMMAND
-    add esp, 4
+    ; Write to the INT Mask register.
+    func(E1000_WRITE_COMMAND,E1000_REG_IMASK,0x0001F6DC)
+    ; Enables extra TX interrupts & others. Good for testing at this time. Will del later.
+    func(E1000_WRITE_COMMAND,E1000_REG_IMASK,(0x000000FF & ~4))
+    ; Read any ICR that may be left in the register.
+    func(E1000_READ_COMMAND,0x000000C0)
  .leaveCall:
     ret
 
 
 
 ; Called as a device-specific ISR for IRQ handling.
+szETHERNET_ISR_LINK_STATE_CHANGE    db "Ethernet link state change!", 0
 E1000_DRIVER_ISR:
     pushad
 
-    PrintString szETHERNET_PROCESS_NAME,0x0F ;TEST CODE
+    ; EBX will be used to test, EAX will hold the constant ICR value.
+    ZERO eax,ebx
+    ;func(E1000_WRITE_COMMAND,E1000_REG_IMASK,0x00000001)    ; Prevent daisy-chaining IRQs.
+    func(E1000_READ_COMMAND,0x000000C0) ; EAX = Interrupt Cause Register value
+    call COMMAND_DUMP
+
+    ; Get rid of TX success information (lowest two bits)
+    and eax, 0xFFFFFFFC ; ~(3)
+
+    mov ebx, eax    ; copy EAX into EBX
+    and ebx, 4      ; Check LSC bit
+    cmp ebx, 0
+    je .noLinkStateChange
+    ; bleed if ebx != 0, meaning LSC bit matched
+    PrintString szETHERNET_ISR_LINK_STATE_CHANGE,0x0A
+ .noLinkStateChange:
+
+
+    PrintString szETHERNET_PROCESS_NAME,0x08 ;TEST CODE
  .leaveCall:
     popad
     ret
+
+
+
+; INPUTS:
+;   ARG1 = REGADDR, PHY Register Address to Read
+; OUTPUTS:
+;   AX = Data contained in REGADDR register.
+; !! EAX = 0xFFFFFFFF on ERROR !!
+; Reads the PHY registers through the PCI MDI/O Interface.
+; MDIC Access:
+;   0:15  = DATA: Data written to the REGADDR on write OPs. Also become returned data on a read op.
+;   16:20 = REGADDR: Which register reading from or writing to (0 to 31).
+;   21:25 = PHYADDR: Which PHY device/LAN Device/Page
+;   26:27 = OP: 01b is a write, 10b is a read.
+;   28    = READY: Cleared by OS when both reading/writing, Set by HW when the config cycle is complete.
+;   29    = INTERRUPT: If set, issue an interrupt when the config cycle is over.
+;   30    = ERROR: Cleared by OS on read/write, set by HW when failing an MDI transaction
+;   31    = WAIT: Set to 1 by HW when there's an active PCIe-SMBus transaction. Neglect this.
+E1000_PHY_ADDR          equ (1 << 21)
+E1000_MDIC_OP_WRITE     equ (1 << 26)
+E1000_MDIC_OP_READ      equ (2 << 26)
+E1000_MDIC_READY        equ (1 << 28)
+E1000_MDIC_INTERRUPT    equ (1 << 29)
+E1000_MDIC_ERROR        equ (1 << 30)
+E1000_READ_PHY:
+    FunctionSetup
+    push ecx
+    ZERO eax,ecx
+
+    mov eax, dword [ebp+8]  ; EAX = arg1 = REGADDR
+    and eax, 0x0000001F     ; get the lowest 5 bits.
+    shl eax, 16     ; move the REGADDR into position.
+
+    ; Build the value and write it.
+    or eax, (E1000_PHY_ADDR|E1000_MDIC_INTERRUPT|E1000_MDIC_OP_READ)
+    func(E1000_WRITE_COMMAND,E1000_REG_MDIC,eax)
+
+    ; give the system time to update the register...
+    call .holUp
+    ; was there an error?
+    cmp eax, 0xFFFFFFFF
+    je .leaveCall
+
+    ; The operation is finished, read the final data area.
+    ZERO eax    ; just in case :)
+    func(E1000_READ_COMMAND,E1000_REG_MDIC)
+    and eax, 0x0000FFFF     ; get the DATA bits
+    jmp .leaveCall
+
+ .holUp:
+    mov ecx, 0x00080000 ; maximum cycles to prevent looping indefinitely.
+ .waitRead:
+    func(E1000_READ_COMMAND,E1000_REG_MDIC)
+    and eax, (E1000_MDIC_READY | E1000_MDIC_ERROR)  ; test the bits
+    or eax, eax ; eax != 0?
+    jnz .done
+    loop .waitRead
+    mov eax, 0xFFFFFFFF
+ .done:
+    ret
+
+ .leaveCall:
+    pop ecx
+    FunctionLeave
+
 
 
 
@@ -504,14 +582,14 @@ E1000_RX_ENABLE:
     ; The RX Data buffer size is listed below (0x40000!)
     add edi, 0x1000
     mov dword [ETHERNET_RX_DATA_BUFFER_BASE], edi
-    mov ecx, ((E1000_RX_FRAME_ALLOC_SIZE * E1000_NUM_RX_DESC)/4)    ;65536(0x10000) DWORDs
+    mov ecx, ((E1000_RX_FRAME_ALLOC_SIZE * E1000_NUM_RX_DESC)/4)    ;65536(0x10000) DWORDs, 0x40000 of mem
     xor eax, eax    ; just in case
     rep stosd   ; zero out 0x40000 of memory.
 
     ; Set up descriptor addresses to point to each 8192-byte RX buffer chunk.
     mov ecx, E1000_NUM_RX_DESC  ; Counter = number of RX descriptors
     mov edi, dword [ETHERNET_RX_DESC_BUFFER_BASE]   ; return to the base of the RX desc table
-    add edi, 4  ; EDI = low DWORD of .addr struct space in the first RX desc.
+    ;add edi, 4  ; EDI = low DWORD of .addr struct space in the first RX desc.
     mov esi, dword [ETHERNET_RX_DATA_BUFFER_BASE]   ; set ESI to the beginning of RX data buffer.
  .setDescAddrs: ; set RX buffer descriptor addresses.
     mov dword [edi], esi    ; address @ESI into memory @EDI
@@ -519,52 +597,18 @@ E1000_RX_ENABLE:
     add esi, E1000_RX_FRAME_ALLOC_SIZE  ; increment ESI by 8192 bytes (frame allocation size of RX buffer chunk/piece)
     loop .setDescAddrs
 
-    ; Write information to the Ethernet device to initialize RX abilities.
-    ;push dword 0x00000000  ;value
-    ;push dword E1000_REG_TXDESCHI   ;port - try changing this to LO & next to HI if stops functioning? Not sure if wiki is wrong
-    ;call E1000_WRITE_COMMAND
-    ;add esp, 8
-
-    ;push dword [ETHERNET_RX_DESC_BUFFER_BASE]   ;value
-    ;push dword E1000_REG_TXDESCLO   ; port
-    ;call E1000_WRITE_COMMAND
-    ;add esp, 8
-
     ; Low Desc Base DWORD = addr of the RX desc buffer base
-    push dword [ETHERNET_RX_DESC_BUFFER_BASE]
-    push dword E1000_REG_RXDESCLO
-    call E1000_WRITE_COMMAND
-    add esp, 8
-
+    func(E1000_WRITE_COMMAND,E1000_REG_RXDESCLO,[ETHERNET_RX_DESC_BUFFER_BASE])
     ; High Desc Base DWORD = 0x0 (not on an x64 machine)
-    push dword 0x00000000
-    push dword E1000_REG_RXDESCHI
-    call E1000_WRITE_COMMAND
-    add esp, 8
-
+    func(E1000_WRITE_COMMAND,E1000_REG_RXDESCHI,0x00000000)
     ; Tell how large the RX descs buffer/table is.
-    push dword (E1000_NUM_RX_DESC * E1000_RX_DESC_SIZE)
-    push dword E1000_REG_RXDESCLEN
-    call E1000_WRITE_COMMAND
-    add esp, 8
-
+    func(E1000_WRITE_COMMAND,E1000_REG_RXDESCLEN,(E1000_NUM_RX_DESC * E1000_RX_DESC_SIZE))
     ; Tell to start @ RX_DESC[0]
-    push dword 0x00000000
-    push dword E1000_REG_RXDESCHEAD
-    call E1000_WRITE_COMMAND
-    add esp, 8
-
+    func(E1000_WRITE_COMMAND,E1000_REG_RXDESCHEAD,0x00000000)
     ; ... And end at RX_DESC[15]
-    push dword (E1000_NUM_RX_DESC);-1)
-    push dword E1000_REG_RXDESCTAIL
-    call E1000_WRITE_COMMAND
-    add esp, 8
-
+    func(E1000_WRITE_COMMAND,E1000_REG_RXDESCTAIL,(E1000_NUM_RX_DESC))
     ; Set the required RX Control Register values for basic operation.
-    push dword (E1000_RCTL_EN|E1000_RCTL_SBP|E1000_RCTL_UPE|E1000_RCTL_MPE|E1000_RCTL_LBM_NONE|E1000_RTCL_RDMTS_HALF|E1000_RCTL_BAM|E1000_RCTL_SECRC|E1000_RCTL_BSIZE_8192);2048)
-    push dword E1000_REG_RCTRL
-    call E1000_WRITE_COMMAND
-    add esp, 8
+    func(E1000_WRITE_COMMAND,E1000_REG_RCTRL,(E1000_RCTL_EN|E1000_RCTL_LPE|E1000_RCTL_SBP|E1000_RCTL_UPE|E1000_RCTL_MPE|E1000_RCTL_LBM_NONE|E1000_RTCL_RDMTS_HALF|E1000_RCTL_BAM|E1000_RCTL_SECRC|E1000_RCTL_BSIZE_8192))
 
  .leaveCall:
     popad
@@ -596,53 +640,21 @@ E1000_TX_ENABLE:    ;.status = tx_desc + 12
     loop .setDescStatuses
 
     ; Write information to the Ethernet device to initialize TX abilities...
-    push dword 0x00000000
-    push dword E1000_REG_TXDESCHI
-    call E1000_WRITE_COMMAND
-    add esp, 8
-
-    push dword [ETHERNET_TX_DESC_BUFFER_BASE]
-    push dword E1000_REG_TXDESCLO
-    call E1000_WRITE_COMMAND
-    add esp, 8
-
-    push dword (E1000_NUM_TX_DESC * E1000_TX_DESC_SIZE)
-    push dword E1000_REG_TXDESCLEN
-    call E1000_WRITE_COMMAND
-    add esp, 8
-
-    push dword 0x00000000
-    push dword E1000_REG_TXDESCHEAD
-    call E1000_WRITE_COMMAND
-    add esp, 8
-
-    push dword (E1000_NUM_TX_DESC)
-    push dword E1000_REG_TXDESCTAIL
-    call E1000_WRITE_COMMAND
-    add esp, 8
-
-    push dword (E1000_TCTL_EN|E1000_TCTL_PSP|(15 << E1000_TCTL_CT_SHIFT)|(64 << E1000_TCTL_COLD_SHIFT)|E1000_TCTL_RTLC)
-    push dword E1000_REG_TCTRL
-    call E1000_WRITE_COMMAND
-    add esp, 8
-
-    ; The below lines of code overrides the block before it (TCTRL) but both are here
-    ;  to highlight that the previous one works with e1000 cards, but for the e1000e cards
-    ;  you should set the TCTRL register as follows. For detailed description of each bit,
-    ;  please refer to the Intel Manual.
-    ; In the case of I217 and 82577LM packets will not be sent if the TCTRL is not configured using the following bits.
-    ;writeCommand(REG_TCTRL,  0b0110000000000111111000011111010);
-    ;push dword 00110000000000111111000011111010b    ;0x3003F0FA
-    ;push dword E1000_REG_TCTRL
-    ;call E1000_WRITE_COMMAND
-    ;add esp, 8
-
-    ;writeCommand(REG_TIPG,  0x0060200A);
-    ;push dword 0x0060200A
-    ;push dword E1000_REG_TIPG
-    ;call E1000_WRITE_COMMAND
-    ;add esp, 8
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ; High 32 bits of TX Desc buffer.
+    func(E1000_WRITE_COMMAND,E1000_REG_TXDESCHI,0x00000000)
+    ; ... And the low 32 bits.
+    func(E1000_WRITE_COMMAND,E1000_REG_TXDESCLO,[ETHERNET_TX_DESC_BUFFER_BASE])
+    ; Tell how large the TX descs table is.
+    func(E1000_WRITE_COMMAND,E1000_REG_TXDESCLEN,(E1000_NUM_TX_DESC * E1000_TX_DESC_SIZE))
+    ; Tell to start @ TX_DESCS[0]
+    func(E1000_WRITE_COMMAND,E1000_REG_TXDESCHEAD,0x00000000)
+    ; ... And stay at 0 (nothing to TX)
+    func(E1000_WRITE_COMMAND,E1000_REG_TXDESCTAIL,0x00000000)
+    ;code for testing diff ctrl configs
+    ;func(E1000_WRITE_COMMAND,E1000_REG_TCTRL,(E1000_TCTL_EN|E1000_TCTL_PSP|(15 << E1000_TCTL_CT_SHIFT)|(64 << E1000_TCTL_COLD_SHIFT)|E1000_TCTL_RTLC))
+    func(E1000_WRITE_COMMAND,E1000_REG_TCTRL,00110000000000111111000011111010b)
+    ; Set Inter-Packet Gap timing. Value is set to manual's recommendation.
+    func(E1000_WRITE_COMMAND,E1000_REG_TIPG,0x00702008)
 
  .leaveCall:
     popad
@@ -663,10 +675,8 @@ E1000_CLEAR_MULTICAST_TABLE:
     shl ecx, 2  ;x4
     add edi, ecx    ; EDI = 0x5200 + ecx*4
 
-    push dword eax  ; - write value = 0
-    push dword edi  ; - port = EDI
-    call E1000_WRITE_COMMAND
-    add esp, 8
+    ; write the value to the port.
+    func(E1000_WRITE_COMMAND,edi,eax)
 
     pop edi     ; return to base
     pop ecx     ; return to current count
@@ -702,24 +712,28 @@ E1000_SEND_PACKET:
 
     movzx eax, byte [E1000_TX_CURSOR]   ; get current offset into the desc table
     mov edi, dword [ETHERNET_TX_DESC_BUFFER_BASE] ; EDI = base of desc table
+    push eax
+    shl eax, 4  ;eax*16 (sizeof E1000_TX_DESC_SIZE)
     add edi, eax    ; EDI = addr of offset into desc table
+    pop eax
 
     ;struc e1000_tx_desc
-    ;    .addr: resq 1 (High<<32|Low)
-    ;    .length: resw 1
-    ;    .cso: resb 1
-    ;    .cmd: resb 1
-    ;    .status: resb 1
-    ;    .css: resb 1
-    ;    .special: resw 1
+    ;+0    .addr: resq 1 (High<<32|Low)
+    ;+8    .length: resw 1
+    ;+10    .cso: resb 1
+    ;+11    .cmd: resb 1
+    ;+12    .status: resb 1
+    ;+13    .css: resb 1
+    ;+14    .special: resw 1
     ;endstruc
     push eax
-    mov dword [edi], 0x00000000 ; TX_DESC_TABLE[cursor]->addrHighDword = 0
+    mov dword [edi+4], 0x00000000 ; TX_DESC_TABLE[cursor]->addrHighDword = 0
     mov eax, dword [ETHERNET_PACKET_SEND_BUFFER_BASE]
-    mov dword [edi+4], eax   ; TX_DESC_TABLE[curspr]->addrLowDword = Send buffer ptr
+    mov dword [edi+0], eax   ; TX_DESC_TABLE[cursor]->addrLowDword = Send buffer ptr
     mov eax, dword [ebp+12]     ;packet length
-    mov dword [edi+8], eax
-    mov byte [edi+11], (E1000_CMD_EOP|E1000_CMD_IFCS|E1000_CMD_RS|E1000_CMD_RPS)    ; ->cmd = commands
+    and eax, 0x0000FFFF     ;Chopped to WORD
+    mov word [edi+8], ax
+    mov byte [edi+11], 0x0B;(E1000_CMD_EOP|E1000_CMD_IFCS|E1000_CMD_RS|E1000_CMD_RPS)    ; ->cmd = commands
     mov byte [edi+12], 0x00 ;->status = 0
     pop eax
 
@@ -734,12 +748,8 @@ E1000_SEND_PACKET:
 
     ; Write out the TX_CURSOR position as the new TAIL.
     movzx eax, byte [E1000_TX_CURSOR]   ; put new cursor back into EAX
-    ;func(E1000_WRITE_COMMAND,E1000_REG_TXDESCTAIL,eax)
-    push dword eax
-    push dword E1000_REG_TXDESCTAIL
-    call E1000_WRITE_COMMAND
-    add esp, 8
-
+    func(E1000_WRITE_COMMAND,E1000_REG_TXDESCTAIL,eax)
+    
     ;while( !(tx_descs[old_cur]->status & 0xff));
     ; EDI is still pointing to the TX_DESC_TABLE[old_cursor] base.
  .loopTX:

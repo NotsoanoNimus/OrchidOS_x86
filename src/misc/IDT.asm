@@ -186,8 +186,9 @@ ISR_NOERRORCODE 40
 ISR_NOERRORCODE 41
 ;ISR_NOERRORCODE 42
 isr42:
+isr43:
 	HARDWARE_IRQ ISR_PHYSICAL_NIC
-ISR_NOERRORCODE 43
+;ISR_NOERRORCODE 43
 ISR_NOERRORCODE 44		; Mouse controller.
 ISR_NOERRORCODE 45
 ISR_NOERRORCODE 46
@@ -291,6 +292,97 @@ PIC_sendEOI:	; send end-of-interrupt command to PIC(s)
 	out PIC1_COMMAND, al
 	popad
 	ret
+
+
+; INPUTS:
+; 	ARG1 = low BYTE IRQ#
+; OUTPUTS: none
+; -- Masks the specified bit for the IRQ number passed to this function.
+PIC_DISABLE_IRQ:
+	FunctionSetup
+	MultiPush eax,ebx,ecx,edx
+	ZERO eax,ebx,ecx,edx
+
+	mov cl, 0x01	; set CL = 1 for later shift. Doing it here so it won't have to be done in 2 sep places
+	mov eax, dword [ebp+8]	; EAX (AL) = IRQ# to stop/mask
+	and eax, 0x000000FF
+	cmp eax, 8	; IRQ# >= 8?
+	jae .PIC2	; if so, subtract 8 and interact with the slave PIC
+	; bleed if < 8
+ .PIC1:
+    mov bl, al	; BL temp = IRQ#
+   	in al, PIC1_DATA	; read master mask
+   	call .computeMask
+   	out PIC1_DATA, al
+   	jmp .leaveCall
+ .PIC2:
+   	sub al, 8	; AL -= 8
+   	mov bl, al	; BL temp = IRQ#
+   	in al, PIC2_DATA	; read slave mask
+   	call .computeMask
+   	out PIC2_DATA, al
+   	jmp .leaveCall
+
+ .computeMask:
+   	mov dl, al		; DL = CURRENT_MASK
+	call COMMAND_DUMP
+   	mov cl, bl		; CL = Adjusted IRQ# (mod 8)
+   	mov bl, 0x01	; BL = 1
+   	shl bl, cl	; (1 << IRQ#)
+   	or dl, bl	; (PIC1_MASK_CURRENT | (1<<IRQ#))
+	call COMMAND_DUMP
+   	mov al, dl	; AL = DL = new mask
+   	ret
+
+ .leaveCall:
+ 	MultiPop edx,ecx,ebx,eax
+ 	FunctionLeave
+
+
+
+; INPUTS:
+;	ARG1 = low BYTE IRQ#
+; OUTPUTS: none
+; -- Clear the specified IRQ# mask (enables the interrupt)
+PIC_ENABLE_IRQ:
+	FunctionSetup
+	MultiPush eax,ebx,ecx,edx
+	ZERO eax,ebx,ecx,edx
+
+	mov eax, dword [ebp+8]	; EAX (AL) = IRQ# to stop/mask
+	and eax, 0x000000FF
+	cmp eax, 8	; IRQ# >= 8?
+	jae .PIC2	; if so, subtract 8 and interact with the slave PIC
+	; bleed if < 8
+ .PIC1:
+ 	mov bl, al	; BL temp = IRQ#
+	in al, PIC1_DATA	; read master mask
+	call .computeMask
+	out PIC1_DATA, al
+	jmp .leaveCall
+ .PIC2:
+	sub al, 8
+	mov bl, al	; BL temp = IRQ#
+	in al, PIC2_DATA	; read slave mask
+	call .computeMask
+	out PIC2_DATA, al
+	jmp .leaveCall
+
+ .computeMask:
+	mov dl, al		; DL = CURRENT_MASK
+	mov cl, bl		; CL = Adjusted IRQ# (mod 8)
+	mov bl, 0x01	; BL = 1
+	shl bl, cl	; (1 << IRQ#)
+	not bl		; Invert CL
+	and dl, bl	; (PIC1_MASK_CURRENT & ~(1<<IRQ#))
+	mov al, dl	; AL = DL = new mask
+	ret
+
+ .leaveCall:
+ 	MultiPop edx,ecx,ebx,eax
+ 	FunctionLeave
+
+
 
 
 PIC_remap:		; bh = offsetMaster, bl = offsetSlave
@@ -452,7 +544,7 @@ ISR_LPTSpurHandler:
 
 ISR_PHYSICAL_NIC:
 	call ETHERNET_IRQ_FIRED
-	mov dl, 0x0A
+	mov dl, 0x0B
 	call PIC_sendEOI
  .leaveCall:
  	ret

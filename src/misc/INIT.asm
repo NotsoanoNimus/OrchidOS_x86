@@ -10,7 +10,7 @@ INIT_PICandIDT:
 	; Unmask only the keyboard, cascade, and timer for now (bits !NOT! flagged are enabled IRQs)
 	mov al, 0xF8		; mask = 1111 1000 // PIC1 IRQ #1 (0 being the clock), keyboard enabled. Clock enabled. CASCADE Enabled.
 	out PIC1_DATA, al
-	mov al, 0xFF
+	mov al, 0xFF		; mask = 1111 0111 // do NOT en this right now, Ethernet enables its own mask.
 	out PIC2_DATA, al
 
 	lidt [IDT_Desc]	; Finally load the IDT

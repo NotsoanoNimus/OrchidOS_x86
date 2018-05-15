@@ -196,29 +196,30 @@ TIMER_updateTimeDisplay:
  .gotWeekday:		; Success, now onto MONTH.
 	mov esi, szSYSDate+5
 	mov al, [SYSTEM_MONTH]
-	cmp al, 1
+	; convert month from BCD to HEX (or just cmp as such)
+	cmp al, 1	;0000 0001 - 0 1
 	je .monthJAN
-	cmp al, 2
+	cmp al, 2	;0000 0010 - 0 2
 	je .monthFEB
-	cmp al, 3
+	cmp al, 3	;0000 0011 - 0 3
 	je .monthMAR
-	cmp al, 4
+	cmp al, 4	;0000 0100 - 0 4
 	je .monthAPR
-	cmp al, 5
+	cmp al, 5	;0000 0101 - 0 5
 	je .monthMAY
-	cmp al, 6
+	cmp al, 6	;0000 0110 - 0 6
 	je .monthJUN
-	cmp al, 7
+	cmp al, 7	;0000 0111 - 0 7
 	je .monthJUL
-	cmp al, 8
+	cmp al, 8	;0000 1000 - 0 8
 	je .monthAUG
-	cmp al, 9
+	cmp al, 9	;0000 1001 - 0 9
 	je .monthSEP
-	cmp al, 10
+	cmp al, 16	;0001 0000 - 1 0 - 0x10/16d
 	je .monthOCT
-	cmp al, 11
+	cmp al, 17	;0001 0001 - 1 1 - 0x11/17d
 	je .monthNOV
-	cmp al, 12
+	cmp al, 18	;0001 0010 - 1 1 - 0x12/18d
 	je .monthDEC
 	; No month found in index...
 	mov DWORD [esi], "??? "

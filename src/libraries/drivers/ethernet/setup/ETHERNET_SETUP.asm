@@ -80,7 +80,7 @@ ETHERNET_SETUP_begin:
 
 ; Register the Ethernet Hardware IRQ# (INT 42d).
 ; -- THIS FUNCTION MUST ALWAYS BE CALLED BEFORE AN ETHERNET DRIVER INITIALIZATION!
-ETHERNET_IRQ_OFFSET equ 0x0A    ; IRQ 10 (IRQ0+10) = INT 42 as a direct Ethernet INT.
+ETHERNET_IRQ_OFFSET equ 0x0A;db 0x00    ; IRQ 10 (IRQ0+10) = INT 42 as a direct Ethernet INT.
 ETHERNET_REGISTER_IRQ:
     ; SINCE EDI = ETHERNET_ENTRY+4, subtract 4 to get the PCI device ID (Bus, Slot/Dev, func)
     push ecx
@@ -91,12 +91,21 @@ ETHERNET_REGISTER_IRQ:
     push dword ecx  ; PCI device address
     call PCI_configReadWord ; EAX = WORD at 0x3C PCI for Ethernet device (INT_PIN<<8|INT_LINE)
     pop dword ecx   ; restore arg in case trashed.
+
+    ; Enable the pre-written IRQ value, since pushing a static Ethernet IRQ is currently not functioning...
+    push dword eax
+    and eax, 0x000000FF
+    func(PIC_ENABLE_IRQ,eax)
+    pop dword eax
+
     mov al, ETHERNET_IRQ_OFFSET    ; IRQ 10 (IRQ0+10)
 
     push dword eax  ; AX = value to write.
     push dword ecx  ; ECX = PCI dev addr
     call PCI_WRITE_WORD_TO_PORT
     add esp, 8
+
+    func(PIC_ENABLE_IRQ,ETHERNET_IRQ_OFFSET)
     pop ecx
  .leaveCall:
     ret
