@@ -19,8 +19,7 @@ ETHERNET_initialize:
 ; -- Called as a meta-function to send a packet of information.
 ETHERNET_SEND_PACKET:
     clc
-    push ebp
-    mov ebp, esp
+    FunctionSetup
     pushad
 
     mov eax, dword [ETHERNET_DRIVER_SPECIFIC_SEND_FUNC] ; testing the send func for 0 (not set)
@@ -43,5 +42,4 @@ ETHERNET_SEND_PACKET:
     stc
  .leaveCall:
     popad
-    pop ebp
-    ret
+    FunctionLeave

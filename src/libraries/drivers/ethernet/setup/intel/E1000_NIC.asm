@@ -167,11 +167,8 @@ ETHERNET_INTEL_E1000_NIC_SET_GLOBALS:
 ;   ARG1 = Chopped WORD = Port Address
 ;   ARG2 = Value to write (DWORD)
 E1000_WRITE_COMMAND:
-    push ebp
-    mov ebp, esp
-    push ebx
-    push eax
-    push edx
+    FunctionSetup
+    MultiPush ebx,eax,edx
 
     mov ebx, dword [ebp+8]  ; EBX = MMIO Offset
     and ebx, 0x0000FFFF     ; chop the DWORD to a WORD
@@ -190,34 +187,22 @@ E1000_WRITE_COMMAND:
  .IOCOMM:
     movzx edx, strict word [E1000_BASE_IO_ADDR]
 
-    push ebx                ; push address
-    push edx                ; port
-    call PORT_OUT_DWORD     ; write
-    add esp, 8
-
+    func(PORT_OUT_DWORD,edx,ebx) ;write out the edx word
     add edx, 4      ; Next DWORD I/O address up
-    push ebx        ; push address
-    push edx        ; port
-    call PORT_OUT_DWORD     ; write
-    add esp, 8
+    func(PORT_OUT_DWORD,edx,ebx) ;write out the next word
     ;bleed
  .leaveCall:
-    pop edx
-    pop eax
-    pop ebx
-    pop ebp
-    ret
+    MultiPop edx,eax,ebx
+    FunctionLeave
 
 
 ; Read from the device.
 ;   ARG1 = Port Address.
 ;   EAX = Retrieved data.
 E1000_READ_COMMAND:
-    push ebp
-    mov ebp, esp
-    push ebx
-    push edx
-    xor eax, eax    ; ready the return register.
+    FunctionSetup
+    MultiPush ebx,edx
+    ZERO eax    ; ready the return value register
 
     mov ebx, dword [ebp+8]  ;arg1 - port address/offset
     and ebx, 0x0000FFFF     ; force lower WORD
@@ -234,21 +219,12 @@ E1000_READ_COMMAND:
 
  .IOCOMM:
     movzx edx, strict word [E1000_BASE_IO_ADDR]
-
-    push ebx                ; push address
-    push edx                ; port
-    call PORT_OUT_DWORD     ; write
-    add esp, 8
-
-    push edx                ; port
-    call PORT_IN_DWORD      ; read. EAX = value
-    add esp, 4
+    func(PORT_OUT_DWORD,edx,ebx)    ;write out the word to the port
+    func(PORT_IN_DWORD,edx)  ; read the word into eax
     ;bleed
  .leaveCall:
-    pop edx
-    pop ebx
-    pop ebp
-    ret
+    MultiPop edx,ebx
+    FunctionLeave
 
 
 ; Get the PCI bus properties of the NIC and fill out the corresponding variables.
@@ -259,10 +235,7 @@ E1000_GET_PCI_PROPERTIES:
     mov eax, dword [edi]    ; EAX = (Bus<<24|Slot/Device<<16|Func<<8|rev)
     xor al, al              ; Set low byte to zero (get BAR0).
 
-    push eax
-    call PCI_BAR_getAddressesAndType_header00
-    add esp, 4
-
+    func(PCI_BAR_getAddressesAndType_header00,eax)  ;verbose
     or eax, eax     ; Is EAX 0?
     je .unsupportedMode
 
@@ -288,20 +261,13 @@ szFoundEEPROM db "E1000 EEPROM found. Initializing driver...", 0
 E1000_DETECT_EEPROM:
     pushad
 
-    push dword 0x00000001
-    push dword E1000_REG_EEPROM
-    call E1000_WRITE_COMMAND    ; write 0x1 to the EEPROM port.
-    add esp, 8
-
+    func(E1000_WRITE_COMMAND,E1000_REG_EEPROM,0x00000001)   ; write 0x1 to the EEPROM register
     mov ecx, 0x00000400     ; 1024 iterations (to consume some time and allow a response)
  .repSearch:
-    push dword E1000_REG_EEPROM
-    call E1000_READ_COMMAND     ; Read the EEPROM port.
-    add esp, 4
-
-    and eax, 0x00000010
-    cmp eax, 0x00000010
-    je .foundEEPROM
+    func(E1000_READ_COMMAND,E1000_REG_EEPROM) ; Read the EEPROM port.
+    and eax, 0x00000010 ;isolate bit4
+    cmp eax, 0x00000010 ; is it set?
+    je .foundEEPROM ; if so, there's an eeprom
     loop .repSearch
     ;bleed
  .noEEPROM:
@@ -321,18 +287,10 @@ E1000_DETECT_EEPROM:
 ;   EAX = WORD response.
 ; Read from the EEPROM or EEPROM_REGISTER
 E1000_READ_EEPROM:
-    push ebp
-    mov ebp, esp
-    push ebx
-    push ecx
-    push edx
+    FunctionSetup
+    MultiPush ebx,ecx,edx
 
-    ; zero registers
-    xor eax, eax
-    xor ebx, ebx
-    xor ecx, ecx
-    xor edx, edx
-
+    ZERO eax,ebx,ecx,edx
     mov edx, dword [ebp+8]  ; EDX = arg1
     and edx, 0x0000FFFF     ; Force DX only.
 
@@ -343,16 +301,12 @@ E1000_READ_EEPROM:
  .eeprom_exists:
     shl edx, 8
     or edx, 0x00000001
-    push edx
-    push E1000_REG_EEPROM
-    call E1000_WRITE_COMMAND    ; write [(1)|(EDX<<8)] to the EEPROM register
-    add esp, 8
+    ; write [(1)|(EDX<<8)] to the EEPROM register
+    func(E1000_WRITE_COMMAND,E1000_REG_EEPROM,edx)
     ; while(!((EAX = readCommand(REG_EEPROM)) & (1<<4)))
    .eeprom_exists_wait_read:
     xor ebx, ebx
-    push E1000_REG_EEPROM
-    call E1000_READ_COMMAND     ; read the EEPROM into EAX
-    add esp, 4
+    func(E1000_READ_COMMAND,E1000_REG_EEPROM)
     mov ebx, eax    ; copy read into EBX to use for local operations
     and ebx, 0x00000010
     or ebx, ebx
@@ -362,16 +316,12 @@ E1000_READ_EEPROM:
  .no_eeprom:
     shl edx, 2
     or edx, 0x00000001
-    push edx
-    push E1000_REG_EEPROM
-    call E1000_WRITE_COMMAND    ; write [(1)|(EDX<<2)] to the EEPROM register
-    add esp, 8
+    ; write [(1)|(EDX<<2)] to the EEPROM register
+    func(E1000_WRITE_COMMAND,E1000_REG_EEPROM,edx)
     ; while(!((EAX = readCommand(REG_EEPROM)) & (1<<1)))
    .no_eeprom_wait_read:
     xor ebx, ebx
-    push E1000_REG_EEPROM
-    call E1000_READ_COMMAND     ; read the EEPROM into EAX
-    add esp, 4
+    func(E1000_READ_COMMAND,E1000_REG_EEPROM) ; read the EEPROM into EAX
     mov ebx, eax    ; copy read into EBX to use for local operations
     and ebx, 0x00000001
     or ebx, ebx
@@ -381,43 +331,28 @@ E1000_READ_EEPROM:
  .leaveCall:
     shr eax, 16
     and eax, 0x0000FFFF
-
-    pop edx
-    pop ecx
-    pop ebx
-    pop ebp
-    ret
+    MultiPop edx,ecx,ebx
+    FunctionLeave
 
 
 ; INPUTS: NONE
 ; OUTPUTS: NONE
 ; Gets the MAC address of the ethernet device and places it into the E1000_MAC_ADDRESS field.
 E1000_GET_MAC_ADDRESS:
-    push edi
-    push ebx
-    push ecx
+    MultiPush edi,ebx,ecx
     mov edi, E1000_MAC_ADDRESS
 
     mov bl, byte [E1000_EEPROM_EXISTS]
     cmp bl, TRUE
     jne .no_eeprom
     ;bleed if EEPROM exists
- .eeprom_exists:
-    push 0x0
-    call E1000_READ_EEPROM
-    add esp, 4
+ .eeprom_exists:    ; the eeprom exists, use it to get the MAC
+    func(E1000_READ_EEPROM,0x00000000)
     call .subRoutine
-
-    push 0x1
-    call E1000_READ_EEPROM
-    add esp, 4
+    func(E1000_READ_EEPROM,0x00000001)
     call .subRoutine
-
-    push 0x2
-    call E1000_READ_EEPROM
-    add esp, 4
+    func(E1000_READ_EEPROM,0x00000002)
     call .subRoutine
-
     jmp .leaveCall
  .subRoutine:
     stosb
@@ -426,11 +361,9 @@ E1000_GET_MAC_ADDRESS:
     ret
 
  .no_eeprom:
-    xor ebx, ebx
-    xor ecx, ecx
+    ZERO ebx,ecx
     mov ebx, dword [E1000_MMIO_BASE_ADDR]
     add ebx, 0x5400 ; add 5400h to the MMIO base to find the start of the MAC address.
-
     cmp strict byte [ebx], 0    ; value @ EBX = 0?
     je .noMAC
 
@@ -449,9 +382,7 @@ E1000_GET_MAC_ADDRESS:
     rep stosb
     ;bleed
  .leaveCall:
-    pop ecx
-    pop ebx
-    pop edi
+    MultiPop ecx,ebx,edi
     ret
 
 
@@ -621,8 +552,7 @@ E1000_TX_ENABLE:    ;.status = tx_desc + 12
     pushad
 
     ; Clear first, then set up the TX descriptor table.
-    xor eax, eax
-    xor ecx, ecx
+    ZERO eax,ecx
     mov edi, dword [ETHERNET_TX_DESC_BUFFER_BASE]
     mov ecx, (E1000_NUM_TX_DESC * E1000_TX_DESC_SIZE)
     push edi    ; save
@@ -706,8 +636,7 @@ E1000_SET_LINK_UP:
 ;   ARG2 = Length of packet.
 ; Device-specific packet sending function.
 E1000_SEND_PACKET:
-    push ebp
-    mov ebp, esp
+    FunctionSetup
     pushad
 
     movzx eax, byte [E1000_TX_CURSOR]   ; get current offset into the desc table
@@ -749,7 +678,7 @@ E1000_SEND_PACKET:
     ; Write out the TX_CURSOR position as the new TAIL.
     movzx eax, byte [E1000_TX_CURSOR]   ; put new cursor back into EAX
     func(E1000_WRITE_COMMAND,E1000_REG_TXDESCTAIL,eax)
-    
+
     ;while( !(tx_descs[old_cur]->status & 0xff));
     ; EDI is still pointing to the TX_DESC_TABLE[old_cursor] base.
  .loopTX:
@@ -761,5 +690,4 @@ E1000_SEND_PACKET:
     ;PrintString szETHERNET_DEVICE_FAILURE,0x02 ;TEST CODE - testing reachability...
  .leaveCall:
     popad
-    pop ebp
-    ret
+    FunctionLeave

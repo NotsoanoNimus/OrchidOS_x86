@@ -11,7 +11,7 @@ The bugs listed in this category will be formally registered as Github "Issues",
 
 ---
 
-#IDT (Interrupt Descriptor Table)
+# IDT (Interrupt Descriptor Table)
 - The IDT needs a rework for dynamic INT lines that PCI devices may have. This might be able to happen with both a `DYNAMIC_ISR` macro as well as a table of ISR functions, with a global indexing label from which call addresses can be calculated/stored. For example:
     ```
     ;;;;;;;;;;;;;;;;;;;;;;;
@@ -32,7 +32,7 @@ The bugs listed in this category will be formally registered as Github "Issues",
     mov byte [device_driver_irq], al
     mov edi, IDT_DYNAMIC_ISR
     mov cl, 4
-    mul al
+    mul cl
     add edi, eax
     mov eax, dword [device_specific_isr_function_ptr]
     mov dword [edi], eax

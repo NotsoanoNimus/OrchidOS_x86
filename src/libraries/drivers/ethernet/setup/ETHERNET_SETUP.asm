@@ -91,7 +91,7 @@ ETHERNET_REGISTER_IRQ:
     push dword ecx  ; PCI device address
     call PCI_configReadWord ; EAX = WORD at 0x3C PCI for Ethernet device (INT_PIN<<8|INT_LINE)
     pop dword ecx   ; restore arg in case trashed.
-
+    
     ; Enable the pre-written IRQ value, since pushing a static Ethernet IRQ is currently not functioning...
     push dword eax
     and eax, 0x000000FF
@@ -99,13 +99,9 @@ ETHERNET_REGISTER_IRQ:
     pop dword eax
 
     mov al, ETHERNET_IRQ_OFFSET    ; IRQ 10 (IRQ0+10)
-
-    push dword eax  ; AX = value to write.
-    push dword ecx  ; ECX = PCI dev addr
-    call PCI_WRITE_WORD_TO_PORT
-    add esp, 8
-
     func(PIC_ENABLE_IRQ,ETHERNET_IRQ_OFFSET)
+
+    func(PCI_WRITE_WORD_TO_PORT,ecx,eax) ;AX = value, ECX = PCI device addr
     pop ecx
  .leaveCall:
     ret

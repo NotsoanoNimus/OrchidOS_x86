@@ -63,11 +63,8 @@ VT6103_GET_PCI_PROPERTIES:  ; EDI = (Device|Vendor), so sub 4 to get PCI address
 ;   ARG1 = Chopped WORD = Port Address
 ;   ARG2 = Value to write (DWORD)
 VT6103_WRITE_COMMAND:
-    push ebp
-    mov ebp, esp
-    push ebx
-    push eax
-    push edx
+    FunctionSetup
+    MultiPush ebx,eax,edx
 
     mov ebx, dword [ebp+8]  ; EBX = MMIO Offset
     and ebx, 0x0000FFFF     ; chop the DWORD to a WORD
@@ -98,21 +95,16 @@ VT6103_WRITE_COMMAND:
     add esp, 8
     ;bleed
  .leaveCall:
-    pop edx
-    pop eax
-    pop ebx
-    pop ebp
-    ret
+    MultiPop edx,eax,ebx
+    FunctionLeave
 
 
 ; Read from the device.
 ;   ARG1 = Port Address.
 ;   EAX = Retrieved data.
 VT6103_READ_COMMAND:
-    push ebp
-    mov ebp, esp
-    push ebx
-    push edx
+    FunctionSetup
+    MultiPush ebx,edx
     xor eax, eax    ; ready the return register.
 
     mov ebx, dword [ebp+8]  ;arg1 - port address/offset
@@ -131,20 +123,18 @@ VT6103_READ_COMMAND:
  .IOCOMM:
     movzx edx, strict word [VT6103_BAR_IO]
 
-    push ebx                ; push address
-    push edx                ; port
-    call PORT_OUT_WORD     ; write
-    add esp, 8
-
+    ;push ebx                ; push address
+    ;push edx                ; port
+    ;call PORT_OUT_WORD     ; write
+    ;add esp, 8
+    
     push edx                ; port
     call PORT_IN_WORD      ; read. EAX = value
     add esp, 4
     ;bleed
  .leaveCall:
-    pop edx
-    pop ebx
-    pop ebp
-    ret
+    MultiPop edx,ebx
+    FunctionLeave
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
