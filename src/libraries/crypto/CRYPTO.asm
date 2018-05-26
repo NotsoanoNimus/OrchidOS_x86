@@ -1,6 +1,7 @@
 ; CRYPTO.asm
 ; -- Header file containing all global functionsm definitions, & references for the crypto library.
 
+CRYPTO_RESULT_BUFFER:   ; the result buffer is at the base and is 1024 bytes long. This will be expanded as the crypto library grows.
 CRYPTO_BUFFER_BASE_POINTER  dd 0x00000000
 CRYPTO_BUFFER_SIZE         equ 0x00001000   ; 4 KiB of operable RAM
 CRYPTO_PROCESS_ID           db 0x00
