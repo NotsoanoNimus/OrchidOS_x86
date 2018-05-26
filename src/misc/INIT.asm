@@ -252,7 +252,7 @@ INIT_START_SYSTEM_DRIVERS:
 
 
 INIT_START_SYSTEM_PROCESSES:
-	call CRYPTO_REGISTER_PROCESS	; Start the 'crypto' process.
+	call CRYPTO_PLATFORM_INITIALIZE	; Start the 'crypto' process.
 
 
 	call BLOOM_PLATFORM_INITIALIZE	; Lastly, ready Orchid's blooming process.

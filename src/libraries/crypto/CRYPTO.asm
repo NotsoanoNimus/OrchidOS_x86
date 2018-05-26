@@ -1,5 +1,7 @@
 ; CRYPTO.asm
-; -- Header file containing all global functionsm definitions, & references for the crypto library.
+; -- Header file containing all global functions, definitions, & references for the crypto library.
+
+%include "libraries/crypto/md5/MD5.asm"     ; MD5 library.
 
 CRYPTO_RESULT_BUFFER:   ; the result buffer is at the base and is 1024 bytes long. This will be expanded as the crypto library grows.
 CRYPTO_BUFFER_BASE_POINTER  dd 0x00000000
@@ -7,7 +9,13 @@ CRYPTO_BUFFER_SIZE         equ 0x00001000   ; 4 KiB of operable RAM
 CRYPTO_PROCESS_ID           db 0x00
 CRYPTO_PROCESS_FAILURE      db FALSE
 
-;MD5 reserved memory space.
+; Wrapper function to handle all Crypto Platform initialization.
+CRYPTO_PLATFORM_INITIALIZE:
+    pushad
+    call CRYPTO_REGISTER_PROCESS    ; Register the Crypto process.
+ .leaveCall:
+    popad
+    ret
 
 szCRYPTO_PROCESS_DESC_STRING db "Crypto Platform", 0
 CRYPTO_REGISTER_PROCESS:
