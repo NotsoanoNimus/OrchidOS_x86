@@ -20,6 +20,12 @@
 %define func(a,z,y) Function a,y,z
 %define func(a,z,y,x) Function a,x,y,z
 
+; Define some easy-to-remember accessors for DWORD-pushed arguments!
+%define ARG1 dword [ebp+8]
+%define ARG2 dword [ebp+12]
+%define ARG3 dword [ebp+16]
+%define ARG4 dword [ebp+20]
+
 ; The Function macro's arg count is always %0-1, which is what is used for situations
 ; -- that involve the arguments only, such as the push instruction or resetting the Stack Pointer.
 %macro Function 2-*

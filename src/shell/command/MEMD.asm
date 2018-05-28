@@ -172,7 +172,7 @@ MEMD_generateOutput:
 	;jb .ASCIIUnknown
 	jmp .ASCIIInsert
 	.ASCIIUnknown:
-	mov byte [edi], '.'
+	mov byte [edi], '*'
 	jmp .continue
 	.ASCIIInsert:
 	mov byte [edi], al

@@ -28,6 +28,7 @@ nop
 
 szTESTINGME db "Print me!", 0	; test string for GUI_MODE.
 [BITS 32]
+TEST_STRING_PTR db "yeet", 0
 kernel_main:
 	cld
 	clc
@@ -84,9 +85,9 @@ kernel_main:
 
 	;func(E1000_WRITE_COMMAND,0x2C00,0x00000008)
 
-	mov ebx, VIA_DEVICE_PCI_WORD
-	func(VT6103_READ_COMMAND,0x0001)
-	func(COMMAND_DUMP)
+	;mov ebx, VIA_DEVICE_PCI_WORD
+	;func(VT6103_READ_COMMAND,0x0001)
+	;func(COMMAND_DUMP)
 
 	;01180110 = TX Data buffer, where the above ARP req will be copied for transmission.
 	; try ARP request
@@ -94,6 +95,11 @@ kernel_main:
 	;SLEEP 10
 	;func(ETHERNET_SEND_PACKET,0x10000000,0x0000002A)
 
+
+
+	mov esi, TEST_STRING_PTR
+	func(strlen,esi)	; EAX = strlen
+	func(MD5_COMPUTE_HASH,esi,eax)	; Hash it.
 
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

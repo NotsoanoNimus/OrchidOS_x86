@@ -13,6 +13,7 @@ CRYPTO_PROCESS_FAILURE      db FALSE
 CRYPTO_PLATFORM_INITIALIZE:
     pushad
     call CRYPTO_REGISTER_PROCESS    ; Register the Crypto process.
+    call CRYPTO_MD5_INIT            ; Setup memory pointers for the MD5 algorithm.
  .leaveCall:
     popad
     ret
