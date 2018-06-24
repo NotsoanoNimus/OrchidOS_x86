@@ -8,7 +8,7 @@ VFS_BUFFER_END      equ 0x01100000  ; VFS buffer ends at Heap start.
 VFS_TABLE_BASE          equ 0x00002000  ; VFS info table starts at 0x2000
 VFS_TABLE_END           equ 0x00004000  ; VFS table ends at 0x4000
 VFS_TABLE_SIZE          equ 0x00002000  ; VFS table has a max length of 0xFF entries (due to ID)
-VFS_TABLE_ENTRY_LENGTH  equ 0x20    ; 32 bytes per entry
+VFS_TABLE_ENTRY_LENGTH  equ 0x00000020  ; 32 bytes per entry
 VFS_TABLE_CURRENT_ID    db 0x00     ; Current file ID. Stops at 0xFF.
 
 ; Structure of a VFS TABLE ENTRY.

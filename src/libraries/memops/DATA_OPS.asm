@@ -5,8 +5,7 @@
 ;   ARG1 = Starting physical location of the WORD(s) to change Endianness.
 ;   ARG2 = Number of iterations (WORD).
 DATA_WORD_switch_endian:
-    push ebp
-    mov ebp, esp
+    FunctionSetup
     pushad
 
     mov edi, dword [ebp + 8]    ;arg1 - address
@@ -27,14 +26,12 @@ DATA_WORD_switch_endian:
     ;bleed
  .leaveCall:
     popad
-    pop ebp
-    ret
+    FunctionLeave
 
 
 ; Same arguments as above function, but for DWORD-sized endianness changes.
 DATA_DWORD_switch_endian:
-    push ebp
-    mov ebp, esp
+    FunctionSetup
     pushad
 
     mov edi, dword [ebp + 8]    ;arg1 - address
@@ -45,8 +42,7 @@ DATA_DWORD_switch_endian:
     jz .leaveCall
 
  .repeat:
-    xor eax, eax
-    xor ebx, ebx
+    ZERO eax,ebx
     mov eax, strict dword [edi] ; Extract the DWORD contents at EDI
 
     mov ebx, eax        ; Copy EAX into EBX
@@ -64,5 +60,4 @@ DATA_DWORD_switch_endian:
 
  .leaveCall:
     popad
-    pop ebp
-    ret
+    FunctionLeave

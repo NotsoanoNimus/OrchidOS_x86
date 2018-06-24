@@ -17,11 +17,10 @@ COMMAND_HELP:
 	PrintString szHelp9
 	PrintString szHelp10
 	PrintString szHelp11
-
 	;call _screenPause		; keep for screen pauses once the help list exceed a certain length.
-
 	popad
 	ret
+
 
 szHelp1			db "List of Orchid console commands:", 0
 szHelp2			db "      CLS - Clear the console screen.", 0

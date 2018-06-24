@@ -3,7 +3,7 @@
 
 
 ; Misc information.
-%define ORCHID_VERSION "0.4.3"
+%define ORCHID_VERSION "0.4.4"
 
 KERNEL_OFFSET			equ 0x10000
 KERNEL_SIZE_SECTORS		equ 0x0080			; Change this in every other file based on the growth of the kernel.
@@ -58,6 +58,12 @@ REAL_MODE_CODE_SELECTOR	equ 48
 ; Memory map information from BOOT.
 MMAP_SIZE				db 0			; How many entries are there in the system memory map created by the Bootloader?
 MEM_INFO				equ 0x500		; Storage starting location for memory map.
+; MEM_INFO = 0x500, signature 0x1234xxxx, 24-byte entries.
+;	ENTRY FORMAT (bytes):
+;	 * 0-7:   Starting address.
+;	 * 8-15:  Offset.
+;	 * 16-19: Type of memory (01 = free, 02+ = reserved)
+;	 * 20-23: Always 0x00000001.
 
 ; Some heap info.
 HEAP_INFO				equ 0x6FFF0		; 16 bytes of heap info. Of main interest to the kernel is the PID count field. See MEMOPS for format.

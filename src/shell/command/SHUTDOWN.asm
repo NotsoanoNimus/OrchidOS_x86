@@ -30,6 +30,8 @@ COMMAND_SHUTDOWN:
  .shutdownTheSystem:
     PrintString szSHUTDOWNFinal,0x0B
 
+    call COMMAND_SHUTDOWN_ZERO_MEMORY
+
     ; test whether it's a hardware shutdown, or an emulator shutdown.
     cmp byte [IS_ON_EMULATOR], TRUE
     je .emulatorShutdown
@@ -39,9 +41,8 @@ COMMAND_SHUTDOWN:
     call ACPI_enable
   .alreadyEnabled:
     SLEEP 7         ; 7x200ms = ~1.5s
+    ZERO eax,edx
     ; SHUT IT DOWN.
-    xor eax, eax
-    xor edx, edx
     mov dword edx, [ACPI_PM1a_CNT]  ; EDX = power mgmt control register 1a
     mov ax, [ACPI_S5_SLP_TYPa]
     or ax, ACPI_SLP_EN      ; AX = SLP_EN | SLP_TYPa
@@ -57,9 +58,7 @@ COMMAND_SHUTDOWN:
 
  .emulatorShutdown:
     SLEEP 7
-
-    xor eax, eax
-    xor edx, edx
+    ZERO eax,edx
 
     ; Older QEMU and Bochs support shutting down by outputting the string "Shutdown" byte-by-byte to port 0x8900.
     mov dx, 0x8900
@@ -83,3 +82,48 @@ COMMAND_SHUTDOWN:
     .haltEm:
         hlt
         jmp .haltEm
+
+
+
+; INPUTS:
+;   NONE
+; OUTPUTS:
+;   NONE
+; Clears all non-kernel & non-vital memory zones on the system.
+; -- This function is only ever used before a shutdown or reboot.
+; This is NOT graceful, as it forces destruction of running process handles & heap space.
+; -- Therefore a shutdown is REQUIRED when this command is called, no matter what.
+COMMAND_SHUTDOWN_ZERO_MEMORY:
+    MultiPush eax,ecx,edi
+    ZERO eax
+
+    ; clear the VFS
+    mov edi, VFS_BUFFER_BASE
+    mov ecx, (VFS_BUFFER_SIZE/4)
+    rep stosd
+
+    ; clear the Heap
+    mov edi, HEAP_START
+    mov ecx, dword [HEAP_CURRENT_SIZE]
+    rep stosb
+
+    ; Zero from 0xF00 to 0x7C00
+    mov edi, 0x500
+    mov ecx, ((0x7C00-0xF00)/4)
+    rep stosd
+
+    ; Zero from 0x7E00 to 0x10000
+    mov edi, 0x7E00
+    mov ecx, ((0x10000-0x7E00)/4)
+    rep stosd
+
+    ; Clean up Kernel variables that may give valuable info.
+    mov edi, VFS_TABLE_ENTRY    ; this single table actually exists in kernel mem and is memcpy'd when creating new files
+    mov ecx, VFS_TABLE_ENTRY_LENGTH
+    rep stosb
+
+    jmp .leaveCall
+
+ .leaveCall:
+    MultiPop edi,ecx,eax
+    ret

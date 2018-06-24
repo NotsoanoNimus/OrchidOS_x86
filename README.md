@@ -53,6 +53,8 @@ Scared that some rogue hacker will pop onto your system with Orchid on a USB sti
 ---
 
 ## How do I run it?
+**THE BELOW GUIDE IS LARGELY A WINDOWS GUIDE ONLY.**
+
 #### Build Dependencies
 - [QEMU Emulator](https://qemu.weilnetz.de/).
 - [NASM v2.14+](http://www.nasm.us/pub/nasm/releasebuilds/2.14rc0/).
@@ -69,7 +71,8 @@ For those who would like to help test and debug the OS on **real hardware**, hea
 
 ---
 
-## TO-DO
+## General TO-DOs
+To see more detailed TO-DOs for each section of the OS, take a look at the `TODO.md` file in the root directory of this repo.
 - Finally add a command history ledger and a screen history buffer to browse through with PAGE-UP/PAGE-DOWN.
 - Split cousin commands into separate files for ease of access and modification. See `/src/libraries/memops/OPS.asm` as an example: it contains both STRING-based functions and important memory functions.
 - Build up the network stack to include simple adapters and protocols for mainly-private usage (meaning HTTP/S is **NOT** intended as an included protocol at this time).
@@ -83,17 +86,18 @@ For those who would like to help test and debug the OS on **real hardware**, hea
 
 ## Capabilities
 - Read PCI devices and initialize them.
-- Parse commands and arguments in _SHELL_MODE_ (see /docs/SHELL_MODE.md for more).
+- Parse commands and arguments in _SHELL_MODE_ (see /docs/SHELL_MODE.md for more), mainly for debugging.
 - VGA basic display driver (graphical, non-text modes), for drawing primitive shapes. Supports both 24bpp and 32bpp dynamically.
-- Heap initialization and memory management in a flat environment. Supports a max of 4GB RAM.
+- Heap initialization and memory management in a flat environment. Supports a max of 4GB RAM. Minimum is yet to be determined.
 
 ---
 
 ## Future Plans (distant, in no particular order)
+The changelog file in the root directory of the repo is actually the best place to look for more specific tentative changes to the OS, but this list is here mostly for brevity:
 - Security implementations for certificates (SSL/SFTP/RSA/etc).
 - Abstracted file system in RAM, using a handling system to reference chunks of data (similar to directories and filenames, of course).
 - Basic system calls and I/O piping. This is still on the table.
-- ~~Multitasking using PIT IRQ0. Implement TSS ops and inter-process COMM channels as well.~~ Probably won't happen, since the OS is such a low-overhead endeavor that there is no noticeable difference between a 500MHz processor and a 3.8GHz one. :)
+- Multitasking using PIT IRQ0. Implement TSS ops and inter-process COMM channels as well. ~~Probably won't happen, since the OS is such a low-overhead endeavor that there is no noticeable difference between a 500MHz processor and a 3.8GHz one. :)~~ This is actually feasible in GUI_MODE. See `CHANGELOG.md` for more info.
 - ~~Interactive, layered GUI with a Windows-style Desktop Window Manager (which will manage layers).~~ What was I thinking? _SHELL_MODE is love, SHELL_MODE is life_. I may include a basic GUI, though.
 - ~~Implement system processes in separate ELF binaries, such as the DWM, GUI control, driver control.~~ Ahahahahahaha, _"ELF"_. At most, I will be placing system 'processes' in different places of the Heap with a handle to reference their activities...
 - ~~Eventually shrink the orchidOS kernel to just a simple memory manager and syscall handler.~~ The kernel **IS** the system, now and forever!
@@ -104,4 +108,3 @@ For those who would like to help test and debug the OS on **real hardware**, hea
 - VIA Esther C7 800MHz processor
 - Generic Intel Celeron/Pentium
 - QEMU/Bochs Emulator
-- AMD Ryzen 5 2400G (in legacy mode, obviously)

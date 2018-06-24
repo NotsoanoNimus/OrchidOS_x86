@@ -61,14 +61,14 @@ SYSTEM_tellErrors:
 
 
 
-
+ALIGN 4
 iMemoryFree			dd 0x00000000
 iMemoryReserved		dd 0x00000000
 iMemoryTotal		dd 0x00000000
 SYSTEM_getMEMInfo:
 	mov edi, MEM_INFO
-	xor ecx, ecx
-	xor ebx, ebx
+	ZERO ecx,ebx
+	clc
 	; Read over the MEM_INFO area and get the count of tables.
  .getArraySize:
 	mov ebx, [edi]	; Check the DWORD at the base of each 24-byte entry for the signature starting with 0x1234.
@@ -92,19 +92,27 @@ SYSTEM_getMEMInfo:
 	mul cx						; times current iteration
 	add eax, MEM_INFO			; ... plus MEM_INFO base address.
 	mov edi, eax
-	mov eax, [edi+8]			; get dword indicating range of section.
+	mov eax, dword [edi+8]		; get dword indicating range of section.
+
+	cmp dword [edi+12], 0x00000000
+	je .noOverflow
+	mov eax, 0xFFFFFFFF
+ .noOverflow:
 
 	cmp byte [edi+0x10], 0x02	; Check MEM type
 	jae .reservedMem			; Flagged as reserved, treat ACPI as reserved for now.
 	; Otherwise, memory is marked as free.
 
+	cmp dword [iMemoryFree], 0xFFFFFFFF
+	je .checkEnd	; if the overflow was set, skip adding the extra memory...
 	add dword [iMemoryFree], eax
-	jo .freeMemoryOverflow
+	jc .freeMemoryOverflow
 	jmp .checkEnd
 
  .reservedMem:
+ 	mov eax, dword [edi+8]	; restore the actual value.
 	add dword [iMemoryReserved], eax
-	jo .reservedMemoryOverflow
+	jc .reservedMemoryOverflow	; reserved mem should never really overflow beyond 4G...
 	; bleed
  .checkEnd:
 	inc cx
@@ -114,7 +122,8 @@ SYSTEM_getMEMInfo:
 
  .freeMemoryOverflow:
 	mov dword [iMemoryFree], 0xFFFFFFFF	;set to max value if overflow.
-	jmp .reservedMem
+	;jmp .reservedMem	; why go to reserved mem???
+	jmp .checkEnd
  .reservedMemoryOverflow:
 	mov dword [iMemoryReserved], 0xFFFFFFFF
 	jmp .checkEnd
@@ -125,11 +134,11 @@ SYSTEM_getMEMInfo:
 	jmp .leaveCall
 
  .mappingFinished:
-	mov eax, [iMemoryFree]
+	mov eax, dword [iMemoryFree]
 	mov dword [iMemoryTotal], eax
-	mov eax, [iMemoryReserved]
+	mov eax, dword [iMemoryReserved]
 	add dword [iMemoryTotal], eax
-	jno .leaveCall
+	jnc .leaveCall
 	mov dword [iMemoryTotal], 0xFFFFFFFF
 
  .leaveCall:
@@ -182,8 +191,7 @@ SYSTEM_getCPUInfo:
 INIT_getSystemInfo:
 	pushad
 
-	push eax
-	push ebx
+	MultiPush eax,ebx
 	; May not be needed. Consider deleting.
 	mov DWORD eax, [SCREEN_FRAMEBUFFER_ADDR]
 	mov DWORD [SCREEN_FRAMEBUFFER], eax
@@ -191,8 +199,7 @@ INIT_getSystemInfo:
 	mov WORD [SCREEN_LFB_SIZE_KB], ax
 
 	; Get the screen's pixel count.
-	xor eax, eax
-	xor ebx, ebx
+	ZERO eax,ebx
 	mov WORD ax, [SCREEN_HEIGHT]
 	mov WORD bx, [SCREEN_WIDTH]
 	mul ebx
@@ -203,8 +210,7 @@ INIT_getSystemInfo:
 	mov byte al, [SCREEN_BPP]
 	shr al, 3		;divide by 2^3 (8)
 	mov byte [BYTES_PER_PIXEL], al
-	pop ebx
-	pop eax
+	MultiPop ebx,eax
 
 	; Clear space for the graphics off-screen buffer, based on screen size (BBSize = BytesPP * PixelCt).
 
@@ -221,10 +227,7 @@ INIT_getSystemInfo:
 ; Register the kernel/sys process. This area of the heap holds volatile/random data for system use. Somewhat small.
 szSYSTEM_KERNEL_PROCESS_DESC db "System Kernel", 0
 INIT_REGISTER_SYSTEM_KERNEL:
-	push dword szSYSTEM_KERNEL_PROCESS_DESC
-	push dword KERNEL_PROCESS_VOLATILE_DATA_SIZE
-	call MEMOPS_KMALLOC_REGISTER_PROCESS
-	add esp, 8
+	func(MEMOPS_KMALLOC_REGISTER_PROCESS,KERNEL_PROCESS_VOLATILE_DATA_SIZE,szSYSTEM_KERNEL_PROCESS_DESC)
 	or eax, eax	; error?
 	jnz .leaveCall
 	; bleed into error condition if 0

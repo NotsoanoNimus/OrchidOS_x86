@@ -32,7 +32,6 @@ ISR_timerHandler:	;called every 28.57143 ms (every 7 calls is 200ms)
 	inc eax
 	mov dword [SYSTEM_TICKS], eax
 
-
 	cmp eax, 35
 	jl .noUpdate
 	call TIMER_updateSystemTime
@@ -470,7 +469,8 @@ UTILITY_WORD_convertDECtoASCII:
 	ret
 
 
-_convertHexToDec:
+; preeeeetttty sure this should be named DEC to ASCII.......
+UTILITY_BYTE_convertHexToDec:
 	pushad
 	mov ebx, 10
 	xor edx, edx
@@ -478,15 +478,16 @@ _convertHexToDec:
 	jz .end
  .convert:
 	xor edx, edx
-	div ebx
-	add dl, '0'
+	div ebx		; EDX:EAX div by 10; EDX=rem, EAX=quotient
+	add dl, '0'	; rem + 0x30 (convert to ASCII representation of the #)
 	cmp dl, '9'
-	jbe .store
-	add dl, 'A'-'0'-10
+	jbe .store	; if rem <= 0x39, jump to storage
+	add dl, 'A'-'0'-10	; =(0x41-0x30-0x0A)=(0x07) --> else, rem + 0x07
+	; `--> not sure why the above is there... a div by 10 will never give a rem over 10?!?!
  .store:
 	dec esi
 	mov byte [esi], dl
-	and eax, eax
+	and eax, eax	;this trashes EAX anyway but w/e, this function desperately needs a rework...
 	jnz .convert
  .end:
 	popad
@@ -513,10 +514,7 @@ UTILITY_BYTE_convertBCDtoASCII_lessThan100: ; INPUTS --> AL = BCD byte, ESI = EN
 
 UTILITY_BYTE_convertHEXtoASCII_lessThan100:	; INPUTS --> AL = byte to convert. ESI = END OF BUFFER (WORD)
 	;OUTPUTS --> AX = ASCII byte outputs.
-	push ecx
-	push ebx
-	push edx
-
+	MultiPush ecx,ebx,edx
 	xor ah, ah
 	cmp al, 100
 	jge .leaveCall
@@ -552,17 +550,13 @@ UTILITY_BYTE_convertHEXtoASCII_lessThan100:	; INPUTS --> AL = byte to convert. E
 	mov byte [esi-1], ah
 	; bleed into leaveCall
  .leaveCall:
-	pop edx
-	pop ebx
-	pop ecx
+ 	MultiPop edx,ebx,ecx
 	ret
 
 
 UTILITY_BYTE_convertBCDtoASCII: ; INPUTS = AX as BCD of byte (max 256d) // OUTPUTS = EAX as string output.
-	push ecx
-	push edx
-	xor ecx, ecx
-	xor edx, edx
+	MultiPush ecx,edx
+	ZERO ecx,edx
 
 	mov dl, al
 	mov dh, al
@@ -592,6 +586,5 @@ UTILITY_BYTE_convertBCDtoASCII: ; INPUTS = AX as BCD of byte (max 256d) // OUTPU
 	mov al, dl
 	shl eax, 8
 
-	pop edx
-	pop ecx
+	MultiPop edx,ecx
 	ret

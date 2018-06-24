@@ -19,6 +19,8 @@
 %define func(a,z) Function a,z
 %define func(a,z,y) Function a,y,z
 %define func(a,z,y,x) Function a,x,y,z
+%define func(a,z,y,x,w) Function a,w,x,y,z
+%define func(a,z,y,x,w,v) Function a,v,w,x,y,z
 
 ; Define some easy-to-remember accessors for DWORD-pushed arguments!
 %define ARG1 dword [ebp+8]
@@ -75,6 +77,59 @@
 		xor %1, %1
 		%rotate 1
 	%endrep
+%endmacro
+
+
+
+; IF STATEMENT MACROS FOR LEGIBILITY
+; s = Signed // u = Unsigned
+;IFs ARG1,LSS|LEQ|EQL|NEQ|GEQ|GTR,ARG2,{instruction1},{instruction2},...
+;IFu ARG1,LSS|LEQ|EQL|NEQ|GEQ|GTR,ARG2,{instruction1},{instruction2},...
+%macro IFs 4-*
+	cmp %1, %3
+	%ifidni %2,LSS
+		jge %%YES
+	%elifidni %2,LEQ
+		jg %%YES
+	%elifidni %2,EQL
+		jne %%YES
+	%elifidni %2,NEQ
+		je %%YES
+	%elifidni %2,GEQ
+		jl %%YES
+	%elifidni %2,GTR
+		jle %%YES
+	%else
+		jmp %%YES
+	%endif
+	%rep (%0-3)
+		%4
+		%rotate 1
+	%endrep
+	%%YES:
+%endmacro
+%macro IFu 4-*
+	cmp %1, %3
+	%ifidni %2,LSS
+		jae %%YES
+	%elifidni %2,LEQ
+		ja %%YES
+	%elifidni %2,EQL
+		jne %%YES
+	%elifidni %2,NEQ
+		je %%YES
+	%elifidni %2,GEQ
+		jb %%YES
+	%elifidni %2,GTR
+		jbe %%YES
+	%else
+		jmp %%YES
+	%endif
+	%rep (%0-3)
+		%4
+		%rotate 1
+	%endrep
+	%%YES:
 %endmacro
 
 
@@ -200,3 +255,9 @@
 	cli
 	pop eax
 %endmacro
+
+
+; VIDEO/GUI MODE MACROS
+%define VIDEO_RGB(x,y,z) (0x00FFFFFF&(x<<16|y<<8|z))
+%define VIDEO_COORDS(x,y) (0xFFFFFFFF&(y<<16|x))
+%define VIDEO_CHAR(x) (0x000000FF&x)

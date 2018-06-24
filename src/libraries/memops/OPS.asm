@@ -1,327 +1,6 @@
 ; MEMOPS.asm
 ; -- Contains memory operations for the kernel, such as kmalloc, kfree, memcpy, etc.
 ; ---- Also contains system process control.
-;
-;
-; MEM_INFO = 0x500, signature 0x1234xxxx, 24-byte entries.
-;	ENTRY FORMAT (bytes):
-;	 * 0-7:   Starting address.
-;	 * 8-15:  Offset.
-;	 * 16-19: Type of memory (01 = free, 02+ = reserved)
-;	 * 20-23: Always 0x00000001.
-
-HEAP_STATUS_BLOCKS_STACK_BOTTOM	equ 0x00070000		;Secondary stack for pointers to available memory blocks.
-HEAP_STATUS_BLOCKS_NEXT			 dd 0x00000000		; Contains saved stack pointer.
-
-HEAP_BLOCK_CLEAN				equ 0x00			; Block is free.
-HEAP_BLOCK_DIRTY				equ 0x01			; Block is being accessed.
-
-; HEAP_INFO information (pointers).
-HEAP_PID_COUNT					equ 0x0006FFFC		;Ptr to dword at 0x6FFF8: counts how many processes running. Will be used to thread/multitask w/ IRQ0.
-HEAP_CURRENT_SIZE				equ 0x0006FFF8		;Ptr to dword at 0x6FFF0: keeps track of the current heap size.
-HEAP_END						equ 0x0006FFF4		; Contains a pointer to the end of the heap. This variable changes as the heap size changes.
-HEAP_MAX_SIZE					equ 0x0006FFF0		;Pointer to heap max size. Scalable within the program.
-
-HEAP_START						equ 0x01100000		; Heap starting point. Static variable.
-HEAP_INIT_SIZE					equ 0x01000000		; 16 MiB.
-;HEAP_MAX_SIZE					equ 0x80000000		; 2GiB Heap Max. UNSURE ABOUT THIS.
-
-HEAP_HEADER_MAGIC				equ 0xBEABEA57		; "MAGIC" (header)
-HEAP_FOOTER_MAGIC				equ 0xDEADBEEF		; "MAGIC" (footer)
-HEAP_HEADER_SIZE				equ 12				; Headers are 9-byte objects. Round them to 12, so it's DWORD-aligned.
-HEAP_FOOTER_SIZE				equ 8				; Footers do not have a hole identifier.
-
-HEAP_TAGGING_SIZE				equ 32				; '32' bytes worth of total Heap accounting bytes in a process' RAM.
-HEAP_HEADER_SIZE_RAM			equ 0x10			; 16 bytes leaves room for Header...
-HEAP_FOOTER_SIZE_RAM			equ 0x10			;  and the Footer to possibly expand in the future.
-
-RUNNING_PROCESS_NEXT_GIVEN_ID	db 0x00				; Verbose name. Lists the next ID to be delegated.
-; Next PID is always 1 initially because SYS is PID 0.
-RUNNING_PROCESS_ENTRY_SIZE		equ 32				; 32 bytes per entry
-RUNNING_PROCESS_ENTRY:
-	.entry:		dd 0x00000000	; entry point in RAM of the process' data
-	.size:		dd 0x00000000	; size of the process' allocation
-	.name:		times 22 db 0x00; ASCII name representation of the process. For informational purposes only.
-	.nameTerm:	db 0x00			; forced null-terminator of the string.
-	.pid:		db 0x00			; process ID, used in all manipulations of the process instead of the name.
-
-; HEAP SIGNATURES:
-;	Header...
-;		Magic		DWORD	'0xBEABEA57' --signature
-;		Size		DWORD	-- Length of the allocated block.
-;		Dirty		BYTE	'0x00'=Not accessed/clean. 0x01 = Dirty.
-;	Footer...
-;		Magic		DWORD	'0xDEADBEEF' --signature
-;		Header Ptr	DWORD	-- Physical address of section header.
-szHeapInitFailed		db "Heap initialization failure. Cause unknown.", 0
-; TODO: ADD A HEAP_SHRINK & HEAP_GROW function to make it DYNAMIC.
-MEMOPS_initHeap:
-	pushad
-
-	; Heap starts at 0x00100000 with an initial space of 0x01000000 (16 MiB).
-	;  The maximum space allowed is determined by the iTotalMemory and BACKBUFFER_START variables.
-	;  Also, the heap cannot trample reserved areas of memory, so on every heap expansion, we can check to see if we're accessing reserved space.
-	;		-- by using the MEMOPS_INTERNAL_checkValidMemory function.
-	; It's divided into a system of headers/footers that are described above.
-	;   Each available block is added to the heap stack sequentially, the most recent (the one that gets popped to use)
-	;	being the next available hole in memory. Every time kfree is called, the heap is checked for holes to merge together.
-	mov edi, HEAP_START
-	push edi
-	xor eax, eax
-	mov ecx,(HEAP_INIT_SIZE/4)		; 0x400000 * DWORD = HEAP_INIT_SIZE (16 MiB)
-	rep stosd
-
-	; Draw up the inital header and footer.
-	pop edi				; return to heap start
-	push edi			; save state
-	mov eax, edi					; save header address
-	mov dword [edi], HEAP_HEADER_MAGIC
-	add edi, 4
-	mov dword [edi], HEAP_INIT_SIZE
-	add edi, 4
-	mov byte [edi], HEAP_BLOCK_CLEAN
-
-	pop edi				; restore state
-	add edi, HEAP_INIT_SIZE			; Step forward to 0x01100000 (16MiB heap)
-	sub edi, HEAP_FOOTER_SIZE		; prepare to write the footer. Should be put EDI at 0x010FFFF8
-
-	mov dword [edi], HEAP_FOOTER_MAGIC
-	add edi, 4
-	mov dword [edi], eax
-	add edi, 4
-
-	mov dword [HEAP_END], edi					; HEAP_END should now contain 0x01100000.
-	mov dword [HEAP_PID_COUNT], 0x00000001		; Only one process running to start, which is SYS_KERNEL.
-	mov dword [HEAP_CURRENT_SIZE], 0x01000000	; 16MiB initialization.
-
-	mov dword edx, [iMemoryFree]				; Get total free memory.
-	push edx
-	and edx, 0x7FFFFFFF		; When bit 31 of EDX is set, it registers as a JS and outputs error. Hotfix for supporting >2G RAM.
-	sub edx, 0x00100000							; Subtract the kernel space.
-	pop edx
-	js .heapInitFailure							; If there's no space for the heap, the system cannot run.
-	mov dword [HEAP_MAX_SIZE], edx				; Max heap size is now based on available memory!!
-
-	popad
-	ret
-
- .heapInitFailure:
- 	PrintString szHeapInitFailed,0x0C
-	cli
- .repHalt:	; Put in a halt loop.
-	hlt
-	jmp .repHalt
-	; Failure to instantiate the Heap should kill the system immediately but for some reason this isn't working...
-	; -- Enters the blue screen but, oddly, has no status code displayed.
-	; TODO: fix this.
-	;cli
-	;push dword 0x00000005
-	;jmp SYSTEM_BSOD
-
-
-
-; INPUTS:
-;	ARG1 = Size of allocation.
-;	ARG2 = String base ptr of process name.
-; OUTPUTS:
-;	EAX = Starting address of allocated space. If 0, failure.
-;	EBX = Process ID (BL).
-; Call kmalloc to allocate heap space, but also register the process.
-; -- !!! RUNNING_PROCESSES_TABLE is located @0x70000.
-; ---- See top of this file (definitions) for the structure of a RUNNING_PROCESS_ENTRY.
-szMEMOPS_PROCESS_REGISTRATION_ERROR db "Unable to register process with name: "
-szMEMOPS_PROCESS_REGISTRATION_ERROR_STRING times 22 db 0x00
-db 0x00 ; null-term.
-MEMOPS_KMALLOC_REGISTER_PROCESS:
-	push ebp
-	mov ebp, esp
-	push edx
-	push esi
-
-	xor edx, edx
-	xor ebx, ebx
-	mov edx, dword [ebp+8]	; EDX = arg1 = kmalloc size
-	mov esi, dword [ebp+12] ; ESI = arg2 = base ptr of name str
-
-	; Check the length of the passed string.
-	push esi
-	call strlen		; EAX = length of string, 0 on error/empty string.
-	add esp, 4
-	or eax, eax
-	jz .error		; EAX = 0 = error!
-	cmp eax, 22		; Is EAX gtr 22?
-	ja .error		; If so, leave with error.
-	mov ebx, eax	; EBX = strlen
-
-	KMALLOC edx		; allocate required space and return the pointer to the allocated block. EAX = ptr
-	jc .error		; On CF, error.
-	or eax, eax		; On EAX = 0, error.
-	jz .error
-
-	push eax		; save process entry point
-	; Create the process entry, enter it into memory.
-	push ebx		; arg4 - strlen of description string
-	push esi		; arg3 - base string ptr to copy
-	push eax		; arg2 - base ptr to new process allocation
-	push edx		; arg1 - sizeof process in RAM
-	call MEMOPS_PROCESS_TABLE_CREATE_ENTRY
-	add esp, 16
-
-	xor ebx, ebx
-	mov bl, al		; save returned PID to EBX
-	pop eax			; return the entry point to EAX
-	jmp .leaveCall
-
-	; issued when there's an error registering the process.
- .error:
- 	xor eax, eax	; EAX = 0 return value = error encountered.
-	push edi
-	push ecx
-	push eax	; save 0
-
-	; clean old process desc string from error buffer.
-	mov edi, szMEMOPS_PROCESS_REGISTRATION_ERROR_STRING
-	mov ecx, 22	; 22 chars to clear
-	rep stosb	; clear the 22 characters
-
-	push dword [ebp+12]	; process desc string base address
-	call strlen			; get its length
-	add esp, 4
-
-	cmp eax, 22		; length > 22 chars?
-	jbe .errorStrNoShorten	; if <= 22 chars, good to go, else bleed to shorten func
-	mov eax, 22		; hard length cap of 22 chars
-   .errorStrNoShorten:
-    ; perform a memcpy operation, from desc string pointer -> process error, w/ length '[strlen]'
-	MEMCPY [ebp+12],szMEMOPS_PROCESS_REGISTRATION_ERROR_STRING,eax
-
-	pop eax	; restore 0
-	pop ecx ; restore
-	pop edi	; restore
-	PrintString szMEMOPS_PROCESS_REGISTRATION_ERROR,0x04
-	;bleed
- .leaveCall:
- 	pop esi
-	pop edx
- 	pop ebp
-	ret
-
-
-
-; INPUTS:
-;	ARG1 = Size of Process in RAM.
-;	ARG2 = Base of new Process in RAM (header of Heap entry).
-;	ARG3 = Base of name string (pre-checked length). Will only copy a max of 22 bytes anyway.
-; 	ARG4 = String length.
-; OUTPUTS:
-;	EAX = Process ID.
-; Create a process table entry and copy it into memory in the appropriate location.
-MEMOPS_PROCESS_TABLE_CREATE_ENTRY:
-	push ebp
-	mov ebp, esp
-	pushad
-
-	xor eax, eax
-	xor ecx, ecx
-	xor edx, edx
-
-	call MEMOPS_CLEAN_RUNNING_PROCESS_ENTRY_BUFFER	; ready the buffer for new information.
-
-	; Prepare the RUNNING_PROCESS_ENTRY fields after they were cleaned.
-	mov edi, RUNNING_PROCESS_ENTRY
-	mov eax, dword [ebp+12]	;arg2 - base
-	stosd
-	mov eax, dword [ebp+8]	;arg1 - sizeof process
-	stosd
-
-	mov esi, dword [ebp+16]	;arg3 - str ptr
-	mov ecx, dword [ebp+20]	;arg4 - strlen
-	push edi	; save edi location
-
-	rep movsb
-
-	pop edi		; return to the front of the string...
-	add edi, 23	; and add the sizeof the whole string field (+null-term)
-
-	mov al, strict byte [RUNNING_PROCESS_NEXT_GIVEN_ID]	; get next PID
-	stosb	; store it
-
-	push eax	; save before increment
-	inc al	; increment it
-	cmp al, SYSTEM_MAX_RUNNING_PROCESSES	; AL (next PID delegation) > 128?
-	ja .maxPIDs
-	mov strict byte [RUNNING_PROCESS_NEXT_GIVEN_ID], al	; put it back in
-
-	; Point EDI to the proper place to prepare the memcpy
-	mov edi, RUNNING_PROCESSES_TABLE			; EDI = base of running process table.
-
-	xor eax, eax
-	xor ecx, ecx
-	pop ecx		; restore saved pre-incremented PID into CL
-	mov al, RUNNING_PROCESS_ENTRY_SIZE			; sizeof entry (32 bytes)
-	;mov cl, byte [RUNNING_PROCESS_NEXT_GIVEN_ID]; x next delegated PID
-	mul cl										; = table offset
-
-	add edi, eax		; add on the offset, EDI now points to where the data goes
-	jmp .enterIntoRAM
-
- .maxPIDs:	; called if the maximum process count is reached.
- 	; find which processes have ended and are available in the RUNNING_PROCESSES_TABLE.
-	; search for gaps. If none are found, notify the system.
-	;call MEMOPS_PROCESS_MAX_PIDS	; EAX should = new PID. If EAX = 0xFF, no more available PIDs.
-	jmp .maxPIDsExit
-
- .enterIntoRAM:
-	MEMCPY RUNNING_PROCESS_ENTRY,edi,RUNNING_PROCESS_ENTRY_SIZE	; copy it into RAM.
- .incrementPID:
- 	popad
-	xor eax, eax
-	mov al, byte [RUNNING_PROCESS_NEXT_GIVEN_ID]
-	dec al	; AL has to equal the running PID that was actually assigned to the process.
-	jmp .leaveCall
-
- .maxPIDsExit:	; EAX already set to PID here.
- 	popad
- .leaveCall:
- 	pop ebp
-	ret
-
-
-
-; INPUTS:
-;	ARG1 = PID (byte)
-; OUTPUTS:
-;	EAX = Ptr to base of 32-byte table entry.
-; Get the location of a process' table entry with the ID of the process.
-MEMOPS_PROCESS_GET_TABLE_ENTRY_BY_PID:
-	push ebp
-	mov ebp, esp
-
-
- .leaveCall:
- 	pop ebp
-	ret
-
-
-
-; A nice, descriptive function name. Clean out the buffer.
-MEMOPS_CLEAN_RUNNING_PROCESS_ENTRY_BUFFER:
-	push edi
-	push ecx
-	push eax
-	xor eax, eax
-	xor ecx, ecx
-	mov edi, RUNNING_PROCESS_ENTRY
-
-	mov cl, (RUNNING_PROCESS_ENTRY_SIZE/4)	; 32 bytes / DWORD operation (4) = 8
-	rep stosd		; Zero it all out.
-
- .leaveCall:
- 	pop eax
- 	pop ecx
- 	pop edi
- 	ret
-
 
 
 ; INPUTS:
@@ -334,13 +13,11 @@ MEMOPS_CLEAN_RUNNING_PROCESS_ENTRY_BUFFER:
 ;		ALLOCATION SPACE NEEDED WILL BE = ARG1+HEADER_SIZE+FOOTER_SIZE, OTHERWISE THIS WILL LEAK HORRIBLY.
 ;	Blocks are allocated on 256-byte boundaries.
 kmalloc:
+	FunctionSetup
+	MultiPush edi,ebx
 	clc
-	push edi
-	push ebx
-	push ebp
-	mov ebp, esp
 
-	mov ebx, dword [ebp + 16]		;arg1
+	mov ebx, dword [ebp+8]		;arg1
 	or ebx, ebx		; arg1 = 0?
 	jz .error		; if so, don't alloc anything, set error state.
 	add ebx, HEAP_HEADER_SIZE_RAM
@@ -456,10 +133,8 @@ kmalloc:
 	xor eax, eax		; EAX returning zero means allocation wasn't possible.
 	stc
  .leaveCall:
-	pop ebp
-	pop ebx
-	pop edi
-	ret
+	MultiPop ebx,edi
+	FunctionLeave
 
 
 ; INPUTS:
@@ -468,16 +143,12 @@ kmalloc:
 ;	CF on error.
 ; -- Frees memory used by an application or data. Also skims the headers of the heap to check for holes to merge.
 kfree:
+	FunctionSetup
+	MultiPush edi,eax,ebx,ecx
 	clc
-	push edi
-	push eax
-	push ebx
-	push ecx
-	push ebp
-	mov ebp, esp
 	;mov ebp, HEAP_STATUS_BLOCKS_NEXT		; Pointer to the next free block.
 
-	mov dword ebx, [ebp + 24]
+	mov dword ebx, [ebp+8]
 	mov edi, ebx
 
 	cmp dword [edi], HEAP_HEADER_MAGIC
@@ -491,19 +162,14 @@ kfree:
 	; Editing the footer isn't necessary.
 	xor eax, eax
 	rep stosb							; Zero the whole section, except for header and footer.
-
 	jmp .leaveCall
 
  .error:
 	stc
  .leaveCall:
-	pop ebp
-	pop ecx
-	pop ebx
-	pop eax
-	pop edi
+	MultiPop ecx,ebx,eax,edi
 	call HEAP_INTERNAL_combineAdjacentMemory
-	ret
+	FunctionLeave
 
 
 
@@ -512,23 +178,15 @@ kfree:
 ;	ARG2 = Destination physical address.
 ;	ARG3 = Size of copy.
 kmemcpy:
-	push ebp
-	mov ebp, esp
-	push esi
-	push edi
-	push ecx
-
+	FunctionSetup
+	MultiPush esi,edi,ecx
 	mov esi, dword [ebp+8]	; arg1 = source addr
 	mov edi, dword [ebp+12]	; arg2 = destination addr
 	mov ecx, dword [ebp+16]	; arg3 = size
 	rep movsb
-
  .leaveCall:
- 	pop ecx
- 	pop edi
-	pop esi
- 	pop ebp
-	ret
+	MultiPop ecx,edi,esi
+ 	FunctionLeave
 
 
 
@@ -540,15 +198,10 @@ kmemcpy:
 ; OUTPUTS: EAX = ptr to matching value. 0x00000000 if no match found.
 ; -- Compares
 kmemcmp:
-	push ebp
-	mov ebp, esp
-	push esi
-	push ecx
-	push ebx
-
-	xor eax, eax	; EAX = 0, only will change if a match is found.
-	xor ebx, ebx
-	xor ecx, ecx
+	FunctionSetup
+	MultiPush esi,ecx,ebx
+	ZERO eax,ebx,ecx
+	; `--> EAX = 0, only will change if a match is found.
 	mov dword ebx, [ebp+8]	;arg1 - Size
 	mov dword esi, [ebp+12]	;arg2 - Start addr
 	mov dword ecx, [ebp+16]	;arg3 - Length
@@ -590,11 +243,8 @@ kmemcmp:
  .matchFound:
 	mov eax, esi
  .leaveCall:
- 	pop ebx
-	pop ecx
-	pop esi
-	pop ebp
-	ret
+	MultiPop ebx,ecx,esi
+	FunctionLeave
 
 
 ; INPUTS:
@@ -606,19 +256,9 @@ kmemcmp:
 ; Search for an exact string in between two given locations in memory.
 ; -- Strings follow until a null-termination (or a maximum of 256 bytes in this function to prevent infinite loops).
 strscan:
-	push ebp
-	mov ebp, esp
-	push edi
-	push esi
-	push ebx
-	push ecx
-	push edx
-
-	; zero registers
-	xor eax, eax
-	xor ebx, ebx
-	xor ecx, ecx
-	xor edx, edx
+	FunctionSetup
+	MultiPush edi,esi,ebx,ecx,edx
+	ZERO eax,ebx,ecx,edx
 
 	; get arguments moved in
 	mov ebx, dword [ebp+8]	;EBX = arg1 = start
@@ -662,13 +302,8 @@ strscan:
  	pop eax		; restore saved point
 	;bleed to end
  .leaveCall:
- 	pop edx
- 	pop ecx
-	pop ebx
-	pop esi
-	pop edi
- 	pop ebp
-	ret
+ 	MultiPop edx,ecx,ebx,esi,edi
+	FunctionLeave
 
 
 ; INPUTS:
@@ -678,13 +313,9 @@ strscan:
 ; Return the length of a string (not including the null terminator).
 ; -- HARD STRLEN LIMIT OF 65535.
 strlen:
-	push ebp
-	mov ebp, esp
-	push esi
-	push ecx
-
-	xor ecx, ecx
-	xor eax, eax
+	FunctionSetup
+	MultiPush esi,ecx
+	ZERO ecx,eax
 	mov esi, dword [ebp+8]	; ESI = arg1 = base ptr
  .checkLength:
  	lodsb
@@ -702,93 +333,5 @@ strlen:
  	mov eax, ecx	; put counter into EAX.
 	;bleed
  .leaveCall:
- 	pop ecx
- 	pop esi
- 	pop ebp
- 	ret
-
-
-
-; NO INPUTS OR OUTPUTS.
-; -- Consists of a very basic algorithm to determine if adjacent headers/footers between blocks represent memory holes that need to be merged.
-HEAP_INTERNAL_combineAdjacentMemory:
-	pushad
-
-	mov dword edi, HEAP_START		; Starting from the bottom of the heap.
-
- .getNextBlock:
-	mov dword ebx, [edi+4]				; Size of memory block.
-	cmp byte [edi+8], HEAP_BLOCK_DIRTY	; Block isn't a hole, move on.
-	je .nextBlockAdd					; ^^^
-
-	add edi, ebx						; Point to the next header.
-	mov dword eax, [edi-4]				; EAX = header address of the 1st hole (coming from footer).
-	cmp byte [edi+8], HEAP_BLOCK_DIRTY	; Is the adjacent block dirty?
-	je .nextBlock						; ...if so, move on.
-
-	; If the code reaches here, there are two adjacent holes. Combine them into one large hole.
-	; Right here: EDI = adjacent header base ptr // EAX = left (1st) hole's base addr // EBX = distance between EAX and EDI
-	mov dword ecx, [edi+4]				; ECX = size of the hole to the right.
-
-	; Clean the footer and header that's separating the holes.
-	push ecx
-	push eax
-	push edi
-	xor eax, eax
-	mov ecx, 0x00000014					; 20 iterations
-	sub edi, HEAP_FOOTER_SIZE			; Position EDI at the beginning of the footer next to the header of the 2nd hole.
-	rep stosb							; Clear to 0
-	pop edi
-	pop eax
-	pop ecx
-
-	add edi, ecx						; Position EDI at the end of the 2nd hole
-	mov dword [edi-4], eax 				; Set the header ptr in the footer to the 1st hole's header. This completes combining the hole.
-
-	sub edi, ecx
-	sub edi, ebx
-	add ebx, ecx
-	mov dword [edi+4], ebx				; set the new size at the 1st hole's header.
-
- .nextBlockAdd:
-	add edi, ebx
- .nextBlock:		; this is called when EDI is already pointing to the adj block.
-	cmp dword edi, [HEAP_END]
-	jae .leaveCall
-	jmp .getNextBlock
-
- .leaveCall:
-	popad
-	ret
-
-
-; INPUTS:
-;	1: EBX = start 32-bit address.
-;	2: EDX = end 32-bit address.
-; OUTPUTS:
-;	CF status is set if an area of the scanned memory is a reserved section.
-; -- Checks for reserved memory sections when the heap expands or is created, and if present will mark the space as allocated.
-;		Gets information about the memory from the array at MEM_INFO (PA 0x500).
-MEMOPS_INTERNAL_checkValidMemory:
-	clc
-	push ebp
-	mov ebp, esp
-
-
-
-	jmp .leaveCall
-
- .error:
-	stc
-	jmp .leaveCall
-
- .leaveCall:
-	pop ebp
-	ret
-
-
-; Gets the start addr and lengths of reserved memory spaces and marks the space as taken.
-MEMOPS_INTERNAL_setReservedSpaceHeapHeaders:
-	clc
-
-	ret
+ 	MultiPop ecx,esi
+	FunctionLeave

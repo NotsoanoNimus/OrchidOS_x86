@@ -53,9 +53,9 @@ Plus, I like the heap and kernel where they are (until the kernel grows too larg
 
 
 ## Heap
-The dynamic memory heap starts at **1 MiB** of physical memory, with a starting size of **16 MiB**.
+The dynamic memory heap starts at a fixed location in physical memory, with a starting size of **16 MiB**.
 
-It has no maximum size (at the moment) and can expand until the end of available memory, which is retrieved by the early system initialization.
+It has no maximum size (at the moment) and can expand until the end of available memory, which is retrieved by the early system initialization. (_Still working on actually implementing the dynamic expansion._)
 
 When allocation occurs, memory is aligned to **256-byte "parcels"**. The entire allocation accounts for the size of the program's header and footer, and will expand to another 256-byte parcel if necessary. There is only one header at the beginning of a block, and one footer at its end, for every allocated space. No memory in a single running process is fragmented; it will always be contiguous.
 

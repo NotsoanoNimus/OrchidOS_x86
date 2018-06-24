@@ -9,11 +9,8 @@
 ; ---- Scans the first (0-th) bus, and uses each bridge to scan others.
 ; ---- Each device/function entry found is put into memory from PCI_INFO.
 PCI_getDevicesInfo:
-	push edi
-	push eax
-	push ebx
-	xor eax, eax
-	xor ebx, ebx
+	MultiPush edi,eax,ebx
+	ZERO eax,ebx
 	call PCI_checkAllBuses
 	mov dword edi, [PCI_INFO_INDEX]
 	mov dword [edi], 0xFFFFFFFF		; end of block signature.
@@ -28,10 +25,7 @@ PCI_getDevicesInfo:
 	div bl						; AX/BL --> AL = Quotient // AH = Remainder (unimportant). Should not be a remainder.
 
 	mov byte [PCI_INFO_NUM_ENTRIES], al		;store it.
-
-	pop ebx
-	pop eax
-	pop edi
+	MultiPop ebx,eax,edi
 	ret
 
 
@@ -46,17 +40,11 @@ PCI_getDevicesInfo:
 ;	AX = WORD read from CONFIG_DATA
 ; -- Reads from the configuration port on the PCI bus. A return WORD of FFFFh means the device does not exist.
 PCI_configReadWord:
-	push ebx
-	push ecx
-	push edx
-	push ebp
-	mov ebp, esp
+	FunctionSetup
+	MultiPush ebx,ecx,edx
+	ZERO eax,ebx,ecx
 
-	xor eax, eax
-	xor ebx, ebx
-	xor ecx, ecx
-
-	mov dword edx, [ebp+20]		;edx = pushed arg
+	mov dword edx, [ebp+8]		;edx = pushed arg
 	push edx
 	;mov eax, edx				; eax = edx
 	call PCI_INTERNAL_translateConfigAddr	; EAX = IDSEL signal.
@@ -80,11 +68,8 @@ PCI_configReadWord:
 	shr eax, cl		; Either going to be EAX >> 16 or >> 0
 	and eax, 0x0000FFFF		; get low word.
 
-	pop ebp
-	pop edx
-	pop ecx
-	pop ebx
-	ret
+	MultiPop edx,ecx,ebx
+	FunctionLeave
 
 
 
@@ -92,13 +77,9 @@ PCI_configReadWord:
 ; 	ARG1 = PCI device address (Bus<<24|Dev<<16|Func<<8|Offset)
 ;	ARG2 = (DWORD value to write).
 PCI_WRITE_WORD_TO_PORT:
-	push ebp
-	mov ebp, esp
+	FunctionSetup
 	pushad
-
-	xor eax, eax
-	xor ebx, ebx
-	xor ecx, ecx
+	ZERO eax,ebx,ecx
 
 	mov edx, dword [ebp+8]	; EDX = PCI device address.
 	call PCI_INTERNAL_translateConfigAddr	; EAX = IDSEL
@@ -112,8 +93,7 @@ PCI_WRITE_WORD_TO_PORT:
 
  .leaveCall:
  	popad
- 	pop ebp
-	ret
+ 	FunctionLeave
 
 
 
@@ -123,9 +103,7 @@ PCI_WRITE_WORD_TO_PORT:
 ; 	EAX = Converted for proper "chip select"
 ; -- Converts an input such as the above (EAX) into a proper ISDEL signal for the PCI_CONFIG_ADDRESS port.
 PCI_INTERNAL_translateConfigAddr:
-	push ebx
-	push ecx
-	push edx
+	MultiPush ebx,ecx,edx
 	mov ch, dl					; CH = Register Number
 	shr edx, 8
 	mov cl, dl					; CL = Function Number
@@ -147,9 +125,7 @@ PCI_INTERNAL_translateConfigAddr:
 	shl eax, 8
 	mov al, ch					; bits 7-0	(Register Number & 11111100b)
 	; EAX is now in the proper IDSEL format.
-	pop edx
-	pop ecx
-	pop ebx
+	MultiPop edx,ecx,ebx
 	ret
 
 
@@ -159,20 +135,15 @@ PCI_INTERNAL_translateConfigAddr:
 ;	AL = type.
 ; -- Puts header type byte into AL. If bit 7 is set, the device has MULTIPLE FUNCTIONS.
 PCI_getHeaderType:
+	FunctionSetup
 	push edx
-	push ebp
-	mov ebp, esp
 
-	mov dword edx, [ebp+12]		;arg1
+	mov dword edx, [ebp+8]		;arg1
 	mov dl, 0x0E				; change offset into config block. We're getting the higher WORD from offset 0x0C. 0x0E = (0x0C|PCI_GET_HIGH_WORD)
 
-	push dword edx
-	call PCI_configReadWord		; AX = WORD from 0x0C. High byte is BIST, low is Header Type.
-	add esp, 4
-
-	pop ebp
+	func(PCI_configReadWord,edx)	; AX = WORD from 0x0C. High byte is BIST, low is Header Type.
 	pop edx
-	ret
+	FunctionLeave
 
 
 ; INPUTS:
@@ -182,11 +153,9 @@ PCI_getHeaderType:
 ; -- Checks an entire device, tells whether or not it's multi-function, and enumerates each function if so.
 ; ---- CF set if no VendorID is found.
 PCI_checkDevice:
+	FunctionSetup
 	pushad
-	push ebp
-	mov ebp, esp
-
-	mov dword ebx, [ebp+40]		;arg1
+	mov dword ebx, [ebp+8]		;arg1
 	and ebx, 0x0000FFFF			; Force only BX.
 
 	mov al, bh			; Bits 31-24 = Bus#
@@ -226,9 +195,7 @@ PCI_checkDevice:
 
 	;This section for single-function devices.
 	xor ax, ax			; reset offset and function #s
-	push dword eax
-	call PCI_checkFunction
-	add esp, 4
+	func(PCI_checkFunction,eax)
 	jmp .leaveCall
 
  .multipleFunctions:	; This section for devices with multiple functions.
@@ -236,10 +203,7 @@ PCI_checkDevice:
 	mov cl, 8			; max of 8 functions per device.
 	xor ax, ax			; reset offset and function #s
  .nextFunc:
-	push dword eax
-	call PCI_checkFunction
-	add esp, 4
-
+ 	func(PCI_checkFunction,eax)
 	inc ah				; check next function availability.
 	push dword eax
 	call PCI_configReadWord
@@ -250,15 +214,13 @@ PCI_checkDevice:
 	jmp .leaveCall
 
  .error:	; this field is ONLY for the first test of the device's vendorID, not for subseq tests of function #s.
-	pop ebp
 	popad
 	stc
-	ret
+	FunctionLeave
  .leaveCall:
-	pop ebp
 	popad
 	clc
-	ret
+	FunctionLeave
 
 
 ; INPUTS:
@@ -266,11 +228,9 @@ PCI_checkDevice:
 ; NO OUTPUTS.
 ; -- Check individual functions from PCI_checkDevice. Store all shared sections of config info (first 0x10 bytes) into the PCI_INFO +the arg1 to ID which dev.
 PCI_checkFunction:
+	FunctionSetup
 	pushad
-	push ebp
-	mov ebp, esp
-
-	mov dword eax, [ebp+40]		;arg1
+	mov dword eax, [ebp+8]		;arg1
 	xor al, al
 
 	xor ecx, ecx
@@ -294,10 +254,8 @@ PCI_checkFunction:
 	loop .getInfo				; executed 3 more times.
 
 	mov dword [PCI_INFO_INDEX], edi
-
-	pop ebp
 	popad
-	ret
+	FunctionLeave
 
 
 ; -- Check all buses. Inspect hosts and determine how many controllers there are. Follow buses thereafter.
@@ -312,19 +270,14 @@ PCI_checkAllBuses:
 ;	je .multipleHosts
 
 	;This section for single-host controller. USE THIS FOR NOW.
-	push dword 0x00000000	; Bus0
-	call PCI_checkBus
-	add esp, 4
+	; Check bus0
+	func(PCI_checkBus,0x00000000)
 	jmp .leaveCall
 
  .multipleHosts:		; Multiple Host section.
-	push dword 0x00000000
-	call PCI_checkBus		; Checking Bus0 first.
-	add esp, 4
-
-	xor edx, edx	; Bus0, Dev0, Func(0+DH), Offset0(Vendor)
-	xor eax, eax
-	xor ecx, ecx
+ 	func(PCI_checkBus,0x00000000)
+	; Bus0, Dev0, Func(0+DH), Offset0(Vendor)
+	ZERO eax,ecx,edx
 	mov cl, 8
   .checkNextBus:
 	push dword edx
@@ -354,9 +307,7 @@ PCI_checkAllBuses:
 ;	pop edx
 ;	jmp .parseNextBus	; go check again.
 ;  .noBridge:
-	push dword edx
-	call PCI_checkBus
-	add esp, 4
+	func(PCI_checkBus,edx)
 	inc dl
 	loop .parseNextBus
 	jmp .leaveCall
@@ -371,15 +322,11 @@ PCI_checkAllBuses:
 ; NO OUTPUTS.
 ; -- Check a specific bus' devices.
 PCI_checkBus:
-	push edx
-	push ecx
-	push ebx
-	push ebp
-	mov ebp, esp
-
+	FunctionSetup
+	MultiPush edx,ecx,ebx
 	xor ecx, ecx	; device counter
 	xor edx, edx	; Bus number to check
-	mov dword edx, [ebp+20]	; DL = Bus#
+	mov dword edx, [ebp+8]	; DL = Bus#
 	and edx, 0x000000FF
 	shl edx, 8		; DH = DL
 	xor dl, dl		; guarantee a start on Dev0
@@ -397,11 +344,8 @@ PCI_checkBus:
 	; bleed
 
  .leaveCall:
-	pop ebp
-	pop ebx
-	pop ecx
-	pop edx
-	ret
+	MultiPop ebx,ecx,edx
+	FunctionLeave
 
 
 ; INPUTS: (not stack-based)
@@ -412,9 +356,7 @@ PCI_checkPCItoPCI:
 	call PCI_get2ndPrimBuses
 	;mov byte [PCI_NEXT_BUS], ah	; AH = secondary bus.
 	shr eax, 8		; AL = Bus to check.
-	push dword eax
-	call PCI_checkBus
-	add esp, 4
+	func(PCI_checkBus,eax)
 	pop eax
 	ret
 
@@ -426,9 +368,7 @@ PCI_checkPCItoPCI:
 ; -- Reads configs with header-type 01h only to get Secondary and Primary buses for PCI-to-PCI.
 PCI_get2ndPrimBuses:
 	mov al, PCI_SECONDARY_BUS	;replace offset by 0x18, low WORD, so the return gives us bus info.
-	push dword eax
-	call PCI_configReadWord
-	add esp, 4
+	func(PCI_configReadWord,eax)
 	ret
 
 
@@ -448,16 +388,9 @@ PCI_NUM_MATCHED_DEVICES		db 0x00
 ;	No direct outputs. Stores matching devices in PCI_MATCHED_DEVICE[N], where N = the number of matching devices found.
 ; -- Enumerate the stored PCI devices starting @PCI_INFO
 PCI_returnMatchingDevices:
-	push ebp
-	mov ebp, esp
-	push edi
-	push esi
-	push eax
-	push ebx
-	push ecx
-	xor eax, eax
-	xor ebx, ebx
-	xor ecx, ecx
+	FunctionSetup
+	MultiPush edi,esi,eax,ebx,ecx
+	ZERO eax,ebx,ecx
 
 	mov dword eax, [ebp+8]	;arg1 --> EAX = specific device to search for.
 	and eax, 0xFFFFFF00		; mask revision number -- useless to track.
@@ -488,29 +421,19 @@ PCI_returnMatchingDevices:
 
  .leaveCall:
  	mov byte [PCI_NUM_MATCHED_DEVICES], cl
- 	pop ecx
- 	pop ebx
-	pop eax
-	pop esi
-	pop edi
-	pop ebp
-	ret
+	MultiPop ecx,ebx,eax,esi,edi
+	FunctionLeave
 
 
 ; Used to clean the buffers after a usage of the MATCHED_DEVICE variables.
 ;  Typically only called from the init.asm file.
 PCI_INTERNAL_cleanMatchedBuffers:
-	push edi
-	push eax
-	push ecx
-	xor eax, eax
-	xor ecx, ecx
+	MultiPush edi,eax,ecx
+	ZERO eax,ecx
 	mov cl, NUM_MATCHABLE_DEVICES
 	mov edi, PCI_MATCHED_DEVICE1
 	rep stosd
-	pop ecx
-	pop eax
-	pop edi
+	MultiPop ecx,eax,edi
 	ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -521,16 +444,12 @@ PCI_INTERNAL_cleanMatchedBuffers:
 ;	ARG1: EDX = (Bus|Device|Func|Offset). Offset is important, signals the section of the config area we're changing.
 ; NO OUTPUTS.
 PCI_changeValue:
+	FunctionSetup
 	pushad
-	push ebp
-	mov ebp, esp
+	mov dword edx, [ebp+8]		;arg1
 
-	mov dword edx, [ebp+40]		;arg1
-
-
-	pop ebp
 	popad
-	ret
+	FunctionLeave
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -544,14 +463,11 @@ PCI_changeValue:
 ;	EAX = Address
 ;	EBX => BL = Access Type (MMIO = 0, IO = 1).
 PCI_BAR_getAddressesAndType_header00:
-	push ebp
-	mov ebp, esp
+	FunctionSetup
 	push ecx
-
 	mov ebx, dword [ebp+8]	;EBX = arg1
 	add bl, 0x10	; add the starting offset of BARs into a 00h header PCI table.
 	or bl, 2		; get the high word of the BAR register.
-
 
 	push ebx
 	call PCI_configReadWord	; ax = High word
@@ -562,7 +478,7 @@ PCI_BAR_getAddressesAndType_header00:
 	xor bl, 0x02	; clear bit 1 (not bit 0) to get the low word
 	push ebx
 	call PCI_configReadWord	; ax = Low word
-	add esp, 4
+	pop ebx ;add esp, 4
 	or eax, ecx		; combine the values. EAX should now contain the specified BAR from the PCI information table.
 
 	xor ebx, ebx	; clear EBX
@@ -601,8 +517,7 @@ PCI_BAR_getAddressesAndType_header00:
 	; bleed
  .leaveCall:
  	pop ecx
-	pop ebp
-	ret
+	FunctionLeave
 
 
 ; INPUTS:

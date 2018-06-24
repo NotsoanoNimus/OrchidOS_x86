@@ -14,9 +14,7 @@ ETHERNET_SETUP_begin:
     call ETHERNET_REGISTER_PROCESS
     cmp byte [ETHERNET_PROCESS_FAILURE], TRUE
     je .issueInit
-
-    xor ecx,ecx
-    xor eax,eax
+    ZERO eax,ecx
 
     mov edi, PCI_INFO
     add edi, 4          ; Set EDI at the first PCI entry's (DevID<<16|VenID) DWORD.
@@ -91,7 +89,7 @@ ETHERNET_REGISTER_IRQ:
     push dword ecx  ; PCI device address
     call PCI_configReadWord ; EAX = WORD at 0x3C PCI for Ethernet device (INT_PIN<<8|INT_LINE)
     pop dword ecx   ; restore arg in case trashed.
-    
+
     ; Enable the pre-written IRQ value, since pushing a static Ethernet IRQ is currently not functioning...
     push dword eax
     and eax, 0x000000FF

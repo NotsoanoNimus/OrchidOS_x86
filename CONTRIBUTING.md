@@ -18,7 +18,7 @@ The **_general_ rules** about contributing to this repository are simple:
 
 ## Conventions
 - Capitalize all function and variable declarations. More importantly, they should be ordered from largest category (excluding OS or System) down to the specific use of the function.
-  + The specific format is: `{big-category}_{small-category/use of fun}_{smaller-category/use of func}_...`
+  + The specific format is: `{big-category}_{small-category/use of func}_{smaller-category/use of func}_...`
   + For example, the function `MEMOPS_KMALLOC_REGISTER_PROCESS` is very easy to both **locate and decipher** quickly, because the developer knows both what the function does and where it resides.
 - Feel free to utilize either a NASM definition or an actual memory label to declare a value, but be **mindful** of how the variable is used.
   + For example, you wouldn't need to declare the value `0x2805` like `CONFIG_REGISTER dw 0x2805` for a register value that's hardcoded into some hardware, because the register definition is a **constant** and is never rewritten. Instead, you would declare it as a NASM constant: `CONFIG_REGISTER equ 0x2805`.

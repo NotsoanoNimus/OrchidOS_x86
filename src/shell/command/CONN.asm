@@ -24,15 +24,12 @@ szPCITmpEnd		db 0
 ; -- Get connected devices from PCI_INFO. Display the DeviceID, VendorID, and a brief description based on a small included dictionary.
 COMMAND_CONN:
 	pushad
-	xor ebx, ebx
-	xor eax, eax
+	ZERO eax,ebx
 
 	mov edi, PARSER_ARG1
 	cmp strict byte [edi], 0x00
 	jne .specificDevice
-	push dword 0x00000000
-	call CONN_listDevices
-	add esp, 4
+	func(CONN_listDevices,0x00000000)
 	jmp .leaveCall
  .specificDevice:
  	;check the argument for validity.
@@ -50,9 +47,7 @@ COMMAND_CONN:
 	cmp al, strict byte [PCI_INFO_NUM_ENTRIES]
 	ja .err2
 	; ready to go! Call the lookup function with arg dev# (0 is reserved for 'all')
-	push dword eax
-	call CONN_listDevices
-	add esp, 4
+	func(CONN_listDevices,eax)
 	jmp .leaveCall
 
  .err1:
@@ -66,12 +61,9 @@ COMMAND_CONN:
 
 
 CONN_listDevices:
-	push ebp
-	mov ebp, esp
-	xor ecx, ecx
-	xor eax, eax
-	xor edx, edx
-	xor ebx, ebx	; EBX is only used in single-device requests to hold CLASS,SUBCLASS,INTERFACE vals
+	FunctionSetup
+	; EBX is only used in single-device requests to hold CLASS,SUBCLASS,INTERFACE vals
+	ZERO eax,ebx,ecx,edx
 
 	mov edi, PCI_INFO	; set EDI to base of PCI_INFO table.
 	mov dword edx, [ebp+8]	;EDX = device id to get details of
@@ -225,8 +217,7 @@ CONN_listDevices:
 	PrintString szCONNDetail1,0x03
 	PrintString szCONNDetail2
  .breakLoop:
- 	pop ebp
-	ret
+ 	FunctionLeave
 
 
 ; INPUTS: (non-stack)
@@ -234,9 +225,7 @@ CONN_listDevices:
 ;  	EDI = Start of output buffer. Transfer directly to it.
 ; -- Translates CC,SC,ProgIF into string that most accurately describes a device. For now only include MOST COMMON/IMPORTANT DEVICES.
 CONN_INTERNAL_dictionaryLookup:
-	push eax
-	push esi
-	push edi
+	MultiPush eax,esi,edi
 	; Revision will be unimportant. Shift it out. Now do direct cmps to CC->SC->PIF to get devices.
 	shr eax, 8
 
@@ -501,9 +490,7 @@ CONN_INTERNAL_dictionaryLookup:
 	jmp .leaveCall
  .trueExit:
  	mov byte [edi], ","
-	pop edi
-	pop esi
-	pop eax
+	MultiPop edi,esi,eax
 	ret
 
 szCONNDevNotFound		db "Unknown device: could not match classes", 0

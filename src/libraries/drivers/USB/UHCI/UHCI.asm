@@ -72,16 +72,9 @@ UHCI_PORTSC2    equ 12h
 ;   EAX = Value read.
 ; -- Reads a configuration register of the specified size, at the specified offset.
 USB_UHCI_readFromBARIO:
-    push ebp
-    mov ebp, esp
-    push ebx
-    push ecx
-    push edx
-
-    xor eax, eax
-    xor edx, edx
-    xor ebx, ebx
-    xor ecx, ecx
+    FunctionSetup
+    MultiPush ebx,ecx,edx
+    ZERO eax,ebx,ecx,edx
 
     mov strict word dx, [ebp+10]    ;arg3 - USB BARIO address
     mov strict byte cl, [ebp+9]     ;arg2 - added offset to read address
@@ -103,11 +96,8 @@ USB_UHCI_readFromBARIO:
     jmp .leaveCall
 
  .leaveCall:
-    pop edx
-    pop ecx
-    pop ebx
-    pop ebp
-    ret
+    MultiPop edx,ecx,ebx
+    FunctionLeave
 
 
 ; INPUTS:

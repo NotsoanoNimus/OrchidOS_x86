@@ -20,10 +20,8 @@ CRYPTO_PLATFORM_INITIALIZE:
 
 szCRYPTO_PROCESS_DESC_STRING db "Crypto Platform", 0
 CRYPTO_REGISTER_PROCESS:
-    push dword szCRYPTO_PROCESS_DESC_STRING
-    push dword CRYPTO_BUFFER_SIZE
-    call MEMOPS_KMALLOC_REGISTER_PROCESS    ; EAX = Buffer base for crypto process; BL = PID
-    add esp, 8
+    func(MEMOPS_KMALLOC_REGISTER_PROCESS,CRYPTO_BUFFER_SIZE,szCRYPTO_PROCESS_DESC_STRING)
+    ; EAX = Buffer base for crypto process; BL = PID
     or eax, eax     ; EAX = 0 = error.
     jz .error
     mov dword [CRYPTO_BUFFER_BASE_POINTER], eax

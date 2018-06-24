@@ -28,14 +28,14 @@ nop
 
 szTESTINGME db "Print me!", 0	; test string for GUI_MODE.
 [BITS 32]
-TEST_STRING_PTR db "yeet", 0
+TEST_STRING_PTR db "test", 0
 kernel_main:
 	cld
 	clc
 	cli
 	call INIT_PICandIDT		; "INIT.asm" - Load the Interrupt Descriptor Table.
 	call INIT_getSystemInfo ; "INIT.asm" - Get information about the system: RAM, CPU, CMOS time/date, running disk. Sets up globals as well.
-	call MEMOPS_initHeap	; "MEMOPS.asm" - Initialize the Heap at 0x100000 to 0x1100000 (16 MiB wide). Flat memory model.
+	call HEAP_INITIALIZE	; "MEMOPS.asm" - Initialize the Heap. Flat memory model.
 	call PIT_initialize		; "PIT.asm" - Initialize the Programmable Interval Timer.
 	call INIT_START_SYSTEM_DRIVERS	; "INIT.asm" - Start the system drivers that must be run after everything else is initialized.
 	call INIT_START_SYSTEM_PROCESSES ; "INIT.asm" - Start system services/processes.
@@ -95,8 +95,6 @@ kernel_main:
 	;SLEEP 10
 	;func(ETHERNET_SEND_PACKET,0x10000000,0x0000002A)
 
-
-
 	mov esi, TEST_STRING_PTR
 	func(strlen,esi)	; EAX = strlen
 	func(MD5_COMPUTE_HASH,esi,eax)	; Hash it.
@@ -142,62 +140,27 @@ KERNEL_modeGUI:
 	call BLOOM_GUI_MODE
 
 	; Test the GUI by creating a modernist masterpiece.
-	push dword 0x00009999					; cyan color.
-	push dword [SCREEN_FRAMEBUFFER_ADDR]	; LFB addy
-	call VIDEO_clearDesktop
-	add esp, 8
-
-	mov ecx, 10000
-	mov ebx, 0x01000100		;Try placing pixel at 256,256 (y, x)
- .test:
-	push dword 0x000000FF		; Color - blue
-	push dword ebx				; x | (y << 16)
-	call VIDEO_putPixel
-	add esp, 8
+	func(VIDEO_clearDesktop,[SCREEN_FRAMEBUFFER_ADDR],VIDEO_RGB(0x00,0x99,0x99))
+	; DRAW A LINE OF PIXELS FROM 0x100,0x100, tracing horizontal (w/ wrap) for 10,000 pixels
+	mov ecx, 10000	; drawing 10,000 pixels
+	mov ebx, VIDEO_COORDS(0x0100,0x0100)		;Try placing pixel at 256,256 (y, x)
+ .testPut:
+	func(VIDEO_putPixel,ebx,VIDEO_RGB(0x00,0x00,0xFF))
 	inc ebx
-	loop .test
+	loop .testPut
+	; Rectangle from 0x50,0x50 to 0x120,0x170; color 0x00FFBB00
+	func(VIDEO_fillRectangle,VIDEO_COORDS(0x0050,0x0050),VIDEO_COORDS(0x0120,0x0170),VIDEO_RGB(0xFF,0xBB,0x00))
+	; 2px-wide rectangle from 0x200,0x50 to 0x2F0,0x200; color 0x00FF0000, with shadow (color 0x00000000)
+	func(VIDEO_drawRectangle,VIDEO_COORDS(0x0200,0x0050),VIDEO_COORDS(0x02F0,0x0200),VIDEO_RGB(0xFF,0x00,0x00))
+	func(VIDEO_drawRectangle,VIDEO_COORDS(0x01FF,0x004F),VIDEO_COORDS(0x02F1,0x0201),VIDEO_RGB(0xFF,0x00,0x00))
+	func(VIDEO_drawRectangle,VIDEO_COORDS(0x0201,0x0051),VIDEO_COORDS(0x02EF,0x01FF),VIDEO_RGB(0x00,0x00,0x00))
+	; small white rectangle from 0x300,0x200 to 0x304,0x204; color white (0x00FFFFFF)
+	func(VIDEO_drawRectangle,VIDEO_COORDS(0x0300,0x0200),VIDEO_COORDS(0x0304,0x0204),VIDEO_RGB(0xFF,0xFF,0xFF))
+	; Write a single 'D' @(0x0230,0x0130); foregroundColor #FF00FF, backgroundColor #000000
+	func(VIDEO_OUTPUT_CHAR,VIDEO_COORDS(0x0230,0x0130),VIDEO_CHAR('D'),VIDEO_RGB(0xFF,0x00,0xFF),VIDEO_RGB(0x00,0x00,0x00))
+	; Write the string pointed at by szTESTINGME @(0x0055,0x0055); foregroundColor #FFFFFF, backgroundColor #000000
+	func(VIDEO_WRITE_STRING,VIDEO_COORDS(0x0055,0x0055),szTESTINGME,VIDEO_RGB(0xFF,0xFF,0xFF),VIDEO_RGB(0x00,0x00,0x00))
 
-	push dword 0x00FFBB00	; color = orange
-	push dword 0x01700120	; final(y,x)
-	push dword 0x00500050	; start(y,x)
-	call VIDEO_fillRectangle
-	add esp, 12
-
-	push dword 0x00FF0000	; color = red
-	push dword 0x020002F0	; final(y,x)
-	push dword 0x00500200	; start(y,x)
-	call VIDEO_drawRectangle
-	add esp, 12
-	push dword 0x00FF0000	; color = red
-	push dword 0x020102F1	; final(y,x)
-	push dword 0x004F01FF	; start(y,x)
-	call VIDEO_drawRectangle
-	add esp, 12
-	push dword 0x00000000	; color = black
-	push dword 0x01FF02EF	; final(y,x)
-	push dword 0x00510201	; start(y,x)
-	call VIDEO_drawRectangle
-	add esp, 12
-
-	push dword 0x00FFFFFF	; color = white
-	push dword 0x02040304	; final(y,x)
-	push dword 0x02000300	; start(y,x)
-	call VIDEO_drawRectangle
-	add esp, 12
-
-	push dword 0x00000000	; bgcolor = black
-	push dword 0x00FF00FF	; fgcolor = purple
-	push dword 0x0000005e	; Char 'D' (index 3)
-	push dword 0x01300230	; start(y<<16|x)
-	call VIDEO_OUTPUT_CHAR
-	add esp, 16
-
-	push dword 0x00000000	; bgColor =
-	push dword 0x00FFFFFF	; fgColor =
-	push dword szTESTINGME	; string base
-	push dword 0x00550055	; (x,y) = (55,55)
-	call VIDEO_WRITE_STRING
-	add esp, 16
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -206,9 +169,10 @@ KERNEL_modeGUI:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	sti
  .repHalt:
+ 	;call VIDEO_SCREEN_UPDATE	; update the screen according to the timer interrupt.
 	hlt
 	jmp .repHalt
 
 
 times  (KERNEL_SIZE_SECTORS*512)-($-$$)-15 db 0			; Pad out the kernel to an even multiple of 512
-db "ORCHID-CORE-END"
+db "ORCHID-CORE-END"	; kernel signature

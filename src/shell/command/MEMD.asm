@@ -145,10 +145,8 @@ COMMAND_MEMD:
 ;	EDX = Base address.
 ;   EBX = 0x1 if ASCII dump.
 MEMD_generateOutput:
-	push ecx
-	push ebx
-	xor ecx, ecx
-	xor eax, eax
+	MultiPush ecx,ebx
+	ZERO eax,ecx
 	mov edi, szMEMDOutput+10 ; +2 = end of first grouping's first byte. +8 for initial spacing
 
 	mov cl, 16
@@ -203,7 +201,6 @@ MEMD_generateOutput:
 
  .leaveCall:
 	PrintString szMEMDOutput,0x07
-	pop ebx
-	pop ecx
+	MultiPop ebx,ecx
 	sub ecx, 16
 	ret

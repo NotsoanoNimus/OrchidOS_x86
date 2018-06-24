@@ -11,9 +11,6 @@
 ; Override a current policy with a new one.
 ; The argument to this function will be a base ptr to an object that is the policy's definition.
 ACPI_setPolicy:
-    push ebp
-    mov ebp, esp
-
+    FunctionSetup
  .leaveCall:
-    pop ebp
-    ret
+    FunctionLeave

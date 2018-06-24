@@ -74,7 +74,7 @@ Not enough about this mode yet to really talk about smaller TODOs. Coming eventu
 ## User-Instantiated Process Management
 The problem with managing a "user space" is that anyone who uses Orchid is compiling it themselves (or is using someone else's compilation). This opens the question as to whether or not security should be a question due to the open-source nature of the kernel, because anyone who views the source and compiles it can just make changes to the `core` part of Orchid when they compile it. I think this is a challenge that the developers of the Linux core kernel also ran into.
 
-As a counter point, some developers may never be interested in writing anything to the kernel, and just want to run a system with useful, optional scripts. Perhaps a weak security feature could be implemented.
+As a counter point, some developers may never be interested in writing anything to the kernel, and just want to run a system with useful, optional scripts. Perhaps a weak security feature could be implemented, but the idea of the Orchid kernel is to allow full control to confident and expert users, not necessarily your average Joe.
 
 This section is written with respect to applications that users have written onto the kernel and is absolutely **subject to complete change or removal** based on the decision made about the above text.
 - Write to a process' memory through an easy system interruption. This will help with security implementations later.

@@ -36,10 +36,7 @@ BLOOM_PLATFORM_INITIALIZE:
 
 szBLOOM_PROCESS_NAME db "Orchid Bloom Platform", 0
 BLOOM_PLATFORM_REGISTER_PROCESS:
-    push dword szBLOOM_PROCESS_NAME   ; Process name.
-    push dword BLOOM_PROCESS_REQUIRED_RAM
-    call MEMOPS_KMALLOC_REGISTER_PROCESS
-    add esp, 8
+    func(MEMOPS_KMALLOC_REGISTER_PROCESS,BLOOM_PROCESS_REQUIRED_RAM,szBLOOM_PROCESS_NAME)
     or eax, eax     ; EAX = 0?
     jz .error
     mov strict byte [BLOOM_PROCESS_ID], bl

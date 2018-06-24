@@ -12,23 +12,26 @@ ISR_keyboardHandler: ;AL = key return
 
 	in al, KEYBOARD_COMMAND
 	and al, 0001b
-	jz ISR_keyboardHandler.noBuffer
-
+	jz .noBuffer
 	in al, KEYBOARD_DATA	; read key from buffer
-	cmp al, 0
-	jle ISR_keyboardHandler.noBuffer
+	;cmp al, 0
+	;jle .noBuffer
+	or al, al
+	jz .noBuffer
 
 	call KEYBOARD_keyboardMapping	; set al to the proper key
 	; KEY IS IN AL RIGHT HERE.
 	mov byte [KEYBOARD_BUFFER], al
 
 	cmp byte [SYSTEM_CURRENT_MODE], SHELL_MODE	; Shell mode?
-	jne ISR_keyboardHandler.notShellMode
+	jne .notShellMode
 	cmp byte [KEYBOARD_DISABLE_OUTPUT], TRUE
-	je ISR_keyboardHandler.notShellMode
+	je .notShellMode
 	call SCREEN_PrintChar	; print it or handle accordingly
+	jmp .leaveCall
  .notShellMode:
  .noBuffer:
+ .leaveCall:
 	ret
 
 
@@ -37,8 +40,7 @@ ISR_keyboardHandler: ;AL = key return
 ;	BL = Data byte, if applicable. If 0xFF, assuming no data byte is needed.
 ; CF on error.
 KEYBOARD_sendSpecialCmd:
-	push eax
-	push ecx
+	MultiPush eax,ecx
 	mov al, bh
 	out KEYBOARD_DATA, al
 	mov cl, 200
@@ -58,8 +60,7 @@ KEYBOARD_sendSpecialCmd:
  .error:
  	stc
  .leaveCall:
- 	pop ecx
-	pop eax
+ 	MultiPop ecx,eax
 	ret
 
 KEYBOARD_initialize:

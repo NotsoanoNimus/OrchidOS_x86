@@ -56,20 +56,13 @@ ARP_MAC_IPV4_FRAME_CODE     equ 0x00000001
 ; Based on inputs, creates an arp frame in the arp_mac_ipv4 structure
 ; -- That structure (arp_mac_ipv4) is used for operations after the call.
 ARP_MAC_IPV4_CREATE_FRAME:
-    push ebp
-    mov ebp, esp
-
+    FunctionSetup
     ; clean out the old data.
-    push ARP_MAC_IPV4_FRAME_CODE
-    call ARP_INTERNAL_READY_FRAME_BUFFER
-    add esp, 4
-
+    func(ARP_INTERNAL_READY_FRAME_BUFFER,ARP_MAC_IPV4_FRAME_CODE)
     mov edi, arp_mac_ipv4   ;point edi to the base of this specific ARP frame type.
 
-
  .leaveCall:
-    pop ebp
-    ret
+    FunctionLeave
 
 
 
@@ -78,15 +71,9 @@ ARP_MAC_IPV4_CREATE_FRAME:
 ; OUTPUTS: NONE
 ; Called to reset the designated ARP frame.
 ARP_INTERNAL_READY_FRAME_BUFFER:
-    push ebp
-    mov ebp, esp
-    push eax
-    push ebx
-    push ecx
-
-    xor eax, eax
-    xor ebx, ebx
-    xor ecx, ecx
+    FunctionSetup
+    MultiPush eax,ebx,ecx
+    ZERO eax,ebx,ecx
     mov ebx, dword [ebp+8]  ;arg1
 
     cmp ebx, ARP_MAC_IPV4_FRAME_CODE
@@ -102,8 +89,5 @@ ARP_INTERNAL_READY_FRAME_BUFFER:
     jmp .leaveCall
 
  .leaveCall:
-    pop ecx
-    pop ebx
-    pop eax
-    pop ebp
-    ret
+    MultiPop ecx,ebx,eax
+    FunctionLeave

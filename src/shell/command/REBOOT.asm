@@ -18,6 +18,7 @@ COMMAND_REBOOT:
     ret
 
  .comeCrashingDown:
+    call COMMAND_SHUTDOWN_ZERO_MEMORY
     ; Let the user know, at least.
     PrintString szREBOOTFinal,0x0B
     SLEEP 7     ; 7x200ms = ~1.5s

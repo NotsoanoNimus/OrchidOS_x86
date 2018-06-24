@@ -10,12 +10,7 @@
 ;  and will eventually select a default/preferred power policy for the system.
 ACPI_initialize:    ; Called from INIT.asm.
     pushad
-    xor eax, eax
-    xor ebx, ebx
-    xor ecx, ecx
-    xor edx, edx
-    xor esi, esi
-    xor edi, edi
+    ZERO eax,ebx,ecx,edx,esi,edi
 
     call ACPI_findRSDT      ; find the root table.
     CheckErrorFlags 0x00000080,.leaveCall
@@ -114,9 +109,7 @@ ACPI_findRSDT:
 ; ---- If this fails, ACPI management will NOT initialize on the system.
 ACPI_RSDP_checksum:
     pushad
-    xor eax, eax        ; double-sure
-    xor edx, edx        ; ^^
-    xor ecx, ecx
+    ZERO eax,edx,ecx
  .sumAll:
     add al, strict byte [esi]
     inc esi
@@ -218,8 +211,7 @@ ACPI_iterateOtherSDTs:
     jmp .iterate
 
  .FADT:
-    push esi
-    push ebx
+    MultiPush esi,ebx
     mov dword [ACPI_FADT], ebx
     mov esi, ebx
     add esi, ACPI_FADT_DSDT_PTR
@@ -230,8 +222,7 @@ ACPI_iterateOtherSDTs:
     jmp .leaveCall
   .DSDTGood:
     mov dword [ACPI_DSDT], ebx
-    pop ebx
-    pop esi
+    MultiPop ebx,esi
     jmp .nextIteration
  .MADT:
     mov dword [ACPI_MADT], ebx

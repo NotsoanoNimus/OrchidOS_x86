@@ -79,9 +79,9 @@ PARSER_parseCommand:
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	; Before anything, make sure reboot & shutdown aren't being called.
-	cmp dword [PARSER_COMMAND_NO_ARGS], "re"
+	cmp dword [PARSER_COMMAND_NO_ARGS], "rebo"
 	jne .clearRebootFlag
-	cmp dword [PARSER_COMMAND_NO_ARGS+4], "boot"
+	cmp dword [PARSER_COMMAND_NO_ARGS+2], "boot"
 	jne .clearRebootFlag
 	jmp .skipClearRebootFlag
   .clearRebootFlag:

@@ -1,5 +1,5 @@
 # SHELL_MODE Commands, Parser, & Environment
-Orchid's _SHELL_MODE_ feature is used as a fall-back on computers that are not compatible with the video mode that the OS requests.
+Orchid's _SHELL_MODE_ feature ~~is~~ _will be_ used as a fall-back on computers that are not compatible with the video mode that the OS requests.
 
 It is loaded by default until the more basic features of the graphical operating system are handled. This is likely to be the case for the foreseeable future.
 
@@ -7,7 +7,7 @@ It is loaded by default until the more basic features of the graphical operating
 ### Video Mode / Graphics
 By default, orchid is set to load into _SHELL_MODE_, VGA BIOS mode 03h (80*25 text), if it cannot obtain a proper VESA signature, or find a supported video mode.
 ### Graphical Mode
-Orchid _tentatively_ chooses a graphical mode from a selection of standards, mainly seeking support for video mode **0x118**, which is a widely-supported **1024x768** mode, with 24bpp/32bpp support. This works on 90% of tested systems for drawing primitive shapes. If you're intersted in testing it, check out the **BOOT_ST2.asm** file and search for the single line to _uncomment_ to access the VESA mode on your PC.
+Orchid _tentatively_ chooses a graphical mode from a selection of standards, mainly seeking support for video mode **0x118**, which is a widely-supported **1024x768** mode, with 24bpp/32bpp support. This works on 90% of tested systems for drawing primitive shapes. If you're interested in testing it, check out the **BOOT_ST2.asm** file and search for the single line to _uncomment_ to access the VESA mode on your PC, if it's not already done in the current repo.
 
 ## Parser
 ### Arguments

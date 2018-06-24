@@ -11,11 +11,7 @@
 UTILITY_DWORD_HEXtoASCII:
 	cmp byte [SYSTEM_CURRENT_MODE], SHELL_MODE
 	jne .leaveCall
-
-	push esi
-	push ecx
-	push ebx
-	push eax
+	MultiPush esi,ecx,ebx,eax
 
 	xor ebx, ebx
 	mov ecx, 8		; always an 8-char output.
@@ -51,10 +47,7 @@ UTILITY_DWORD_HEXtoASCII:
 	jmp .writeToBuffer
 
  .doneWrite:
-	pop eax
-	pop ebx
-	pop ecx
-	pop esi
+ 	MultiPop eax,ebx,ecx,esi
  .leaveCall:
 	ret
 
@@ -62,11 +55,7 @@ UTILITY_DWORD_HEXtoASCII:
 UTILITY_WORD_HEXtoASCII:
 	cmp byte [SYSTEM_CURRENT_MODE], SHELL_MODE
 	jne .leaveCall
-
-	push esi
-	push ecx
-	push ebx
-	push eax
+	MultiPush esi,ecx,ebx,eax
 
 	xor ebx, ebx
 	mov ecx, 4		; always a 4-char output.
@@ -102,10 +91,7 @@ UTILITY_WORD_HEXtoASCII:
 	jmp .writeToBuffer
 
  .doneWrite:
-	pop eax
-	pop ebx
-	pop ecx
-	pop esi
+ 	MultiPop eax,ebx,ecx,esi
  .leaveCall:
 	ret
 
@@ -113,11 +99,7 @@ UTILITY_WORD_HEXtoASCII:
 UTILITY_BYTE_HEXtoASCII:
 	cmp byte [SYSTEM_CURRENT_MODE], SHELL_MODE
 	jne .leaveCall
-
-	push esi
-	push ecx
-	push ebx
-	push eax
+	MultiPush esi,ecx,ebx,eax
 
 	xor ebx, ebx
 	mov ecx, 2		; always a 2-char output.
@@ -153,11 +135,68 @@ UTILITY_BYTE_HEXtoASCII:
 	jmp .writeToBuffer
 
  .doneWrite:
-	pop eax
-	pop ebx
-	pop ecx
-	pop esi
+ 	MultiPop eax,ebx,ecx,esi
  .leaveCall:
+	ret
+
+
+
+; Reserve space for 10 nibbles: the max DWORD value is only in the BILLIONS place.
+UTILITY_DWORD_HEX_TO_BCD_result times 5 db 0x00
+UTILITY_DWORD_HEX_TO_BCD_input dd 0x00000000
+UTILITY_DWORD_HEX_TO_BCD_clean:	;clean the result buffer.
+	mov dword [UTILITY_DWORD_HEX_TO_BCD_result+1], 0x00000000
+	mov byte [UTILITY_DWORD_HEX_TO_BCD_result], 0x00
+	mov dword [UTILITY_DWORD_HEX_TO_BCD_input], 0x00000000
+ .leaveCall: ret
+UTILITY_DWORD_HEX_TO_BCD:
+
+ .leaveCall:
+ 	ret
+
+
+
+; INPUTS: (non-stack)
+;	ESI = Start of string to interpret. Typically going to be a parser argument.
+;	BL  = Magnitude of the number to extract, max of 08h for a whole DWORD in eax.
+; OUTPUTS:
+;	EAX = Converted number.
+; -- Converts an ASCII string to a hex number. Sets EAX=0 and CF on error.
+; --- This function scans the ASCII at ESI linearly (left-to-right), and does not account for endian-ness.
+; --- The scan assumes that the start point is the highest power of 16 (e.g. BL=05h, ESI should start at X0000).
+UTILITY_HEX_STRINGtoINT:
+	MultiPush ebx,ecx,edx,esi
+	and ebx, 0x000000FF
+	ZERO ecx,edx,eax
+	mov cl, bl		; CL = Digit count. Used for shifting results.
+	dec cl			;  `--> has to be decremented so shifting works properly,
+	mov al, 0x04
+	mul cl			; AL = BL arg * 4
+	mov cl, al		; CL = shifter. Decremented by four for every digit retrieved.
+	xor eax, eax
+
+	; A DWORD requests a scan of 8 bytes, WORD = 4, BYTE = 2. NIBBLE = 1. BL represents digits to fetch.
+ .convert:
+ 	mov byte bl, [esi]
+	call UTILITY_INTERNAL_convertASCIItoHEX		; set BL = hex #
+	jc .error
+	shl ebx, cl
+
+	or eax, ebx		; enter EBX's result into EAX.
+	inc esi
+	cmp cl, 0
+	jle .leaveCall
+	sub cl, 4
+	xor ebx, ebx
+	jmp .convert
+
+ .error:
+ 	stc
+	jmp .return
+ .leaveCall:
+ 	clc
+ .return:
+ 	MultiPop esi,edx,ecx,ebx
 	ret
 
 
@@ -198,59 +237,6 @@ UTILITY_INTERNAL_convertASCIItoHEX:
  .leaveCall:
  	clc
 	ret
-
-
-; INPUTS: (non-stack)
-;	ESI = Start of string to interpret. Typically going to be a parser argument.
-;	BL  = Magnitude of the number to extract, max of 08h for a whole DWORD in eax.
-; OUTPUTS:
-;	EAX = Converted number.
-; -- Converts an ASCII string to a hex number. Sets EAX=0 and CF on error.
-; --- This function scans the ASCII at ESI linearly (left-to-right), and does not account for endian-ness.
-; --- The scan assumes that the start point is the highest power of 16 (e.g. BL=05h, ESI should start at X0000).
-UTILITY_HEX_STRINGtoINT:
-	push ebx
-	push ecx
-	push edx
-	push esi
-	and ebx, 0x000000FF
-	xor ecx, ecx
-	xor edx, edx
-	xor eax, eax
-	mov cl, bl		; CL = Digit count. Used for shifting results.
-	dec cl			;  `--> has to be decremented so shifting works properly,
-	mov al, 0x04
-	mul cl			; AL = BL arg * 4
-	mov cl, al		; CL = shifter. Decremented by four for every digit retrieved.
-	xor eax, eax
-
-	; A DWORD requests a scan of 8 bytes, WORD = 4, BYTE = 2. NIBBLE = 1. BL represents digits to fetch.
- .convert:
- 	mov byte bl, [esi]
-	call UTILITY_INTERNAL_convertASCIItoHEX		; set BL = hex #
-	jc .error
-	shl ebx, cl
-
-	or eax, ebx		; enter EBX's result into EAX.
-	inc esi
-	cmp cl, 0
-	jle .leaveCall
-	sub cl, 4
-	xor ebx, ebx
-	jmp .convert
-
- .error:
- 	stc
-	jmp .return
- .leaveCall:
- 	clc
- .return:
- 	pop esi
- 	pop edx
- 	pop ecx
- 	pop ebx
-	ret
-
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

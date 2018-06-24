@@ -16,7 +16,6 @@ SCREEN_CLS:
 
 SCREEN_Scroll:
 	pushad
-
 	xor eax, eax
 	mov esi, 0xB8140; Start collecting data at row #2 (technically 3)
 	mov edi, 0xB80A0; Place that data to the previous row
@@ -145,9 +144,7 @@ SCREEN_PrintChar:	; ah = color attrib, al = char
 	pushad
 	mov ah, byte [SHELL_MODE_TEXT_COLOR]			; text attrib
 	movzx ecx, word [SHELL_INPUT_INDEX]
-
-	xor ebx, ebx
-	xor edx, edx
+	ZERO ebx,edx
 
 	; set up video positioning
 	mov bx, word [SHELL_CURSOR_OFFSET]
@@ -215,19 +212,16 @@ SCREEN_PrintChar:	; ah = color attrib, al = char
 
  .escapeHit:
 	; delete user input based on length of input index
-	push ecx
-	push eax
-
+	MultiPush ecx,eax
 	shl ecx, 1	;ecx x2 --> set each char offset = attrib+char setting
 	sub edi, ecx	;go backwards the amnt of chars in vid mem
 	mov al, 0x20	;space
+	mov ah, 0x0F	;write the default color for ESC presses.
 
 	push edi	;save backwards pos
 	rep stosw
 	pop edi
-
-	pop eax
-	pop ecx
+	MultiPop eax,ecx
 
 	; take cursor backwards.
 	push ecx
@@ -266,7 +260,8 @@ SCREEN_PrintChar:	; ah = color attrib, al = char
 	jmp .return
  .bkspNotEOC:
 	dec bh
-	mov al, 0x20
+	mov al, 0x20	; space
+	mov ah, 0x0F	; default color
 	mov word [edi-2], ax
 	dec cx		;decrease input index
 	mov byte [SHELL_INPUT_BUFFER+ecx], 0x00	;kill the previous input
@@ -303,8 +298,7 @@ SCREEN_Pause:
 	cmp byte [SYSTEM_CURRENT_MODE], SHELL_MODE
 	jne .leaveCall
 
-	push esi
-	push ebx
+	MultiPush esi,ebx
 	PrintString szScreenPause,0x0D
 	xor ebx, ebx
 	mov byte bl, [KEYBOARD_BUFFER]		; Save key in buffer.
@@ -326,7 +320,6 @@ SCREEN_Pause:
  .breakWait:
  	mov byte [KEYBOARD_DISABLE_OUTPUT], 0x00
 	mov byte [KEYBOARD_BUFFER], bl 		; restore original key in buffer.
-	pop ebx
-	pop esi
+	MultiPop ebx,esi
  .leaveCall:
 	ret

@@ -481,9 +481,7 @@ isr_handler:
 	mov al, [iTermLine]
 	inc al
 	mov byte [iTermLine], al
-
-	xor eax, eax
-	xor ebx, ebx
+	ZERO eax,ebx
 
 	;mov eax, [esp+4]
 	pop edx

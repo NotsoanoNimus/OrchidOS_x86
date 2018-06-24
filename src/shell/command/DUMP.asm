@@ -21,18 +21,12 @@ dd 0x0
 ; INPUTS:
 ;	ARG1 = buffer#
 DUMP_cleanOutputBuffers:
-	push ebp
-	push eax
-	push ebx
-	push ecx
-	push edi
-	mov ebp, esp
+    FunctionSetup
+    MultiPush eax,ebx,ecx,edi
+	ZERO eax,ebx,ecx
 
-	xor ebx, ebx
-	xor eax, eax
-	xor ecx, ecx
 	mov al, 0x20	; " " char to place in buffer(s).
-	mov dword ebx, [ebp+24]	;arg1
+	mov dword ebx, [ebp+8]	;arg1
 	; only buffers 2&3 should ever need to be cleaned. When #2 is req, #3 will be cleaned automatically with it.
 	cmp ebx, 0x00000002
 	je .clear2
@@ -49,12 +43,9 @@ DUMP_cleanOutputBuffers:
 	mov edi, szDUMPOutput3
 	rep stosb
  .leaveCall:
-	pop edi
-	pop ecx
-	pop ebx
-	pop eax
-	pop ebp
-	ret
+    MultiPop edi,ecx,ebx,eax
+    FunctionLeave
+
 
 
 ; self-explanatory. BL (color) set externally before call.
@@ -69,7 +60,6 @@ COMMAND_DUMP:
 	pushf
 
 	push esi
-
 	push ebx
     PrintString szOutputStart,0x0D
 	pop ebx
@@ -133,7 +123,6 @@ COMMAND_DUMP:
 	; Print EFLAGS.
 	mov bl, 0x09
 	call DUMP_outputString
-
 
 	popad
 	ret
