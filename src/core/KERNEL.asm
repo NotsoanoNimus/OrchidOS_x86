@@ -11,14 +11,12 @@ nop
 %include "core/GLOBAL_definitions.asm"	; Global, pervasive variables and predefined constants for orchid.
 
 %include "libraries/LIBRARIES.asm"	; Include all libraries and functions necessary to run the system.
-
-;%include "libraries/memops/MEMORY.asm"	; Memory operations on data held in RAM.
 %include "misc/IDT.asm"				; Interrupt Descriptor Table and ISRs.
-%include "shell/PARSER.asm"			; Parser in the case of SHELL_MODE.
-%include "shell/SCREEN.asm"			; SHELL_MODE basic screen wrapper functions.
 %include "misc/INIT.asm"			; For setting global variables/device Initialization.
-
 %include "libraries/drivers/DRIVERS.asm"	; SYSTEM DRIVERS (mouse, HDD, USB, and all other PCI devices)
+
+%include "shell/SHELL.asm"			; All shell components for operating in the fallback mode.
+%include "desktop/DESKTOP.asm"		; All desktop/GUI components.
 
 ; Include BLOOM utilities here, so it can rely on the other libraries...
 
@@ -33,6 +31,7 @@ kernel_main:
 	cld
 	clc
 	cli
+	mov byte [SYSTEM_CURRENT_MODE], SHELL_MODE	; default to SHELL MODE
 	call INIT_PICandIDT		; "INIT.asm" - Load the Interrupt Descriptor Table.
 	call INIT_getSystemInfo ; "INIT.asm" - Get information about the system: RAM, CPU, CMOS time/date, running disk. Sets up globals as well.
 	call HEAP_INITIALIZE	; "MEMOPS.asm" - Initialize the Heap. Flat memory model.
@@ -99,6 +98,10 @@ kernel_main:
 	func(strlen,esi)	; EAX = strlen
 	func(MD5_COMPUTE_HASH,esi,eax)	; Hash it.
 
+	func(VIDEO_GRID_SNAP_AND_TRANSLATE,VIDEO_COORDS(0x203,0x089))
+	VIDEO_MANIPULATE_COORDS eax,+,edx,ecx
+	call COMMAND_DUMP
+
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -136,9 +139,14 @@ kernel_main:
 KERNEL_modeGUI:
 	mov byte [SYSTEM_CURRENT_MODE], GUI_MODE
 
+	; GUI-only initialization functions for setting up the desktop.
+	;call DESKTOP_initialization
+
 	; GUI_MODE BLOOM here.
 	call BLOOM_GUI_MODE
 
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	; GUI_MODE TEST CODE BELOW
 	; Test the GUI by creating a modernist masterpiece.
 	func(VIDEO_clearDesktop,[SCREEN_FRAMEBUFFER_ADDR],VIDEO_RGB(0x00,0x99,0x99))
 	; DRAW A LINE OF PIXELS FROM 0x100,0x100, tracing horizontal (w/ wrap) for 10,000 pixels
@@ -148,6 +156,7 @@ KERNEL_modeGUI:
 	func(VIDEO_putPixel,ebx,VIDEO_RGB(0x00,0x00,0xFF))
 	inc ebx
 	loop .testPut
+
 	; Rectangle from 0x50,0x50 to 0x120,0x170; color 0x00FFBB00
 	func(VIDEO_fillRectangle,VIDEO_COORDS(0x0050,0x0050),VIDEO_COORDS(0x0120,0x0170),VIDEO_RGB(0xFF,0xBB,0x00))
 	; 2px-wide rectangle from 0x200,0x50 to 0x2F0,0x200; color 0x00FF0000, with shadow (color 0x00000000)
@@ -161,6 +170,7 @@ KERNEL_modeGUI:
 	; Write the string pointed at by szTESTINGME @(0x0055,0x0055); foregroundColor #FFFFFF, backgroundColor #000000
 	func(VIDEO_WRITE_STRING,VIDEO_COORDS(0x0055,0x0055),szTESTINGME,VIDEO_RGB(0xFF,0xFF,0xFF),VIDEO_RGB(0x00,0x00,0x00))
 
+	;func(VIDEO_drawLine,VIDEO_COORDS(0x0200,0x0200),VIDEO_COORDS(0x300,0x250),VIDEO_RGB(0x00,0xFF,0x88))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

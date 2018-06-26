@@ -1,8 +1,6 @@
 ; SCREEN.asm
 ; -- Contains all SHELL_MODE functions for controlling the user interface.
 
-%include "shell/GRAPHICS.asm"
-
 
 SCREEN_CLS:
 	pushad

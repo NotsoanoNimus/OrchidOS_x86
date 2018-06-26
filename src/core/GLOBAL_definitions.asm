@@ -3,7 +3,7 @@
 
 
 ; Misc information.
-%define ORCHID_VERSION "0.4.4"
+%define ORCHID_VERSION "0.4.5"
 
 KERNEL_OFFSET			equ 0x10000
 KERNEL_SIZE_SECTORS		equ 0x0080			; Change this in every other file based on the growth of the kernel.
@@ -80,23 +80,6 @@ PCI_INFO				equ 0x71000		; Base ptr to filled info about PCI Devices. 1KiB of sp
 
 ; Processor info.
 CPU_INFO				equ 0x700		; Store CPU info starting at 0x700. Assume MEM_INFO won't be larger than 0x200 (>20 entries)
-
-; Video/Graphics information.
-VGA_INFORMATION			equ 0x800		; Store the VGA/VIDEO info starting at 0x800, for 0x400 bytes (to 0xc00).
-VESA_CURRENT_MODE_INFO 	equ 0xC00		; Store VESA info from 0xC00 to 0xE00.
-VESA_DESIRED_MODE		equ 0x0118		; Tentative mode. Will change later to be more flexible than supporting only one standard.
-SCREEN_PITCH			equ VESA_CURRENT_MODE_INFO+0x10		;how many bytes per line. (WORD)
-SCREEN_WIDTH			equ VESA_CURRENT_MODE_INFO+0x12		; WORD
-SCREEN_HEIGHT			equ VESA_CURRENT_MODE_INFO+0x14		; WORD
-SCREEN_BPP				equ VESA_CURRENT_MODE_INFO+0x19		; BYTE
-SCREEN_FRAMEBUFFER_ADDR	equ VESA_CURRENT_MODE_INFO+0x28		; DWORD
-SCREEN_OFFSCREEN_MEMORY equ VESA_CURRENT_MODE_INFO+0x30		; Amount of memory outside the framebuffer, off-screen (extra mem). (WORD)
-;SCREEN_BACKBUFFER		equ 0x100000						; Second buffer for LFB is going to be allocated at 0x100000 (1MiB into phys mem).
-; This will not happen because the SystemWindowManager process will control the management of GUI layers.
-BYTES_PER_PIXEL			db 0x00
-SCREEN_FRAMEBUFFER		dd 0x00000000
-SCREEN_LFB_SIZE_KB		dw 0x0000
-SCREEN_PIXEL_COUNT		dd 0x00000000
 
 ; Keyboard info. Move later once more generic keyboard driver is loaded.
 KEYBOARD_BUFFER			db 0			; ASCII value for the current keyboard press.

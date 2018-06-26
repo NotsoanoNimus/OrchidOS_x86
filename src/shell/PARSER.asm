@@ -10,8 +10,6 @@
 ;    THE APPROPRIATE "UNKNOWN COMMAND" ERROR.
 
 
-%include "shell/CMDDIR.asm"
-
 szPARSERNoCMD 			db "Invalid command! Type HELP for commands.", 0
 szPARSERSynErr1			db "Parser detected a syntax error in the passed arguments.", 0
 szPARSERSynErr2 		db "-- Check the orchid documentation for more information about the parser!", 0

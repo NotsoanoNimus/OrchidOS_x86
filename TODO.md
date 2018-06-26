@@ -5,9 +5,16 @@ This document includes many different TODO features to add, as well as bugs and 
 
 # General Bugs
 The bugs listed in this category will be formally registered as Github "Issues", so they will be visible there and trackable as I work on the bug.
-- There is a _persistent_ bug that keeps the UTILITY functions (writing hex in memory to an ASCII string) from outputting an actual result on the screen. This typically happens in the booting process whenever the COMMAND_DUMP call is issued. This is a priority because COMMAND_DUMP is very useful for quick debugging. A good example of this bug is a BSOD during the booting process. No error code is issued (_besides **0x**, which is NOT useful_).
+
+**NO GENERAL BUGS AT THIS TIME.**
+
+---
+
+# Time
 - Due to the longer (small-but-noticeable) start time between timer initialization and actual timer value updates, the OS tends to be about a second behind. This is because in the main SHELL_MODE loop, the timer is readied with the RTC values before loading everything else, and updates to the timer are not given until the system starts up completely. This can't be fixed by moving timer initialization (my first thought) because there are some early functions that strictly depend on an initialized timer for the global SLEEP function.
 - Need to fix the month date display to interpret a BSD-formatted integer, rather than HEX. Will be quick, but have been putting it off.
+- The hour rollovers tend to completely stop the clock. Unsure about why this happens, but will need to investigate the dilapidated PIT code soon anyway.
+
 
 ---
 

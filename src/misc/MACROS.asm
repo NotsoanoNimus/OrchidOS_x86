@@ -261,3 +261,34 @@
 %define VIDEO_RGB(x,y,z) (0x00FFFFFF&(x<<16|y<<8|z))
 %define VIDEO_COORDS(x,y) (0xFFFFFFFF&(y<<16|x))
 %define VIDEO_CHAR(x) (0x000000FF&x)
+%define VIDEO_DIMENSIONS(width,height) (0xFFFFFFFF&(height<<16|width))
+
+; %1 = coordinate
+; %2 = operation
+; %3 = delta
+; %4 = coord storage location
+%macro VIDEO_MANIPULATE_COORDS 4
+	push dword 0x0	; dummy value
+	MultiPush ecx,edx
+	mov dword [esp+8], %1
+	mov ecx, %3
+	mov edx, dword [esp+8]
+	%ifidni %2,+
+		add dx, cx
+	%elifidni %2,-
+		sub dx, cx
+	%endif
+	rol edx, 16
+	rol ecx, 16
+	%ifidni %2,+
+		add dx, cx
+	%elifidni %2,-
+		sub dx, cx
+	%endif
+	rol edx, 16
+	mov dword [esp+8], edx
+	;mov dword %4, edx
+	MultiPop edx,ecx
+	mov %4, dword [esp]
+	add esp, 4
+%endmacro

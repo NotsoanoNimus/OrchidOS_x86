@@ -253,6 +253,7 @@ UTILITY_INTERNAL_convertASCIItoHEX:
 ;iBSODErrASCII	dd 0x00000000
 ;				dd 0x00000000
 SYSTEM_BSOD:
+	mov byte [SYSTEM_CURRENT_MODE], SHELL_MODE	; revert to SHELL MODE
 	; Mask everything...
 	mov al, 0xFF
 	out PIC1_DATA, al

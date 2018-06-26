@@ -2,10 +2,13 @@
 ; --- Very basic graphics driver for VBE/VESA modes.
 ; TODO: Implement layered buffering support for DWM hooks later on.
 
+%include "libraries/drivers/VIDEO/VIDEO_definitions.asm"
+
 %include "libraries/drivers/VIDEO/core/FONT.asm"
 %include "libraries/drivers/VIDEO/core/PIXEL_OPS.asm"
 
 %include "libraries/drivers/VIDEO/core/draw/PRIMITIVES.asm"
+%include "libraries/drivers/VIDEO/core/objects/GRID.asm"
 %include "libraries/drivers/VIDEO/core/objects/WINDOW.asm"
 
 ; NO INPUTS.
@@ -25,6 +28,7 @@ VIDEO_pushBuffer:
 ;	1: EDI = LFB starting address.
 ;	2: EAX = Color.
 ; NO OUTPUTS.
+; Write a single color over the entire screen.
 VIDEO_clearDesktop:
 	FunctionSetup
 	pushad
@@ -48,206 +52,6 @@ VIDEO_clearDesktop:
 	FunctionLeave
 
 
-; INPUTS:
-;	1: EBX = starting pixel.
-;	2: ECX = final pixel.
-;	3: EAX = border color.
-; NO OUTPUTS. CF if error.
-VIDEO_drawRectangle:
-	FunctionSetup
-	pushad
-	mov dword ebx, [ebp+8]	; arg1: start pixel
-	mov dword ecx, [ebp+12]	; arg2: end pixel
-
-	push ebx
-	push word bx
-	shr ebx, 16
-	push word bx
-	call VIDEO_selectPixel
-	add esp, 4
-	pop ebx
-
-	mov dword edi, [SCREEN_FRAMEBUFFER_ADDR]
-	add edi, eax			; edi is ready to paint.
-
-	call VIDEO_checkCoordinates
-	jc .errorCoords
-
-	MultiPush ebx,ecx
-	and ebx, 0xFFFF0000
-	and ecx, 0xFFFF0000
-	shr ebx, 16
-	shr ecx, 16
-	; Set EDX = difference in Y values.
-	mov edx, ecx
-	sub edx, ebx		; EDX = dY ((endY-startY))
-	cmp edx, 0			; Being double-sure everything is alright.
-	jle .errorArgs
-	MultiPop ecx,ebx
-
-	; Get delta-X in ECX.
-	and ecx, 0x0000FFFF
-	and ebx, 0x0000FFFF
-	sub ecx, ebx		;ECX = difference (delta-X)
-	mov dword eax, [ebp+16]	; arg3: color
-	mov dword ebx, [SCREEN_PITCH]
-	and ebx, 0x0000FFFF		; EBX = SCREEN_PITCH, trimmed.
- .drawRect:
-	push ecx	;save dX
-	push edi	;save rectangle base pixel.
-	; draw top horizontal line
-  .horizTop:
-	mov dword [edi], eax
-	add edi, [BYTES_PER_PIXEL]
-	loop .horizTop
-
-	; chop off the extra added BPP
-	sub edi, [BYTES_PER_PIXEL]
-	;push edx 	;save dY
-	mov ecx, edx
-  .vertRight:
-	mov dword [edi], eax
-	add edi, ebx
-	loop .vertRight
-
-	; chop off extra pitch addition...
-	sub edi, ebx
-	pop edi		;restore edi to base
-	mov ecx, edx	;doing vertLeft, need dY
-  .vertLeft:
-	mov dword [edi], eax
-	add edi, ebx
-	loop .vertLeft
-
-	; chopping
-	sub edi, ebx
-	pop ecx 	;restore original dX
-  .horizBot:
-	mov dword [edi], eax
-	add edi, [BYTES_PER_PIXEL]
-	loop .horizBot
-
-	jmp .leaveCall
-
- .errorArgs:
-	stc
-	MultiPop ecx,ebx
- .errorCoords:
-	stc
- .leaveCall:
-	popad
-	FunctionLeave
-
-
-; INPUTS:
-;	1: EBX = starting pixel.
-;	2: ECX = final pixel.    (x | [y<<16])
-;	3: EAX = color. (after selectPixel)
-; NO OUTPUTS. Carry set if error.
-VIDEO_fillRectangle:
-	FunctionSetup
-	pushad
-
-	xor edx, edx			; EDX = delta-Y
-	mov dword ebx, [ebp+8]	;arg1 (start)
-	mov dword ecx, [ebp+12]	;arg2 (end)
-
-	push ebx
-	push word bx	;XPOS
-	shr ebx, 16
-	push word bx	;YPOS
-	call VIDEO_selectPixel		; only calculate the offset once. (Thanks, Omar!)
-	add esp, 4
-	pop ebx
-
-	mov dword edi, [SCREEN_FRAMEBUFFER_ADDR]
-	add edi, eax		; edi pointing to the start space, let's go!
-
-	call VIDEO_checkCoordinates
-	jc .errorCoords
-
-	MultiPush ebx,ecx
-	and ebx, 0xFFFF0000
-	and ecx, 0xFFFF0000
-	shr ebx, 16
-	shr ecx, 16
-	; Set EDX = difference in Y values.
-	mov edx, ecx
-	sub edx, ebx		; EDX = dY ((endY-startY))
-	cmp edx, 0			; Being double-sure everything is alright.
-	jle .errorArgs
-	MultiPop ecx,ebx
-
-	; Get delta-X in ECX.
-	and ecx, 0x0000FFFF
-	and ebx, 0x0000FFFF
-	sub ecx, ebx		;ECX = difference (delta-X)
-	mov dword eax, [ebp+16]	;arg3 (color)
- .drawRect:
-	; ECX = dX here
-	push ecx
-  .subDrawLoop:
-	mov dword [edi], eax
-	add edi, [BYTES_PER_PIXEL]
-	loop .subDrawLoop
-	; Move EDI down a whole line (using PITCH).
-	mov ecx, [SCREEN_PITCH]
-	and ecx, 0x0000FFFF
-	add edi, ecx
-	; Get dX back.
-	pop ecx
-
-	; Basically CR/LF the drawing.
-	MultiPush eax,ebx,edx
-	; `--> have to save edx due to mul
-	ZERO eax,ebx
-	mov eax, ecx
-	mov byte bl, [BYTES_PER_PIXEL]
-	mul ebx
-	sub edi, eax	; step backward by dX*BBP (go to beginning of new line)
-	MultiPop edx,ebx,eax
-
-	dec edx
-	or edx, edx
-	jz .doneDraw
-	jmp .drawRect
-
- .doneDraw:
-	clc
-	jmp .leaveCall
-
- .errorArgs:
-	stc
-	MultiPop ecx,ebx
- .errorCoords:
-	stc
- .leaveCall:
-	popad
-	FunctionLeave
-
-
-; INPUTS:	(improve later to draw diagonal lines as well)
-;	1: EBX = Starting Pixel.
-;	2: ECX = Final Pixel.
-;	3: EAX = Color.
-;	4: Vertical? (TRUE = 0x01 = vertical // FALSE = 0x00 = horizontal)
-; NO OUTPUTS. CF is error.
-VIDEO_drawLine:
-	; FINISH LATER
-	; FINISH LATER
-	; FINISH LATER
-	FunctionSetup
-	pushad
-
-	mov dword ebx, [ebp+8]	;arg1: starting (y,x)
-	mov dword ecx, [ebp+12]	;arg2: final (y,x)
-
-	mov dword eax, [ebp+16]	;arg3: color
-	mov byte dl, [ebp+20]	;arg4: vertical (BOOL)
-
-	popad
-	FunctionLeave
-
 
 ; INPUTS:
 ;	EBX = start pixel
@@ -258,25 +62,25 @@ VIDEO_drawLine:
 ; --- Check for erroneous input.
 VIDEO_checkCoordinates:
 	clc
-	MultiPush ebx,ecx
+	MultiPush ebx,ecx,edx
 	and ebx, 0x0000FFFF	;checking X values
 	and ecx, 0x0000FFFF	; against each other.
 	cmp ebx, ecx
-	jge .errorArgs		; the start X cannot be >= the end X
+	jg .errorArgs		; the start X cannot be > the end X
 	cmp bx, [SCREEN_WIDTH]
 	jg .errorArgs
 	cmp cx, [SCREEN_WIDTH]
 	jg .errorArgs
-	MultiPop ecx,ebx
+	MultiPop edx,ecx,ebx
 
 	; testing Y values.
-	MultiPush ebx,ecx
+	MultiPush ebx,ecx,edx
 	and ebx, 0xFFFF0000
 	and ecx, 0xFFFF0000
 	shr ebx, 16
 	shr ecx, 16
 	cmp ebx, ecx
-	jge .errorArgs		; the start Y cannot be >= the end X
+	jg .errorArgs		; the start Y cannot be > the end Y
 	cmp bx, [SCREEN_HEIGHT]
 	jg .errorArgs
 	cmp cx, [SCREEN_HEIGHT]
@@ -286,13 +90,12 @@ VIDEO_checkCoordinates:
 	sub edx, ebx		; EDX = dY ((endY-startY))
 	cmp edx, 0			; Being double-sure everything is alright.
 	jle .errorArgs
-	MultiPop ecx,ebx
 	jmp .leaveCall
 
  .errorArgs:
- 	MultiPop ecx,ebx
 	stc
  .leaveCall:
+ 	MultiPop edx,ecx,ebx
 	ret
 
 
