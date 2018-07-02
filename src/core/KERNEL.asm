@@ -15,23 +15,34 @@ nop
 %include "misc/INIT.asm"			; For setting global variables/device Initialization.
 %include "libraries/drivers/DRIVERS.asm"	; SYSTEM DRIVERS (mouse, HDD, USB, and all other PCI devices)
 
+%include "stem/STEM.asm"			; STEM system control and flow components.
+
 %include "shell/SHELL.asm"			; All shell components for operating in the fallback mode.
 %include "desktop/DESKTOP.asm"		; All desktop/GUI components.
 
 ; Include BLOOM utilities here, so it can rely on the other libraries...
+%include "bloom/BLOOM.asm"
 
 ; UTILITY HAS A 'BITS 16' DIRECTIVE IN IT, BE CAREFUL TO PLACE IT ACCORDINGLY.
 %include "misc/UTILITY.asm"		; Miscellaneous utility functions used across the system & kernel, such as numeric conversions or ASCII outputs.
 
 
-szTESTINGME db "Print me!", 0	; test string for GUI_MODE.
 [BITS 32]
 TEST_STRING_PTR db "test", 0
 kernel_main:
 	cld
 	clc
 	cli
-	mov byte [SYSTEM_CURRENT_MODE], SHELL_MODE	; default to SHELL MODE
+	; Before interacting with the shell: check BOOT_ERROR_FLAGS for bit 1 to see whether shell or gui mode.
+	push eax
+	mov dword eax, [BOOT_ERROR_FLAGS]
+	and eax, 0x00000001
+	cmp eax, 1
+	jne .shellMode
+	mov byte [SYSTEM_CURRENT_MODE], GUI_MODE
+	jmp .skipShellMode
+ .shellMode: mov byte [SYSTEM_CURRENT_MODE], SHELL_MODE	; default to SHELL MODE
+ .skipShellMode:
 	call INIT_PICandIDT		; "INIT.asm" - Load the Interrupt Descriptor Table.
 	call INIT_getSystemInfo ; "INIT.asm" - Get information about the system: RAM, CPU, CMOS time/date, running disk. Sets up globals as well.
 	call HEAP_INITIALIZE	; "MEMOPS.asm" - Initialize the Heap. Flat memory model.
@@ -39,17 +50,13 @@ kernel_main:
 	call INIT_START_SYSTEM_DRIVERS	; "INIT.asm" - Start the system drivers that must be run after everything else is initialized.
 	call INIT_START_SYSTEM_PROCESSES ; "INIT.asm" - Start system services/processes.
 
-
-	; Before interacting with the shell: check BOOT_ERROR_FLAGS for bit 1 to see whether shell or gui mode.
-	; This is GUI_MODE space.
-	mov dword eax, [BOOT_ERROR_FLAGS]
-	and eax, 0x00000001
-	cmp eax, 1
+	; if GUI_MODE...
+	cmp byte [SYSTEM_CURRENT_MODE], GUI_MODE
 	je KERNEL_modeGUI		; If GUI_MODE is flagged, go there.
 
+	; ... else ...
 	; This is SHELL_MODE space.
 	call INIT_kernelWelcomeDisplay
-	mov byte [SYSTEM_CURRENT_MODE], SHELL_MODE	;SHELL MODE
 
 	; SHELL_MODE 'blooming' phase.
 	call BLOOM_SHELL_MODE
@@ -98,9 +105,9 @@ kernel_main:
 	func(strlen,esi)	; EAX = strlen
 	func(MD5_COMPUTE_HASH,esi,eax)	; Hash it.
 
-	func(VIDEO_GRID_SNAP_AND_TRANSLATE,VIDEO_COORDS(0x203,0x089))
-	VIDEO_MANIPULATE_COORDS eax,+,edx,ecx
-	call COMMAND_DUMP
+	;func(VIDEO_GRID_SNAP_AND_TRANSLATE,VIDEO_COORDS(0x203,0x089))
+	;VIDEO_MANIPULATE_COORDS eax,+,edx,ecx
+	;call COMMAND_DUMP
 
 
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -138,40 +145,10 @@ kernel_main:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 KERNEL_modeGUI:
 	mov byte [SYSTEM_CURRENT_MODE], GUI_MODE
-
 	; GUI-only initialization functions for setting up the desktop.
-	;call DESKTOP_initialization
-
+	call DESKTOP_ENV_REGISTER_INITIAL_WINDOWS
 	; GUI_MODE BLOOM here.
 	call BLOOM_GUI_MODE
-
-	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	; GUI_MODE TEST CODE BELOW
-	; Test the GUI by creating a modernist masterpiece.
-	func(VIDEO_clearDesktop,[SCREEN_FRAMEBUFFER_ADDR],VIDEO_RGB(0x00,0x99,0x99))
-	; DRAW A LINE OF PIXELS FROM 0x100,0x100, tracing horizontal (w/ wrap) for 10,000 pixels
-	mov ecx, 10000	; drawing 10,000 pixels
-	mov ebx, VIDEO_COORDS(0x0100,0x0100)		;Try placing pixel at 256,256 (y, x)
- .testPut:
-	func(VIDEO_putPixel,ebx,VIDEO_RGB(0x00,0x00,0xFF))
-	inc ebx
-	loop .testPut
-
-	; Rectangle from 0x50,0x50 to 0x120,0x170; color 0x00FFBB00
-	func(VIDEO_fillRectangle,VIDEO_COORDS(0x0050,0x0050),VIDEO_COORDS(0x0120,0x0170),VIDEO_RGB(0xFF,0xBB,0x00))
-	; 2px-wide rectangle from 0x200,0x50 to 0x2F0,0x200; color 0x00FF0000, with shadow (color 0x00000000)
-	func(VIDEO_drawRectangle,VIDEO_COORDS(0x0200,0x0050),VIDEO_COORDS(0x02F0,0x0200),VIDEO_RGB(0xFF,0x00,0x00))
-	func(VIDEO_drawRectangle,VIDEO_COORDS(0x01FF,0x004F),VIDEO_COORDS(0x02F1,0x0201),VIDEO_RGB(0xFF,0x00,0x00))
-	func(VIDEO_drawRectangle,VIDEO_COORDS(0x0201,0x0051),VIDEO_COORDS(0x02EF,0x01FF),VIDEO_RGB(0x00,0x00,0x00))
-	; small white rectangle from 0x300,0x200 to 0x304,0x204; color white (0x00FFFFFF)
-	func(VIDEO_drawRectangle,VIDEO_COORDS(0x0300,0x0200),VIDEO_COORDS(0x0304,0x0204),VIDEO_RGB(0xFF,0xFF,0xFF))
-	; Write a single 'D' @(0x0230,0x0130); foregroundColor #FF00FF, backgroundColor #000000
-	func(VIDEO_OUTPUT_CHAR,VIDEO_COORDS(0x0230,0x0130),VIDEO_CHAR('D'),VIDEO_RGB(0xFF,0x00,0xFF),VIDEO_RGB(0x00,0x00,0x00))
-	; Write the string pointed at by szTESTINGME @(0x0055,0x0055); foregroundColor #FFFFFF, backgroundColor #000000
-	func(VIDEO_WRITE_STRING,VIDEO_COORDS(0x0055,0x0055),szTESTINGME,VIDEO_RGB(0xFF,0xFF,0xFF),VIDEO_RGB(0x00,0x00,0x00))
-
-	;func(VIDEO_drawLine,VIDEO_COORDS(0x0200,0x0200),VIDEO_COORDS(0x300,0x250),VIDEO_RGB(0x00,0xFF,0x88))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; MAIN KERNEL IDLE LOOP. GUI MODE   ;

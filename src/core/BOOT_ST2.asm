@@ -7,6 +7,12 @@ cli
 jmp short BOOT_preLoader
 nop
 
+; Comment out to access SHELL_MODE directly.
+; |
+; |
+; V
+%define BOOT_INTO_GUI FALSE
+
 ; Print a string in Real Mode.
 _realModePrint:
  .continuePrinting:
@@ -212,11 +218,9 @@ BOOT_videoInfo:
 	; SUCCESS!!!!! Flag our kernel, tell it we're in GUI mode.
 	mov DWORD [BOOT_ERROR_FLAGS], 0x00000001
 
-	; Comment out to access SHELL_MODE directly.
-	; |
-	; |
-	; V
-	;jmp BOOT_protectedMode
+    %ifidni BOOT_INTO_GUI,TRUE
+        jmp BOOT_protectedMode
+    %endif
 
  .errorVESA:
 	; Something went wrong initiating the GUI video mode. Go to shell mode.

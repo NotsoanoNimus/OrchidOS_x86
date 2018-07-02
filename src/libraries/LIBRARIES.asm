@@ -8,5 +8,3 @@
 
 %include "libraries/network/NETWORK_STACK.asm"
 %include "libraries/codec/CODEC.asm"
-
-%include "libraries/bloom/BLOOM.asm"

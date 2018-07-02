@@ -50,6 +50,9 @@ Scared that some rogue hacker will pop onto your system with Orchid on a USB sti
 
 ---
 
+## Simple Project Map
+![A simple project map for tentative working components of the OS.](https://github.com/ZacharyPuhl/OrchidOS_x86/blob/master/res/misc/ORCHID_OS_LAYOUT.png "Tentative map for Orchid components.")
+
 ---
 
 ## How do I run it?

@@ -3,5 +3,5 @@
 ; -- The BLOOM system is built on top of all other primary Orchid libraries,
 ; ---- depending primarily on memops and crypto (ops & checksums).
 
-%include "libraries/bloom/core/BLOOM_definitions.asm"
-%include "libraries/bloom/core/INIT.asm"
+%include "bloom/core/BLOOM_definitions.asm"
+%include "bloom/core/INIT.asm"

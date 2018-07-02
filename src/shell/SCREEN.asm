@@ -296,6 +296,7 @@ SCREEN_Pause:
 	cmp byte [SYSTEM_CURRENT_MODE], SHELL_MODE
 	jne .leaveCall
 
+	sti
 	MultiPush esi,ebx
 	PrintString szScreenPause,0x0D
 	xor ebx, ebx
