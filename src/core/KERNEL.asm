@@ -124,7 +124,11 @@ kernel_main:
 	cmp byte [SYSTEM_CURRENT_MODE], USER_MODE	; was the mode changed?
 	je .usrMode
 
-	cmp byte [SYSTEM_TIME_UPDATE], TRUE
+	push eax
+	mov al, byte [SYSTEM_TIME_UPDATE]
+	and al, TRUE
+	cmp al, TRUE
+	pop eax
 	jne .noTimerUpdate
 	call TIMER_updateTimeDisplay
  .noTimerUpdate:

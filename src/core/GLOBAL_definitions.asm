@@ -3,7 +3,7 @@
 
 
 ; Misc information.
-%define ORCHID_VERSION "0.4.5"
+%define ORCHID_VERSION "0.4.6"
 
 KERNEL_OFFSET			equ 0x10000
 KERNEL_SIZE_SECTORS		equ 0x0080			; Change this in every other file based on the growth of the kernel.

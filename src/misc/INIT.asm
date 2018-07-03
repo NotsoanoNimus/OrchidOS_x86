@@ -242,6 +242,7 @@ INIT_REGISTER_SYSTEM_KERNEL:
 
 INIT_START_SYSTEM_DRIVERS:
 	call INIT_REGISTER_SYSTEM_KERNEL	; Register the system/kernel process.
+	call STEM_INIT				; System STEM platform registration.
 	call ACPI_initialize		; Initialize ACPI controller.
 	;call KEYBOARD_initialize	; Initialize the keyboard to the proper scan code set.
 	call VFS_initialize			; Initialize the VFS in RAM.
