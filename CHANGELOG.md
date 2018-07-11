@@ -15,7 +15,7 @@ Also, do note that my versioning format is **{major.minor.patch}**, and that my 
 
 ---
 
-## [FUTURE/TBD] v0.8.x - What's a Gooey (GUI)
+## [FUTURE/TBD] v0.9.x - What's a Gooey (GUI)
 Version 0.8 seems so ambitious to me that it's akin to pop culture in the 1950s thinking we will have flying cars by the new millennium. This stage will represent a **fundamental** change in, not the _concept_ of the OS, but rather its _methods of usage_. This version will reskin _everything_ to a higher resolution and attempt to introduce a more stable shell environment.
 - [ ] A complete transition to a working GUI shell, in VESA mode _0x118_, (_an even more ambitious project_).
   + [X] ✔ System monospace font for displaying information to the user (_all type-able characters_).
@@ -24,11 +24,10 @@ Version 0.8 seems so ambitious to me that it's akin to pop culture in the 1950s 
 - [ ] Renovated **KEYBOARD** driver, so multi-press events are supported.
 - [ ] VFS file manipulations and a working file editing module built into the kernel (_for potentially both modes, but tentatively GUI_MODE_).
 - [ ] Cleaner SCREEN wrappers, screen/command history, and more efficient handling of visual SCREEN functions in a way that supports different modes of operation. This is **required** to have a working `notepad`-like program in the shell for file editing (an ambitious project).
-- [ ] **(?)** Implementation of a task manager that gives weight to certain operations for processing. More on this later if it stays as a planned feature.
 
 ---
 
-## [FUTURE/TBD] v0.7.x - Let it BLOOM
+## [FUTURE/TBD] v0.8.x - Let it BLOOM
 It's time to implement the Orchid BLOOM platform! Compatibility has _hopefully_ been added for more modern systems at this point. Now before the focus lands on the UI, implement the BLOOM platform in all of its glory.
 - [ ] Add the BLOOM package manager command to start pre-compiled BLOOM scripts at will.
 - [ ] Configure the AUTOEXEC features of the BLOOM architecture to seamlessly integrate with the boot process. _This already has some scaffolding in the source code as of v0.5.x._
@@ -36,13 +35,24 @@ It's time to implement the Orchid BLOOM platform! Compatibility has _hopefully_ 
 
 ---
 
+## [FUTURE/TBD] v0.7.x - No Trunk, No Branches, NO SERVICE(S)
+What's a flower without a stem to feed, support, and control it? The Stem Platform will be responsible for most kernel-level system tasks, such as **memory allocation requests**, **access control**, and **task rotation** (maybe **syscalls** as well).
+- [ ] STEMCTL command and system management via the Stem platform in SHELL_MODE.
+- [ ] ACPI power profiles and system state management.
+- [ ] Process/"Service" management, task delegation, and task management through inter-process communications.
+- [ ] Task Manager for kernel task delegation. The _TASKMAN_ module will iterate through the list of system processes in the process table and, based on the kernel-assigned priority, delegate a certain amount of time to each process in the table in a rotating fashion, while simultaneously task-switching and interrupting seamlessly.
+- [ ] Creation of I/O streams for the system to utilize dynamically, when needed.
+
+---
+
 ## [FUTURE/TBD] v0.6.x - Functions Are Functionally Functional
 Compatibility! Version 0.6 is a very functional update that will bring with it a host of compatibility features for newer machines and devices that run on an **x64** architecture, but can emulate **x86** processing (_generally by a feature aptly named 'Legacy Mode'_). Most of these backwards-compatible devices have newer MoBo standards for processing only, such as the APIC, PCIe, and many others. Orchid should support these before tackling greater ambitions.
 - [ ] Compatibility with PCI-express-only motherboards, using a dynamic selection on system initialization.
-- [ ] Creation of I/O streams for the system to utilize dynamically, when needed.
-- [ ] GUI folder (_shell_ folder counterpart), that will hold all runtime-environment programs used by GUI_MODE.
+- [ ] ~~GUI folder (_shell_ folder counterpart), that will hold all runtime-environment programs used by GUI_MODE.~~ Desktop folder now holds GUI_MODE files and related setup routines.
 - [ ] CMOS RTC driver implementation for better time control on systems that may not have a PIT.
+- [ ] **(?)** I/O APIC dynamic support.
 - [ ] If possible: video mode & resolution detection.
+- [ ] Rework the command parser in SHELL_MODE to take more arguments of a longer length each, or to better parse/iterate the user's command, possibly using the ISTREAM object later.
 
 ---
 

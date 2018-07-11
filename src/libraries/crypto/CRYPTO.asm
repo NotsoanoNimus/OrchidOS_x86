@@ -2,6 +2,7 @@
 ; -- Header file containing all global functions, definitions, & references for the crypto library.
 
 %include "libraries/crypto/md5/MD5.asm"     ; MD5 library.
+%include "libraries/crypto/sha1/SHA1.asm"   ; SHA1 library.
 
 CRYPTO_RESULT_BUFFER:   ; the result buffer is at the base and is 1024 bytes long. This will be expanded as the crypto library grows.
 CRYPTO_BUFFER_BASE_POINTER  dd 0x00000000

@@ -4,6 +4,11 @@
 %include "stem/stream/ISTREAM.asm"
 %include "stem/stream/OSTREAM.asm"
 
+%include "stem/task/TASKMAN.asm"
+
+%include "stem/core/SYSCALL.asm"
+
+
 STEM_PROCESS_BASE_PTR   dd 0x00000000
 STEM_PROCESS_ALLOC      dd 0x00002000   ; 8 KiB of RAM
 STEM_PROCESS_ID         db 0x00

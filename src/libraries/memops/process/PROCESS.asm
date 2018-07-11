@@ -26,9 +26,7 @@ MEMOPS_KMALLOC_REGISTER_PROCESS:
 	mov esi, dword [ebp+12] ; ESI = arg2 = base ptr of name str
 
 	; Check the length of the passed string.
-	push esi
-	call strlen		; EAX = length of string, 0 on error/empty string.
-	add esp, 4
+	func(strlen,esi); EAX = length of string, 0 on error/empty string.
 	or eax, eax
 	jz .error		; EAX = 0 = error!
 	cmp eax, 22		; Is EAX gtr 22?

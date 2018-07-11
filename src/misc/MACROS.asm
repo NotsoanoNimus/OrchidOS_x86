@@ -241,6 +241,19 @@
 	add esp, 12
 %endmacro
 
+; Register a process using the MEMOPS KMALLOC macro.
+;  %1: System Process Description (<22 chars).
+;  %2: Required process size in RAM.
+;  %3: Process base address storage point.
+;  %4: Process ID# storage point.
+;  %5: Registration success flag storage point.
+;  %6: Initialization entry point. This is required and cannot be an invalid memory address.
+;  %7: Daemon entry point. Can be label to daemon function. 0 if no daemon necessary.
+%macro REGISTER_PROCESS 7
+
+%endmacro
+
+
 %macro SLEEP 1
 	push eax
 	mov eax, %1
@@ -291,4 +304,13 @@
 	MultiPop edx,ecx
 	mov %4, dword [esp]
 	add esp, 4
+%endmacro
+
+
+; SYSTEM CALL MACROS
+%define SYSCALL(x) SYSCALL_EX x
+
+%macro SYSCALL_EX 1
+	mov eax, %1
+	int 50
 %endmacro

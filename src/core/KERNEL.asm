@@ -105,6 +105,8 @@ kernel_main:
 	func(strlen,esi)	; EAX = strlen
 	func(MD5_COMPUTE_HASH,esi,eax)	; Hash it.
 
+	SYSCALL(7)
+
 	;func(VIDEO_GRID_SNAP_AND_TRANSLATE,VIDEO_COORDS(0x203,0x089))
 	;VIDEO_MANIPULATE_COORDS eax,+,edx,ecx
 	;call COMMAND_DUMP
